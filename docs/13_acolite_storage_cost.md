@@ -15,3 +15,13 @@ Para disco medir simultáneamente descarga, extracción, intermedios y salida to
 Una conexión nominal de 100 Mbps equivale teóricamente a 12,5 MB/s, antes de sobrecarga y límites del proveedor. No es una predicción del tiempo real de descarga.
 
 Evaluar NetCDF, compresión y discretización en código antes de cambiar defaults. No usar pérdida de precisión para ahorrar disco sin justificación científica. GeoTIFF solo para inspección o exportación específica.
+
+## Resultados de auditoría de fase 2
+
+`output.nc_write` usa compresión zlib controlada por settings; upstream actual tiene compresión=True y nivel=4, mientras la instalación local tiene False. Discretisation=False y least_significant_digit=None evitan cuantización explícita por defecto. El escritor puede convertir Float64 a Float32 si no se solicita double; no describir el formato como preservación bit a bit de todos los intermediarios. NetCDF projection agrega coordenadas y grid_mapping. Fuente: [acolite/output/nc_write.py:72](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/nc_write.py#L72-L91), [acolite/output/nc_write.py:231](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/nc_write.py#L231-L281).
+
+GeoTIFF está desactivado por defecto para L1R/L2R/L2W. Sin embargo rgb_rhot/rgb_rhos=True genera mapas RGB PNG aunque map_l1r/map_l2r=False; candidato desactivarlos si no se requieren. No confundir esos PNG con GeoTIFF.
+
+Entorno inspeccionado: GDAL 3.13.3 con drivers JP2OpenJPEG, netCDF y Zarr disponibles; Python packages numpy 2.5.3, netCDF4 1.7.4, pyproj 3.8.0, pyresample 1.35.0, zarr 3.3.0, fsspec 2026.7.0, aiohttp 3.14.3, scipy 1.18.1. Existencia/import de drivers no prueba una escena EOPF remota.
+
+La ruta project_acolite_netcdf apila datasets y hace copias; la descarga nativa CDSE/EarthExplorer no usa streaming explícito. Ambos factores justifican mantener concurrencia uno y medir RAM. LUT/auxiliares también ocupan disco. No hay benchmark ejecutado en fase 2.

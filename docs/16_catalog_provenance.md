@@ -29,3 +29,9 @@ Fingerprint propuesto: identidad/versionado de entrada + hash AOI + revisión AC
 Producto nuevo: registrar. Producto sin cambio relevante: vincular a nueva consulta sin repetir cálculo ya válido. Cambio de baseline/contenido: nueva versión y reprocesamiento. Cambio solo administrativo: registrar sin reprocesar. Nueva fuente Zarr: actualizar alternativas. Si no puede determinarse equivalencia científica, dejar incertidumbre explícita.
 
 Las ejecuciones fallidas no satisfacen la condición de ya procesado. Un nuevo producto derivado no obliga a recalcular toda la cadena si existe un resultado compatible.
+
+## Resultados de auditoría de fase 2
+
+CDSE con attributes=True retorna Attributes, nombres y URLs, no todo el producto OData. EarthExplorer retorna listas metadata y descarta otros campos de scene-search. STAC select_features=False conserva features completos. Estas diferencias deben guiar el diseño de fase 3: registrar disponibilidad por campo y evaluar extensión mínima de metadata nativa, sin afirmar que ya disponemos de footprints/checksums/versiones en todos los retornos.
+
+La revisión local y upstream difieren en defaults; el fingerprint debe incorporar revisión y defaults efectivos. Conservar la tabla de coeficientes y RSR usada, especialmente S2C V4. Esta fase identifica límites, pero no selecciona todavía SQLite/JSON ni implementa persistencia.

@@ -11,3 +11,7 @@ No construir todavía lógica mult tile, caché compartida ni contabilidad de re
 ## Actualización después de fase 1
 
 El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y ausencia de cruce UTM. EPSG candidato: 32619. Grilla geométrica propuesta: xrange 701980–775320 m, yrange 1973040–1997350 m, 2431 filas × 7334 columnas a 10 m. Estas mediciones resuelven los pendientes espaciales anteriores; su traducción a settings ACOLITE sigue pendiente. Landsat 005/048 cubre nominalmente 99,886 %, no el AOI íntegro.
+
+## Resultados de auditoría de fase 2
+
+Los lectores SAFE/Zarr ya implementan merge_tiles, merge_full_tiles, extend_region y controles de sensor/tiempo; max_merge_time aparece como argumento de lector (600 s), no debe inventarse como setting global sin seguir su propagación. Para nuestro AOI merge_tiles=False ya es default y single-tile está confirmado. No activar mezcla ni extrapolar cruces UTM a partir de un caso sin cruce.

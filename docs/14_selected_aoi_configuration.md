@@ -1,45 +1,99 @@
-# Perfil candidato del AOI
+# Perfil candidato y defaults verificados
 
-Este documento expresa configuración conceptual. No se crea todavía `project.yaml` ni archivos de settings ejecutables.
+Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Pendiente de validación con escena real.
 
-| Decisión del perfil | Valor acordado |
-|---|---|
-| AOI | `lapargera_v1` |
-| Geometría | `W2C_South_AOI.kmz` |
-| Objetivo | Calidad del agua |
-| Sensor inicial | Sentinel-2 |
-| Fechas iniciales | 2026-08-01 a 2026-08-20 inclusive |
-| Filtro de nubosidad | Desactivado; configurable por AOI |
-| Adquisiciones | Todas las válidas; distinguir revisiones y representaciones |
-| Resolución final MVP | 10 m |
-| Extent | Rectángulo derivado del AOI, alineado |
-| EPSG, origen y shape | Pendientes del análisis espacial |
-| Máscara | Oceánica; comportamiento pendiente de auditoría |
-| Fuente preferida | Zarr remoto si compatible |
-| Fallback | Automático informado tras reintentos |
-| Temporales | Máximo 50 GB |
-| Concurrencia | Una escena |
+## Perfil del producto
 
-## Tabla de settings a completar con evidencia
+AOI lapargera_v1; Sentinel-2, tile 19QGV, 1–20 agosto 2026 inclusive; cloud_cover=None; una escena; 50 GB temporales; Zarr remoto condicionado con fallback automático informado. La nubosidad es un argumento del catálogo/perfil, no un setting ACOLITE de corrección inventado.
 
-Los nombres siguientes son candidatos del documento de requisitos. Ningún default se ha leído todavía en la instalación elegida.
+Geometría, identificación de productos, retención y reintentos pertenecen a nuestro perfil. La tabla siguiente identifica overrides candidatos, no un archivo ejecutable aprobado. No se ha avanzado a fase 4 ni elegido revisión de ejecución definitiva.
 
-| Setting candidato | Default general | Default sensor | Override AOI candidato | Razón | Fuente pendiente |
+“Hereda” significa ausencia de override en el archivo sensor. Los números generales proceden del archivo, antes de conversiones del parser; pressure=None se convierte a 1013,25 cuando corresponde. La fuente de defaults sensor se conserva en JSON y archivos fijados al commit.
+
+| Setting | General | S2A/B/C | L8/L9 | Decisión AOI candidata / razón | Fuente |
 |---|---|---|---|---|---|
-| `s2_target_res` | Por verificar | Por verificar | 10 si corresponde a la grilla requerida | Resolución MVP | Defaults y lector S2 |
-| `merge_tiles` | Por verificar | Por verificar | False si se confirma single-tile | Evitar combinación innecesaria | Run y lector |
-| `limit` | Por verificar | Por verificar | Bounds calculados | Recorte AOI | ROI y lector |
-| `l2w_parameters` | Por verificar | Por verificar | Lista compatible de productos solicitados | Productos obligatorios | L2W |
-| `reproject_before_ac` | Por verificar | Por verificar | False si procede | Reproyección final | Run/proyección |
-| `reproject_outputs` | Por verificar | Por verificar | Pendiente de benchmark | Reducir duplicación | Run/proyección |
-| `output_projection_epsg` | Por verificar | Por verificar | Pendiente AOI | CRS local | Proyección |
-| `output_projection_resolution` | Por verificar | Por verificar | 10 m con sintaxis verificada | Coincidencia espacial | Proyección |
-| `output_projection_xrange`, `output_projection_yrange` | Por verificar | Por verificar | Rangos alineados calculados | Grilla reproducible | Proyección |
-| `delete_extracted_input` | Por verificar | Por verificar | Desactivar eliminación prematura si hace falta | Validar antes de limpiar | Run/extracción |
-| `l1r_delete_netcdf`, `l2r_delete_netcdf`, `l2w_delete_netcdf` | Por verificar | Por verificar | Conservar durante benchmark | Evitar pérdida de evidencia | Run |
+| `merge_tiles` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:37](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L37) |
+| `merge_full_tiles` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:38](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L38) |
+| `extend_region` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:20](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L20) |
+| `limit` | None | hereda | hereda | Override: S,W,N,E del AOI; salida rectangular | [config/defaults.txt:18](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L18) |
+| `limit_buffer` | None | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:34](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L34) |
+| `polygon` | None | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:23](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L23) |
+| `polygon_limit` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:24](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L24) |
+| `polygon_clip` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:25](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L25) |
+| `l1r_crop` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:21](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L21) |
+| `s2_target_res` | 10 | 10 | hereda | Conservar default; sin override inicial | [config/defaults.txt:85](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L85) |
+| `geometry_res` | 60 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:101](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L101) |
+| `geometry_per_band` | False | False | hereda | Conservar default; sin override inicial | [config/defaults.txt:102](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L102) |
+| `geometry_fixed_footprint` | False | False | hereda | Conservar default; sin override inicial | [config/defaults.txt:103](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L103) |
+| `output_geolocation` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:44](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L44) |
+| `output_xy` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:45](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L45) |
+| `output_geometry` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:46](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L46) |
+| `copy_datasets` | lon,lat,rhot_* | lon,lat,sza,vza,raa,rhot_* | lon,lat,sza,vza,raa,rhot_* | Conservar default; sin override inicial | [config/defaults.txt:238](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L238) |
+| `atmospheric_correction` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:283](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L283) |
+| `atmospheric_correction_method` | dark_spectrum | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:284](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L284) |
+| `gas_transmittance` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:287](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L287) |
+| `ancillary_data` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:310](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L310) |
+| `ancillary_type` | GMAO_MERRA2_MET | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:314](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L314) |
+| `pressure` | None | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:317](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L317) |
+| `pressure_default` | 1013.25 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:318](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L318) |
+| `wind` | None | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:347](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L347) |
+| `wind_default` | 2 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:348](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L348) |
+| `dem_pressure` | False | hereda | hereda | No requerido inicialmente; mantener False | [config/defaults.txt:327](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L327) |
+| `dem_source` | copernicus30 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:332](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L332) |
+| `dsf_aot_estimate` | tiled | tiled | tiled | Conservar default; sin override inicial | [config/defaults.txt:418](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L418) |
+| `dsf_nbands` | 2 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:420](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L420) |
+| `dsf_nbands_fit` | 2 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:421](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L421) |
+| `dsf_spectrum_option` | intercept | intercept | hereda | Conservar default; sin override inicial | [config/defaults.txt:426](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L426) |
+| `dsf_percentile` | 1 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:427](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L427) |
+| `dsf_intercept_pixels` | 1000 | 200 | 200 | Conservar default; sin override inicial | [config/defaults.txt:428](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L428) |
+| `dsf_tile_dimensions` | 100,100 | 600,600 | 200,200 | Conservar default; sin override inicial | [config/defaults.txt:463](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L463) |
+| `dsf_wave_range` | 400,2500 | 400,900 | 400,2500 | Conservar default; sin override inicial | [config/defaults.txt:454](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L454) |
+| `dsf_model_selection` | min_drmsd | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:449](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L449) |
+| `dsf_tile_smoothing` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:466](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L466) |
+| `dsf_tile_aot_smoothing` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:469](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L469) |
+| `dsf_interface_reflectance` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:344](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L344) |
+| `dsf_residual_glint_correction` | False | hereda | hereda | Experimental; mantener False inicialmente | [config/defaults.txt:351](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L351) |
+| `adjacency_correction` | False | hereda | hereda | Experimental; mantener False inicialmente | [config/defaults.txt:363](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L363) |
+| `l2w_parameters` | None | hereda | hereda | Override: productos compatibles; OC4 pendiente | [config/defaults.txt:242](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L242) |
+| `l2w_mask` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:243](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L243) |
+| `l2w_mask_wave` | 1600 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:244](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L244) |
+| `l2w_mask_threshold` | 0.0215 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:245](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L245) |
+| `l2w_mask_water_parameters` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:246](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L246) |
+| `l2w_mask_smooth` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:270](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L270) |
+| `l2w_mask_smooth_sigma` | 3 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:271](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L271) |
+| `l2w_data_in_memory` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:257](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L257) |
+| `ndvi_wave` | 660,865 | 665,835 | hereda | Conservar default; sin override inicial | [config/defaults.txt:264](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L264) |
+| `ndvi_wave_diff` | 40,100 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:265](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L265) |
+| `rsr_version` | None | S2A_MSI: hereda; S2B_MSI: hereda; S2C_MSI: V4 | hereda | Conservar por plataforma, no unificar | [config/defaults.txt:308](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L308) |
+| `netcdf_projection` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:69](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L69) |
+| `netcdf_compression` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:70](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L70) |
+| `netcdf_compression_level` | 4 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:71](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L71) |
+| `netcdf_discretisation` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:73](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L73) |
+| `netcdf_compression_least_significant_digit` | None | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:72](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L72) |
+| `rgb_rhot` | True | hereda | hereda | False candidato: evitar PNG no requerido | [config/defaults.txt:496](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L496) |
+| `rgb_rhos` | True | hereda | hereda | False candidato: evitar PNG no requerido | [config/defaults.txt:497](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L497) |
+| `l1r_export_geotiff` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:580](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L580) |
+| `l2r_export_geotiff` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:582](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L582) |
+| `l2w_export_geotiff` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:583](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L583) |
+| `delete_extracted_input` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:608](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L608) |
+| `l1r_delete_netcdf` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:594](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L594) |
+| `l2r_delete_netcdf` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:596](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L596) |
+| `l2w_delete_netcdf` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:598](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L598) |
+| `output_projection` | False | hereda | hereda | Por decidir; evitar warp innecesario | [config/defaults.txt:613](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L613) |
+| `reproject_before_ac` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:612](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L612) |
+| `reproject_outputs` | L1R,L2R,L2W | hereda | hereda | Si se proyecta, comparar L2W frente a L2R+L2W | [config/defaults.txt:611](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L611) |
+| `output_projection_epsg` | None | hereda | hereda | Si se proyecta: string 32619 | [config/defaults.txt:615](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L615) |
+| `output_projection_resolution` | None | hereda | hereda | Si se proyecta: 10,10 | [config/defaults.txt:617](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L617) |
+| `output_projection_metres` | False | hereda | hereda | Si se proyecta con grilla fija: True | [config/defaults.txt:620](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L620) |
+| `output_projection_xrange` | None | hereda | hereda | Si se proyecta: 701980,775320 | [config/defaults.txt:621](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L621) |
+| `output_projection_yrange` | None | hereda | hereda | Si se proyecta: 1997350,1973040 | [config/defaults.txt:622](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L622) |
+| `output_projection_resolution_align` | True | hereda | hereda | Si rangos ya fijados: False; ver defecto reproducido | [config/defaults.txt:623](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L623) |
+| `output_projection_resampling_method` | bilinear | hereda | hereda | Pendiente de flags y benchmark | [config/defaults.txt:624](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L624) |
+| `output_projection_fillnans` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:626](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L626) |
+| `output_projection_radius` | 3 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:629](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L629) |
+| `output_projection_epsilon` | 0 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:630](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L630) |
+| `output_projection_neighbours` | 32 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:631](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L631) |
 
-La configuración final contendrá solo overrides necesarios, con defaults y referencias del commit auditado. No inventar settings para los campos de nuestro perfil.
+Fuentes de columnas sensor: [config/defaults/S2A_MSI.txt:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults/S2A_MSI.txt#L1), [config/defaults/S2B_MSI.txt:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults/S2B_MSI.txt#L1), [config/defaults/S2C_MSI.txt:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults/S2C_MSI.txt#L1), [config/defaults/L8_OLI.txt:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults/L8_OLI.txt#L1), [config/defaults/L9_OLI.txt:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults/L9_OLI.txt#L1).
 
-## Actualización después de fase 1
-
-El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y ausencia de cruce UTM. EPSG candidato: 32619. Grilla geométrica propuesta: xrange 701980–775320 m, yrange 1973040–1997350 m, 2431 filas × 7334 columnas a 10 m. Estas mediciones resuelven los pendientes espaciales anteriores; su traducción a settings ACOLITE sigue pendiente. Landsat 005/048 cubre nominalmente 99,886 %, no el AOI íntegro.
+La configuración final contendrá solo overrides necesarios. En particular merge_tiles=False, s2_target_res=10, reproject_before_ac=False y delete_extracted_input=False ya son defaults; no copiarlos por rutina. Decidir explícitamente retención ZIP/TAR mediante argumentos de descarga, pues no los controla delete_extracted_input.

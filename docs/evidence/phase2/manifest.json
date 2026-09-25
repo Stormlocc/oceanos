@@ -1,0 +1,1038 @@
+{
+  "upstream_sha": "80da0c0c681d9597fd4b7737837d6a3e61907b33",
+  "local_sha": "f73cbe73887c2b114d9d3c70865effee73871525",
+  "fecha_auditoria": "2026-09-25",
+  "archivos_referencia": {
+    "acolite/acolite/acolite_map.py": {
+      "sha256": "2d9dd30b5c8056982987efe4f065d41fbc3d67bb6f84a33d4dadfa40ec5da6a8",
+      "lineas": 694
+    },
+    "acolite/acolite/acolite_flags.py": {
+      "sha256": "7dca7ef433d07e469a652ecac917eff305f5950fb0b10cf8634c7b981a914f29",
+      "lineas": 194
+    },
+    "acolite/acolite/identify_bundle.py": {
+      "sha256": "e33756ae65003764cbc00d59cbb473c06db81ca17f868329effb23de47e5f943",
+      "lineas": 713
+    },
+    "acolite/acolite/acolite_l2r.py": {
+      "sha256": "f69ef416b150e8dccc65380d231668ff60138a1d9d876ea94c0061c2c5ade29e",
+      "lineas": 2244
+    },
+    "acolite/acolite/acolite_run.py": {
+      "sha256": "e9882544667fa11729acea0dc8c975d0f2e380e255e62424e277aef9cf9f3d2b",
+      "lineas": 389
+    },
+    "acolite/acolite/acolite_l1r.py": {
+      "sha256": "0033175de3625c14c4d028000d1fa4e1155a15a0d2ff285c612af794ac8017d6",
+      "lineas": 380
+    },
+    "acolite/acolite/acolite_pans.py": {
+      "sha256": "9908193fb6751163b8db1b68691f851b70d4edb4d220998a1eb6c28dadeb5766",
+      "lineas": 156
+    },
+    "acolite/acolite/parameter_discretisation.py": {
+      "sha256": "a4cddc102bbac1464cfca7b583898adee7245f87b526423e4880820ae7d91184",
+      "lineas": 38
+    },
+    "acolite/acolite/__init__.py": {
+      "sha256": "7df8220f2e8d7a98f95acf5b56010d19073aadb293750438d307b79434878f9f",
+      "lineas": 29
+    },
+    "acolite/acolite/inputfile_test.py": {
+      "sha256": "a23f3b368538ac6996502bbff0b119eef751be8783cab40316ba6ffb434f487b",
+      "lineas": 137
+    },
+    "acolite/acolite/parameter_scaling.py": {
+      "sha256": "34954fd79f24e35eda1d7a9155802458d8022a1ccead34439ddc0d077ef7599f",
+      "lineas": 41
+    },
+    "acolite/acolite/acolite_l2w.py": {
+      "sha256": "2d1835dde05451f6279ca85db39affc225fc471665c3a3737bc8c6d32f5d37f4",
+      "lineas": 1862
+    },
+    "acolite/acolite/acolite_gui.py": {
+      "sha256": "32bcac3058aa3c0010aa21ebcec3c097dc481bd74a5525267c1c2c55199a351a",
+      "lineas": 665
+    },
+    "acolite/acolite/acolite_luts.py": {
+      "sha256": "c855156782cc73b90298f5a7826f795c7a6648832ec70e93b89c428cbce361ea",
+      "lineas": 79
+    },
+    "acolite/acolite/settings/write.py": {
+      "sha256": "661ed32f1e3910b9bc547decf1aabd47a7c80862b12470458959912bd0d72262",
+      "lineas": 20
+    },
+    "acolite/acolite/settings/merge.py": {
+      "sha256": "fec0a59b4f712c0d87cb38fa601c825be5955177d62eb8c619fe827489c457f5",
+      "lineas": 29
+    },
+    "acolite/acolite/settings/parse.py": {
+      "sha256": "e9c5678acad1694863527ada5e6b480be65ea0ce330d7970760deb2f95fdc564",
+      "lineas": 83
+    },
+    "acolite/acolite/settings/__init__.py": {
+      "sha256": "0166b287fdc997d3a89761ee18a5d4af52092ae3337155efad8ebca05331b51c",
+      "lineas": 6
+    },
+    "acolite/acolite/settings/load.py": {
+      "sha256": "24dcf470ae0610819134fdc05472560c25c9938da9cf3d9d77ab8fbb58300c06",
+      "lineas": 41
+    },
+    "acolite/acolite/settings/read.py": {
+      "sha256": "617d7e1a1c8b932bb44f657d9bd3c87e9ca6419c9f7e8e9f8484ac0964cddb94",
+      "lineas": 42
+    },
+    "acolite/acolite/settings/read_list.py": {
+      "sha256": "380b482bc68abd3b4c81570b316fd10ca35c76e946495413d3a675f14cbf7cf3",
+      "lineas": 15
+    },
+    "acolite/acolite/logging/__init__.py": {
+      "sha256": "03c8b64a4bc371ead9d9bb3dd362243bae71c06550415efd955173a73c110b9a",
+      "lineas": 1
+    },
+    "acolite/acolite/logging/logtee.py": {
+      "sha256": "46dee046e9819c842f6fc840a863f466c8290d58cf98ac20b82f60bdda632ebb",
+      "lineas": 32
+    },
+    "acolite/api/get_scene.py": {
+      "sha256": "141453b68ac14ebad6ff75c3232a06482e417cc00612b62fb1d6232a12abb092",
+      "lineas": 54
+    },
+    "acolite/api/__init__.py": {
+      "sha256": "08eda655d81db9c8b94372eacb4d5ae6040b275edd07bdc15ce6677cf0c7b955",
+      "lineas": 9
+    },
+    "acolite/api/goci/date_scenes.py": {
+      "sha256": "2c3ac636844c35232b8db2e76f9aabefef839c7f08ec8865102d3a3358f2594b",
+      "lineas": 52
+    },
+    "acolite/api/goci/query.py": {
+      "sha256": "08f5abb421f29e92dd2d17ded99af8f0ebe23b9702c27ee3cf8a8468c0031635",
+      "lineas": 90
+    },
+    "acolite/api/goci/scene_files.py": {
+      "sha256": "0597b01a8afc5b6e61179675eb40a756d6c6734cd666e8fc22f2e329c013c42e",
+      "lineas": 56
+    },
+    "acolite/api/goci/__init__.py": {
+      "sha256": "4a947b8725c56bc57601dfb3518f6c7a005d8f30f96bae2f4369d9d0b7a632e5",
+      "lineas": 3
+    },
+    "acolite/api/planet/query.py": {
+      "sha256": "1f01cdac88e19144454e08607cff370ea5dc16ba04b5634c8e23b21e0517229f",
+      "lineas": 100
+    },
+    "acolite/api/planet/order.py": {
+      "sha256": "1def67ded836319b6b145cf674b7899ae1b9444747a54fbb84c3a441bdebfbac",
+      "lineas": 145
+    },
+    "acolite/api/planet/__init__.py": {
+      "sha256": "96c451c451feada9a6f117fe786474750d146ee9446c803d445246b5877961e7",
+      "lineas": 2
+    },
+    "acolite/api/s3/query_himawari.py": {
+      "sha256": "ec1f6b287013338d1fa049a4969e58c40cd7d8c2138087790748d5650af9756c",
+      "lineas": 101
+    },
+    "acolite/api/s3/__init__.py": {
+      "sha256": "eaa631439667448b0859de690f5e9807492ca7a0e444067466926add9f59db51",
+      "lineas": 2
+    },
+    "acolite/api/s3/query_goes.py": {
+      "sha256": "3daab562a4bc024e45a2eaa807fa9b631403b43f16667007a6d9e485f20137f6",
+      "lineas": 102
+    },
+    "acolite/api/earthexplorer/query.py": {
+      "sha256": "29f2f93e52a3522cf917166a37db5083b31dbc19113ef5e39ac9fd20eeefe720",
+      "lineas": 211
+    },
+    "acolite/api/earthexplorer/auth.py": {
+      "sha256": "21f30ba2f4060f3d955fb22692bcfc0d49151dd5ac63802325631151c41ae7a2",
+      "lineas": 38
+    },
+    "acolite/api/earthexplorer/__init__.py": {
+      "sha256": "5c6801f686fd9ff8d41253808f13af8ce14994a60cb324aa315a8d4ba3436bfe",
+      "lineas": 3
+    },
+    "acolite/api/earthexplorer/download.py": {
+      "sha256": "3f3c3c2aca1584de899ff33acf49174cbff47d70b08c879f636c46c8cd901811",
+      "lineas": 182
+    },
+    "acolite/api/earthdata/query.py": {
+      "sha256": "b4f58a8df60d1b0942cfc36d148319a7b367424fbe280401dcf8006a051a0264",
+      "lineas": 214
+    },
+    "acolite/api/earthdata/url_json.py": {
+      "sha256": "1cce7d32895ba4e47300faf2ddfa9a94d57de4e7a7aa29be42812abbbbaba4d6",
+      "lineas": 52
+    },
+    "acolite/api/earthdata/__init__.py": {
+      "sha256": "6da856264d79cb639448da82badf92e071f5b58a7cf179453983662287a7bf3f",
+      "lineas": 4
+    },
+    "acolite/api/earthdata/url_atom.py": {
+      "sha256": "8278365a952d574e7235b5730535c7c65a61092c8c3e98c10bbe05ec3b642e08",
+      "lineas": 48
+    },
+    "acolite/api/earthdata/query_extract_scenes.py": {
+      "sha256": "76b9471aec8e8e633e1321b04a8d626b56a398abd3c6ad078d4376efa327c55a",
+      "lineas": 108
+    },
+    "acolite/api/cdse/query.py": {
+      "sha256": "88ea0e55a07b62d3eb7cf915353e42a3bee739a6ce4bf19e3cc7d69084044ab0",
+      "lineas": 218
+    },
+    "acolite/api/cdse/__init__.py": {
+      "sha256": "2ff955d4bb2921a88b6bfa4a825374e75abb081014fa1aa9bf41924f5a070919",
+      "lineas": 2
+    },
+    "acolite/api/cdse/download.py": {
+      "sha256": "4a37de83e2659c9d7fff2f5c708fe339f4d93e84f131195937733704585e67d6",
+      "lineas": 142
+    },
+    "acolite/api/stac/query.py": {
+      "sha256": "54e78c62fed9116ed4ca788406dba450c7fe6b9c2a9cacf41a53efdf5b21b1c5",
+      "lineas": 75
+    },
+    "acolite/api/stac/query_get.py": {
+      "sha256": "99aeb4309a6b8fc5151cec9c2d4646d44896b0a8d16f88493341b611cb18e000",
+      "lineas": 41
+    },
+    "acolite/api/stac/__init__.py": {
+      "sha256": "9f92f6189f5d61815e1d60e36bd1c80996c53d7874ac9f68f61b9b97a4b7c5e1",
+      "lineas": 2
+    },
+    "acolite/sentinel2/gpt_geometry.py": {
+      "sha256": "d44c3d7651e5c925bdaa139de9e142c493db30b5b42377a8b4c246ccea99cf95",
+      "lineas": 70
+    },
+    "acolite/sentinel2/safe_test.py": {
+      "sha256": "a392a62adc7b38eaf9089419fd1e4df623bffe78f278e6973c39aa328b180a95",
+      "lineas": 87
+    },
+    "acolite/sentinel2/auxiliary_json.py": {
+      "sha256": "a07e4c58a5776a56e9b9097eaadebba0bfbc93dd633c85b9cd3eee1fac0bbf9f",
+      "lineas": 47
+    },
+    "acolite/sentinel2/projection.py": {
+      "sha256": "da714f80cb90187f159adb148db994fdf1027c1e7be53568480d926e1a39366f",
+      "lineas": 88
+    },
+    "acolite/sentinel2/__init__.py": {
+      "sha256": "5aabc2aa4e193366e4dc35ac7c5eb47f793e0b6ce2d2a2c98493f9abec8c1b75",
+      "lineas": 19
+    },
+    "acolite/sentinel2/grid_geom.py": {
+      "sha256": "2f5f749ac9f6bf2046fda760f0e9e6b17672da20bd8d0e6162922a8d4d32b1f6",
+      "lineas": 25
+    },
+    "acolite/sentinel2/metadata_scene.py": {
+      "sha256": "3049bb518c982fb1cb7d4457f132be83cab29359b35d9c1448b418ed215ddc0f",
+      "lineas": 113
+    },
+    "acolite/sentinel2/detector_footprint.py": {
+      "sha256": "59c42104b8463ffa56afcf09da58792670bf2a76029e53599c964cdf234ee2df",
+      "lineas": 71
+    },
+    "acolite/sentinel2/auxiliary.py": {
+      "sha256": "d8659115a31d23df3830c6859b0baa165c1de012de7e2a7c5ff87684c8aca6ab",
+      "lineas": 34
+    },
+    "acolite/sentinel2/l1_convert.py": {
+      "sha256": "6c6a74e0ec61a4b33412d53abaeb37d5247a28d6c2413a50d2a52b61a07ac594",
+      "lineas": 726
+    },
+    "acolite/sentinel2/l2_convert.py": {
+      "sha256": "e98bf282660d910912f7505d840b9c3fe8313c6a8ac352fd99b789bd54a1d7b5",
+      "lineas": 245
+    },
+    "acolite/sentinel2/grid_extend.py": {
+      "sha256": "a51d746dbcba3a4df8bbabc453b4fd67e82b3e8040e5b5bb8c84937dfd048615",
+      "lineas": 64
+    },
+    "acolite/sentinel2/multi_tile_extent.py": {
+      "sha256": "e326806e2ec325241ce258d1e3be98a4d9ea153f7536632f7e875c4c47404599",
+      "lineas": 28
+    },
+    "acolite/sentinel2/metadata_granule.py": {
+      "sha256": "357ecd4f5bfc90d2d722cbcec8a44b0891d547c2261347e83baefb023144a509",
+      "lineas": 121
+    },
+    "acolite/sentinel2/zarr/projection.py": {
+      "sha256": "f05e8d6164a7d0b7e80d90e2aab377effccb95a65e78bdb2da95d484f632d5cf",
+      "lineas": 31
+    },
+    "acolite/sentinel2/zarr/__init__.py": {
+      "sha256": "a56e8942affdabea622daad4797e5f9e9240be53552177c575b318ed113b78cb",
+      "lineas": 3
+    },
+    "acolite/sentinel2/zarr/l1_convert.py": {
+      "sha256": "1816ff82a3c0bb96a30f93cc6785f7796047b048f4925a7a796c5fb0e7b1100a",
+      "lineas": 737
+    },
+    "acolite/sentinel2/zarr/multi_tile_extent.py": {
+      "sha256": "87d0b1093401ec15d3a14820c8e695b208c920249f503407bf67223dc0488695",
+      "lineas": 24
+    },
+    "acolite/landsat/read_band.py": {
+      "sha256": "881840f1a6eba8f2f98a6f7aac3a3ca9a56355ae496c7cffbce65be1ca91e2e8",
+      "lineas": 35
+    },
+    "acolite/landsat/metadata_ali.py": {
+      "sha256": "7ff8cd2bcf39aa0fb563694e45dc6fa2bf399cf114a640b13456cae2e3be8cb8",
+      "lineas": 59
+    },
+    "acolite/landsat/metadata_read.py": {
+      "sha256": "1f4c99dd5f0acf441dee80d8441216eaaabb573c4fe528ddc1e4a82c85a185fc",
+      "lineas": 29
+    },
+    "acolite/landsat/read_toa.py": {
+      "sha256": "7fb963f9845172d3cfc6958ba1a67b4f1e1e07aee53baf327131e27a87163e0e",
+      "lineas": 59
+    },
+    "acolite/landsat/image_corners.py": {
+      "sha256": "b3dab3140c6cb773740f2aabe7fcf1338c3bfe4f21b60b017e641abeb9d9cead",
+      "lineas": 94
+    },
+    "acolite/landsat/projection.py": {
+      "sha256": "ab42924bfe0a1522d83965872e864d04f6343199733334e6d206c001811c7a58",
+      "lineas": 107
+    },
+    "acolite/landsat/__init__.py": {
+      "sha256": "b2f385ee2e282f78509e2963900a9ee52564200b3d100e2225a76499aa4208d4",
+      "lineas": 13
+    },
+    "acolite/landsat/metadata_bands.py": {
+      "sha256": "93e40e85c55aef03867ad34fbf271475f99a7a62b52b6b39b815457ae4c9a332",
+      "lineas": 68
+    },
+    "acolite/landsat/l1_convert.py": {
+      "sha256": "24a37168251796f0800ed6220674edc47afcd51fd434f627b4e2519a93556739",
+      "lineas": 532
+    },
+    "acolite/landsat/l2_convert.py": {
+      "sha256": "a7fb49c468ab8a578deeb876aebd72ceeffb4ffa9d9ddbf5d381beb98fdf803d",
+      "lineas": 505
+    },
+    "acolite/landsat/multi_tile_extent.py": {
+      "sha256": "e75d6593ba4bfb275990be376a90b3f70e4dcd23e67e89cd9ae7d22839bd7cac",
+      "lineas": 38
+    },
+    "acolite/output/reproject_acolite_netcdf.py": {
+      "sha256": "35a62118797d4a9c6700ff6c72330f1dade2a9b902e52aee6af24bba603104f7",
+      "lineas": 114
+    },
+    "acolite/output/nc_to_geotiff.py": {
+      "sha256": "db55d73260ee538a33e4839d57aef6960b2cb9f546b6236a453f3c596cfef798",
+      "lineas": 175
+    },
+    "acolite/output/convert_l2gen_netcdf.py": {
+      "sha256": "075e48c0b23bd0b345383a634c9421dcad690dae85ba885f7cdae0b2b17ebc83",
+      "lineas": 67
+    },
+    "acolite/output/nc_write.py": {
+      "sha256": "0eb6b02d60e2d648293dabaff2bc8c0ba977a2994df52a6572e348450e5fbbb7",
+      "lineas": 313
+    },
+    "acolite/output/nc_to_geotiff_rgb.py": {
+      "sha256": "2f746e9f382ca2a7af723e56c3a0fd52d48574be1b78d2bb9710aa625604fef7",
+      "lineas": 184
+    },
+    "acolite/output/__init__.py": {
+      "sha256": "229f9431b47209229342a94589169451724de21c1df6a8c1ad17f784fa3eedab",
+      "lineas": 10
+    },
+    "acolite/output/crop_acolite_netcdf.py": {
+      "sha256": "db0ce0fc7bfbcdac4a668dbe003c6f4d4ac2d460c657be410be899dc0f9bf694",
+      "lineas": 69
+    },
+    "acolite/output/project_acolite_netcdf.py": {
+      "sha256": "78411effadede3a19718bc7403b5de6933bde61544b81bbd2f5f290c16ecf21d",
+      "lineas": 341
+    },
+    "acolite/output/nc_compress_file.py": {
+      "sha256": "511d0d9c8f4b9d8b16d0d5fe8815fe4e33c35d8e62eaa29ef052d9ac2a709db6",
+      "lineas": 72
+    },
+    "acolite/shared/limit/buffer.py": {
+      "sha256": "8b2ac6cbc70a078254d9cbaaa2de9f35a6d92b213ac324358d80318375027642",
+      "lineas": 53
+    },
+    "acolite/shared/limit/station_check.py": {
+      "sha256": "9445a889e3bbcf7de61d91a137656b55b62b9715364293409474189f497bbd68",
+      "lineas": 34
+    },
+    "acolite/shared/limit/polygon_check.py": {
+      "sha256": "18f5b017561586d90d8b3532fe320c72421e8b3200a1c3705e01b515a22693aa",
+      "lineas": 50
+    },
+    "acolite/shared/limit/__init__.py": {
+      "sha256": "edbcf23051ba099cada8e088114b7c0aa84e1e049c621129dfc4b054922952bb",
+      "lineas": 3
+    },
+    "acolite/zarr/meta.py": {
+      "sha256": "575cb528175174c2acf385c5fde56e47735bac2f0bd55868a09044eefaa8138a",
+      "lineas": 22
+    },
+    "acolite/zarr/meta_parse.py": {
+      "sha256": "60c04b45535abfdc975d50bbe0ba9e668bc5055839e3801581e90196e9ee9bcb",
+      "lineas": 56
+    },
+    "acolite/zarr/__init__.py": {
+      "sha256": "473c8074d1155337cf661bda1d5fb298f53ce6c434a7e69650110f49b1b1814a",
+      "lineas": 2
+    },
+    "acolite/ac/ancillary/list_files.py": {
+      "sha256": "393abcbd50f72e9f88c6581b15f9ebdd8ea55c7e6eb95c6d479b3e4989b890a6",
+      "lineas": 152
+    },
+    "acolite/ac/ancillary/get.py": {
+      "sha256": "ce062b757f2c3edb2cca1a1614e1e289ab231a09945f82cde0dfdb5ebd3b5c03",
+      "lineas": 116
+    },
+    "acolite/ac/ancillary/interp_gmao.py": {
+      "sha256": "aa8f86b2dcef079a092b7628bd80d747c97fb09753843af8984104bc6982419e",
+      "lineas": 63
+    },
+    "acolite/ac/ancillary/__init__.py": {
+      "sha256": "e43266d64213d905b6dd9a2aef3ae889d1be8c80d1d4b33344d7510664906084",
+      "lineas": 7
+    },
+    "acolite/ac/ancillary/download.py": {
+      "sha256": "40db654db21bb29c07a814d6a70fc992fd44efcb0d116c44dbea90d9ee1932e2",
+      "lineas": 73
+    },
+    "acolite/ac/ancillary/interp_ozone.py": {
+      "sha256": "45607e923592c5b740089c34b5137230e78d4ec6bf81f768254b8caafc8d05f0",
+      "lineas": 60
+    },
+    "acolite/ac/ancillary/interp_met.py": {
+      "sha256": "706f3ee83a3ae9f9beb0c8c881f6943d0c96310713c94ec1d00121a32d0cbd4f",
+      "lineas": 108
+    },
+    "acolite/ac/ancillary/aer/get.py": {
+      "sha256": "1bf1b53822ef271999d1fff10a819e7fd84cdd1295522b641b6d5ed0d5ad5a03",
+      "lineas": 67
+    },
+    "acolite/ac/ancillary/aer/__init__.py": {
+      "sha256": "fa57781a8432e073bf71ca2ee5724cb439f91d2133c8d76a7a11a297d4914728",
+      "lineas": 2
+    },
+    "acolite/ac/ancillary/aer/select.py": {
+      "sha256": "7b9c7efa17f3dd84be80ac0bc876b3011a1d049754d1db7854c68e054e4036f7",
+      "lineas": 40
+    },
+    "config/defaults/Hyperfield-1A.txt": {
+      "sha256": "807144363cf4969f0cd7d8166f5f6593f763263f9c2e5b28b2954d2cf826a077",
+      "lineas": 15
+    },
+    "config/defaults/HJ2A_CCD4.txt": {
+      "sha256": "a10ca01095a4b7c4d5ab5e23e3a526e8c2f6c6b706933d3c6cb56df3829e185b",
+      "lineas": 23
+    },
+    "config/defaults/WorldView4.txt": {
+      "sha256": "06f88621bbc13bfd21d950245018d200b8054febb74c72abb86dabfb0a2033e3",
+      "lineas": 32
+    },
+    "config/defaults/Skysat7.txt": {
+      "sha256": "c5b2eecdbc4dfe0b5cd11d03810dd85f1f0e9d63addda65f4a846a07da15f2f6",
+      "lineas": 13
+    },
+    "config/defaults/MSG2_SEVIRI.txt": {
+      "sha256": "4023030ed7877fd6c79f7ebfeef220b2542515a5fefac114bc2042ee6b6acc51",
+      "lineas": 54
+    },
+    "config/defaults/NOAA07_AVHRR.txt": {
+      "sha256": "b2f0e40c24177eaa03d5f7ba565d809621837a0c880813d5f38816b2f4706a1c",
+      "lineas": 25
+    },
+    "config/defaults/L7_ETM.txt": {
+      "sha256": "3f437ae2df40d569880d79329ba822b24a997b75a3ceceba9e4ef9327bbe8d0c",
+      "lineas": 20
+    },
+    "config/defaults/HJ2B_CCD4.txt": {
+      "sha256": "382d4fda6df54096104377b616362ff4e52905e1875ac21e8f0744eb6dcbdc8e",
+      "lineas": 23
+    },
+    "config/defaults/Skysat14-Skysat19.txt": {
+      "sha256": "5093c2b263e8054c677b2fb93c27c4dc38097e2bc914ac59a32e35f54b608794",
+      "lineas": 13
+    },
+    "config/defaults/WV_LG05.txt": {
+      "sha256": "ed6580605402e25952a71e0dea481bb37ee623094c556ab27e7c0dcdb0c5cce0",
+      "lineas": 32
+    },
+    "config/defaults/Skysat2.txt": {
+      "sha256": "e4b2d475229e42828b4c1197e94bccb2672fae11b5025a5e7ef097df0cd73689",
+      "lineas": 13
+    },
+    "config/defaults/S3A_OLCI.txt": {
+      "sha256": "739de99d28d6d3d78c6a9b90e7fae4b6143bbbe9580736118ec0cef8f1b5dca0",
+      "lineas": 59
+    },
+    "config/defaults/HJ2A_CCD2.txt": {
+      "sha256": "4b24de2a36a91e1b12cb6946e53e8df8d8717b9bc334ca0473cba0665fde44f5",
+      "lineas": 23
+    },
+    "config/defaults/GF1_WFV4.txt": {
+      "sha256": "4d65b40eb3d3d10b7ff8fc010682aa901fda85615662e0c1f34436ecc77768db",
+      "lineas": 20
+    },
+    "config/defaults/PlanetScope_0c.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/PlanetScope_0f.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/S2C_MSI.txt": {
+      "sha256": "be81ba601bd8e7f2f539472a0c3f321b59830bbdc2b37bc1cbb30163a7bac6ad",
+      "lineas": 40
+    },
+    "config/defaults/L8_TIRS.txt": {
+      "sha256": "ad76e98009c724d6811cbd3ae6d790535e396bbc326aee0691b463355c37ee9c",
+      "lineas": 8
+    },
+    "config/defaults/L9_OLI.txt": {
+      "sha256": "86de56a466d3c0b5f0146fc8922aff59897b58e7f71f8d5073b81eeb91e5cfeb",
+      "lineas": 19
+    },
+    "config/defaults/NOAA17_AVHRR.txt": {
+      "sha256": "e850c17de8c56ff04f98bca788a58fe3229f58df9a25acf82436bf52fa56aa03",
+      "lineas": 25
+    },
+    "config/defaults/L8_OLI.txt": {
+      "sha256": "5a673bcc58920b17cf75e6e61b47e41f54d052939c8a04dbd42a1cc772dd3f54",
+      "lineas": 19
+    },
+    "config/defaults/Skysat10.txt": {
+      "sha256": "764fa86c543208647aaccf843e6cf8d14acd161b150e8afc7873ffec520840c9",
+      "lineas": 13
+    },
+    "config/defaults/VEN\u00b5S_VSSC.txt": {
+      "sha256": "731d3baa2c4bbbb954ae25db5076c6f2029fab1c113c86cbf692f0023f214fd9",
+      "lineas": 15
+    },
+    "config/defaults/ISS_EMIT.txt": {
+      "sha256": "8dbcc846f5164722e2cdc0340712e25092d7afc16c85449204adb5a2ae5267d1",
+      "lineas": 25
+    },
+    "config/defaults/PNEO3.txt": {
+      "sha256": "117db55c1f907ba7c212d0147144a42c1176254305c58df8313428ee582b1444",
+      "lineas": 23
+    },
+    "config/defaults/Skysat5.txt": {
+      "sha256": "8a7e6fee9fea252675e4a51f918c956ba2b15e746b420bf7dd542b639e88d775",
+      "lineas": 13
+    },
+    "config/defaults/NOAA16_AVHRR.txt": {
+      "sha256": "7fe119e226c7f67f25ac34a08c6ea94cb5dd279db24600a598fe4b54203bc60c",
+      "lineas": 25
+    },
+    "config/defaults/JPSS-2_VIIRS.txt": {
+      "sha256": "9a5bbc50f49427b0bb5aa8af053f07e408a9bc45de318cf149360291e69f3376",
+      "lineas": 30
+    },
+    "config/defaults/PHR1A.txt": {
+      "sha256": "9b2a11b60915bb96f63cbb5d40e7d8ae27798b81a486885d33a3b03f98d0b274",
+      "lineas": 25
+    },
+    "config/defaults/PRISMA.txt": {
+      "sha256": "bab4f95f1ec857f9fcfb5a0404320c15ca90bec0e4f3fb275bacabc8d611aab9",
+      "lineas": 38
+    },
+    "config/defaults/L1_MSS.txt": {
+      "sha256": "7f08bdfcc1cb3b04247265b5a10e95e6db86d52cacc00c866d427b253510362c",
+      "lineas": 28
+    },
+    "config/defaults/HJ2A_CCD1.txt": {
+      "sha256": "4ccab65252a976dd7733be4f89494e5a7596e8f0587afd73e2518fceebba4cd0",
+      "lineas": 23
+    },
+    "config/defaults/NOAA15_AVHRR.txt": {
+      "sha256": "5a2a845eedb6bedeac68093395e1bdb9d7f0a08ec45142baad728ae9e407cd42",
+      "lineas": 25
+    },
+    "config/defaults/GOES18_ABI.txt": {
+      "sha256": "35f28cf32a1ee50404ca1ea06f8eec3f060d233b460600e23f84b8278ea98884",
+      "lineas": 38
+    },
+    "config/defaults/GF1D_PMS.txt": {
+      "sha256": "a05a043fd4167adff19e38ced1948a7ea694ffac2f36176825d3f3d046b268fa",
+      "lineas": 18
+    },
+    "config/defaults/HJ2A_CCD3.txt": {
+      "sha256": "c374aae448fb979e7694636f93da99b4ab61340945df54729abf92d120262706",
+      "lineas": 23
+    },
+    "config/defaults/Wyvern_Dragonette-003.txt": {
+      "sha256": "eeba679585117b8d90e98ebdf974624cfcbe279afdee291400e44c34e132009c",
+      "lineas": 15
+    },
+    "config/defaults/PlanetScope_0d06.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/WV_LG04.txt": {
+      "sha256": "20b240f6b53ec3c7daee66c99e2a660f1d5a227326770c3af1a9dfbaab205596",
+      "lineas": 32
+    },
+    "config/defaults/WV_LG03.txt": {
+      "sha256": "5406b5072a790c34325f5fde200902402b6f9f423ea090752fcab3a719602d21",
+      "lineas": 32
+    },
+    "config/defaults/GOES16_ABI.txt": {
+      "sha256": "7cef88879f3fce00d705174acd3b81fa7c5cc24beb528b4b93f481f88113a92a",
+      "lineas": 38
+    },
+    "config/defaults/Skysat12.txt": {
+      "sha256": "c5b2eecdbc4dfe0b5cd11d03810dd85f1f0e9d63addda65f4a846a07da15f2f6",
+      "lineas": 13
+    },
+    "config/defaults/HYPSO2.txt": {
+      "sha256": "80cf2ceac0059eb3e9ceb724de45c565db8b81d0da261c8c316bb2347c5aaee3",
+      "lineas": 22
+    },
+    "config/defaults/RapidEye.txt": {
+      "sha256": "5c59848cdc8ac7b7bbb6dccee833340c8532afeede523bff8304bac4f882162e",
+      "lineas": 18
+    },
+    "config/defaults/CBERS4_WFI.txt": {
+      "sha256": "b185591894ea5b219ca6e7808df474c03559d7263de66eb6198cdb56747eeccf",
+      "lineas": 19
+    },
+    "config/defaults/H09_AHI.txt": {
+      "sha256": "2e9e6a629db479cef20456a2874a2c10e07a4bd1256f525af3aaf033a4ce9d6b",
+      "lineas": 36
+    },
+    "config/defaults/S2A_MSI.txt": {
+      "sha256": "e2eed94aa341be150035352ac2b5c9b93fe28e09e6810fef45857d6ff8f839ce",
+      "lineas": 40
+    },
+    "config/defaults/WorldView2.txt": {
+      "sha256": "6443656b7951d57cd0138152292219bf7362a7d387940218464837c2a4cbfd67",
+      "lineas": 40
+    },
+    "config/defaults/GF1_WFV3.txt": {
+      "sha256": "6fbb3937727e219113bfa87bfbf4108b794d9ea84ef3184cc0cc61e992844500",
+      "lineas": 20
+    },
+    "config/defaults/Skysat6.txt": {
+      "sha256": "2d2d3f43964050ef786baa9bd008f4f255896d6c7343045f3932ab27e034643c",
+      "lineas": 13
+    },
+    "config/defaults/GOES19_ABI.txt": {
+      "sha256": "feade18b760ba1d08c21d688b22010598f65a54cf29eafc7b420e0d3aeb8a077",
+      "lineas": 38
+    },
+    "config/defaults/Wyvern_Dragonette-002.txt": {
+      "sha256": "5a457cc96ccd6f5997904d3189017c32cb5f86df13a3bcddfa9377723551e1eb",
+      "lineas": 15
+    },
+    "config/defaults/GF1_WFV1.txt": {
+      "sha256": "b4a97f3c365a2cdd868550cf6df0fd22351e724344c257bbff7986af0b76b9a1",
+      "lineas": 20
+    },
+    "config/defaults/OpenCosmos_Platero.txt": {
+      "sha256": "1cfb0b0821b519e3687544522c8d5647134a2955eebd02e9edfd5a0a0715c900",
+      "lineas": 18
+    },
+    "config/defaults/SPOT6.txt": {
+      "sha256": "edccaee142ef8e5941d0df2acffa78e4eae663411a0a1e54764a706ba9d51997",
+      "lineas": 15
+    },
+    "config/defaults/IKONOS2.txt": {
+      "sha256": "5cc7c6042762ca315d9b9bea76b2f51097fb2a529cb26825b7751bffadbd9bda",
+      "lineas": 25
+    },
+    "config/defaults/DEIMOS1_SLIM6.txt": {
+      "sha256": "d2130cd1580413b6c5133d0c6f04db715412f2dd281134596ef8dadaac7ea8d4",
+      "lineas": 25
+    },
+    "config/defaults/Tanager.txt": {
+      "sha256": "98906c0402c34e771467dd43982a981326a1a3da78186a106d21f53dbd9f3ccd",
+      "lineas": 22
+    },
+    "config/defaults/SeaHawk1_HawkEye.txt": {
+      "sha256": "c183efe12613ad6e010b1e0c730fe21a2ab5d9bcecb925b52b34663e75c78daf",
+      "lineas": 30
+    },
+    "config/defaults/CHRIS.txt": {
+      "sha256": "87131528d19dea11960b8fc8c7b2cc3806a276afc20d5513f38e1beeeb7a8f6a",
+      "lineas": 24
+    },
+    "config/defaults/WV_LG06.txt": {
+      "sha256": "8f6a7f6d6b8305ff2b9abc86e3cc4daeafd52295c3ce4f37de023055949a3c42",
+      "lineas": 32
+    },
+    "config/defaults/SPOT7.txt": {
+      "sha256": "e437a6a81117461357bc73c30f19b6efeae67b97057f3c50b6491139f6629cce",
+      "lineas": 15
+    },
+    "config/defaults/PlanetScope_0e.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/DEIMOS2_HiRAIS.txt": {
+      "sha256": "d2130cd1580413b6c5133d0c6f04db715412f2dd281134596ef8dadaac7ea8d4",
+      "lineas": 25
+    },
+    "config/defaults/Skysat4.txt": {
+      "sha256": "c5b2eecdbc4dfe0b5cd11d03810dd85f1f0e9d63addda65f4a846a07da15f2f6",
+      "lineas": 13
+    },
+    "config/defaults/HY1C_CZI.txt": {
+      "sha256": "54b3eae3864b8260a64a1e2f3a621e2aa7c4218befbf84d1de585b293e79e4de",
+      "lineas": 21
+    },
+    "config/defaults/EN1_MERIS.txt": {
+      "sha256": "5e535423f39c4fba5097f249e507fcae472eedfff88ec55ea5d919e0ba1d6b3a",
+      "lineas": 37
+    },
+    "config/defaults/HJ2B_CCD1.txt": {
+      "sha256": "af6cea0a3b77fc724230fea8932652df3d324bca38635dcfa401784aae85be16",
+      "lineas": 23
+    },
+    "config/defaults/GF6_PMS.txt": {
+      "sha256": "a18ab7616e28e413b3fa9e0e897173d295beae4d012b7e4235fc1523d78eecb9",
+      "lineas": 18
+    },
+    "config/defaults/Skysat9.txt": {
+      "sha256": "4d90b71fa7577a97ad7dd922dc5b34cc5d05357e0d7ae81840fc4d3d6bb6ff77",
+      "lineas": 13
+    },
+    "config/defaults/HY1D_CZI.txt": {
+      "sha256": "8de4defd9571230fe04214177c1412ac281e9a6a1f6bd145974e0deb284b4075",
+      "lineas": 21
+    },
+    "config/defaults/DESIS_HSI.txt": {
+      "sha256": "319d3c2f543d8a2fa14071bc2f8e80918f675ef19a5a783ed8581f9aefc97763",
+      "lineas": 24
+    },
+    "config/defaults/QuickBird2.txt": {
+      "sha256": "1ca6e26f47995eb7dacfb805c7702cf1dfb4d2f85567812c6f012748c74fbd8d",
+      "lineas": 36
+    },
+    "config/defaults/HJ2B_CCD2.txt": {
+      "sha256": "5ac9539dadf3d8446d7bc8f793689f2a409098bc7d583b3883ffe0717d5cef2f",
+      "lineas": 23
+    },
+    "config/defaults/WorldView3.txt": {
+      "sha256": "2e21fcf31417fbc28795eb659edd601a57d3f18eb40ae75bdf0031e479f69001",
+      "lineas": 40
+    },
+    "config/defaults/PHR1B.txt": {
+      "sha256": "75b05abce60a2e6775e604e7d41e9b42f7531d11b4d668b9913da6691936bdea",
+      "lineas": 25
+    },
+    "config/defaults/NOAA18_AVHRR.txt": {
+      "sha256": "e850c17de8c56ff04f98bca788a58fe3229f58df9a25acf82436bf52fa56aa03",
+      "lineas": 25
+    },
+    "config/defaults/SUOMI-NPP_VIIRS.txt": {
+      "sha256": "e0b061f941cd7047c5c9f7dd55132243c528defdee93320477c0c4a0632474fd",
+      "lineas": 30
+    },
+    "config/defaults/PlanetScope_SD5.txt": {
+      "sha256": "a2573edebf368ea303ffbcb4df898e98cea21ad2070123daaf3f5b9736a6480b",
+      "lineas": 27
+    },
+    "config/defaults/GOES17_ABI.txt": {
+      "sha256": "c3b6ebf0884a33034089d34da5c5483b954559edfb3dfe0579770976fe2a4c24",
+      "lineas": 38
+    },
+    "config/defaults/NOAA14_AVHRR.txt": {
+      "sha256": "85877d660506a4b5ceef6bb7106c41d770e6fec09d5b1c29332f6121a0e36957",
+      "lineas": 25
+    },
+    "config/defaults/WV_LG02.txt": {
+      "sha256": "37ab190b78553f43b9531004552ab2d53d83369d38c5f42c0e0da0c65c169339",
+      "lineas": 32
+    },
+    "config/defaults/L2_MSS.txt": {
+      "sha256": "7d79c0e261954b717371ee1bd666ebbf3e318798e1c7389befb211983f3306e6",
+      "lineas": 28
+    },
+    "config/defaults/Skysat13.txt": {
+      "sha256": "c5b2eecdbc4dfe0b5cd11d03810dd85f1f0e9d63addda65f4a846a07da15f2f6",
+      "lineas": 13
+    },
+    "config/defaults/NOAA11_AVHRR.txt": {
+      "sha256": "5b5137827f5c88d76fe47c148e74bf980b634072593824e3cb7e7a00986ddf0d",
+      "lineas": 25
+    },
+    "config/defaults/ISS_ECOSTRESS.txt": {
+      "sha256": "81d0ef97999c72229c9ffde11dee0c4f877ff425f19e98b52daa5bb3011b8c38",
+      "lineas": 9
+    },
+    "config/defaults/MetopA_AVHRR.txt": {
+      "sha256": "673fe3bf2d973a3b6b00c5d59aca81d072a5d81dcf6b2373289c53944060c96f",
+      "lineas": 25
+    },
+    "config/defaults/GF1_WFV2.txt": {
+      "sha256": "f4cb1cdae7792f86fb4cb67133e7092f5685d13ca694708c171cee8ef365cf56",
+      "lineas": 20
+    },
+    "config/defaults/PACE_OCI.txt": {
+      "sha256": "4471738a892f68b759210014e310849f7f205fdea5d8e60cd4e79b0c6064c37a",
+      "lineas": 58
+    },
+    "config/defaults/EarthCare_MSI.txt": {
+      "sha256": "a3b55c8ec4cc4ebd6806421c5fb73648f55a22a828f73c1a6531513bd6fc47ff",
+      "lineas": 26
+    },
+    "config/defaults/L9_TIRS.txt": {
+      "sha256": "dba9387131c6842b1c51ba9d7479922a157ecab3b2d16808f6722544bafc6299",
+      "lineas": 8
+    },
+    "config/defaults/KX10_MII.txt": {
+      "sha256": "9f05825354db11e06c639fc7ea74392c15c65bc93d5b56248b75598901614115",
+      "lineas": 21
+    },
+    "config/defaults/JPSS-1_VIIRS.txt": {
+      "sha256": "914c404d1a9185ef774f30ed39b9ca16672b5b6d1002fc814281f16f558a949e",
+      "lineas": 30
+    },
+    "config/defaults/Skysat11.txt": {
+      "sha256": "c5b2eecdbc4dfe0b5cd11d03810dd85f1f0e9d63addda65f4a846a07da15f2f6",
+      "lineas": 13
+    },
+    "config/defaults/WV_LG01.txt": {
+      "sha256": "5089c461e53e34cb11d1c0e15f527db08bc6f5347e6b73a175ad704d0883261f",
+      "lineas": 32
+    },
+    "config/defaults/L5_MSS.txt": {
+      "sha256": "fd79905f6ff16f7b818a2e0243665db0d8b91c20906640b2538221261d45aafc",
+      "lineas": 30
+    },
+    "config/defaults/Hyperfield-1B.txt": {
+      "sha256": "372f29879fa745ff0ce77948dbc330feb0f9b4717bfae25abd57c7a99a4cd3f8",
+      "lineas": 15
+    },
+    "config/defaults/L3_MSS.txt": {
+      "sha256": "00ca4d71a2f5d58d3b5fef6711ca13eebbbd354e1deb59f0c5561d5a185d6fe0",
+      "lineas": 28
+    },
+    "config/defaults/NOAA06_AVHRR.txt": {
+      "sha256": "8c4f4b3fb002e3f3b26a3a032182eb75c6462919c4f17c64f98cb466edb3befc",
+      "lineas": 25
+    },
+    "config/defaults/PlanetScope_SD8.txt": {
+      "sha256": "f28ba2358059150f24d4ec4aab4932ca7a72cf705479865dd0d7a38898a8654a",
+      "lineas": 27
+    },
+    "config/defaults/S3B_OLCI.txt": {
+      "sha256": "b593c4d41e68eddf2c577c18182ea49cb5ad08e8e48bb9fd22d020339b7311b4",
+      "lineas": 59
+    },
+    "config/defaults/MSG4_SEVIRI.txt": {
+      "sha256": "f9074e6e01c3fa955e2b0ef2cc818e7aadfb5f7c0e8ecb6eca553ed1ba595b50",
+      "lineas": 54
+    },
+    "config/defaults/HJ2B_CCD3.txt": {
+      "sha256": "a45dd32336878c3c3957dffe0a657c94d549fd1236ac76606042dd26fc5d3e17",
+      "lineas": 23
+    },
+    "config/defaults/H08_AHI.txt": {
+      "sha256": "25eb6466716213a83d4b3b91b7c9a5f0dfb450ed035118bccabcfe16da20bfe7",
+      "lineas": 35
+    },
+    "config/defaults/AMAZONIA1_WFI.txt": {
+      "sha256": "c44dd6277ce1f419a497eb167d9bffc06a4c3f3858bf353e74e377fe68afbe10",
+      "lineas": 19
+    },
+    "config/defaults/NOAA12_AVHRR.txt": {
+      "sha256": "6c02828c8b05daef6d500dee7421c2d3d14f0791596394228d398435d3b80640",
+      "lineas": 25
+    },
+    "config/defaults/NOAA08_AVHRR.txt": {
+      "sha256": "aaf4de33ea6ae28a7ca07185e077ff554ae3afc2279dd3749c4387bfce17ebb8",
+      "lineas": 25
+    },
+    "config/defaults/MSG1_SEVIRI.txt": {
+      "sha256": "e15c2c1ba628f5111e4e4f6202980d4285aeb151bd107f523357308c8262bb40",
+      "lineas": 54
+    },
+    "config/defaults/GK2_GOCI2.txt": {
+      "sha256": "34eda32efd66891f67232e265754d24b43acadf95941a9b8c2d5094673124461",
+      "lineas": 42
+    },
+    "config/defaults/FORMOSAT5_RSI.txt": {
+      "sha256": "1d3afb4718cd323f0131dbcd03370da2bdcaf7b667baf8d929b9f2b03121e469",
+      "lineas": 19
+    },
+    "config/defaults/MTG-I1_FCI.txt": {
+      "sha256": "5decf1b0c4b853f4aaab9f2da91669bd66c56c8d7f8c767857ac85945ff3b587",
+      "lineas": 49
+    },
+    "config/defaults/L4_MSS.txt": {
+      "sha256": "c5a0456764db32f2496c30d863b2fc6cefebce421b3361d04d503826997181c3",
+      "lineas": 30
+    },
+    "config/defaults/ENMAP_HSI.txt": {
+      "sha256": "16a069ae26762833b885af311244d29d672676407b27e82124e177e8fbc2c9bd",
+      "lineas": 23
+    },
+    "config/defaults/EO1_ALI.txt": {
+      "sha256": "d056baec693b6ed8a6b172d0c07ea10dac5eb22117a60a5fb7e634cff6cb0566",
+      "lineas": 16
+    },
+    "config/defaults/GF6_WFV.txt": {
+      "sha256": "3df96cbb3476faed4a7a6412a79aeaa8442ab6bf6f1113c342ae14a599c95dec",
+      "lineas": 18
+    },
+    "config/defaults/L5_TM.txt": {
+      "sha256": "6458f65fd76d0463948d1cecf692f09e510562c1294ed92ba29f206a258283e8",
+      "lineas": 20
+    },
+    "config/defaults/ISS_HICO.txt": {
+      "sha256": "4a76eb4a243b71e29ce5a1ae75bc60643611a1c9a2922200d811695ba809f389",
+      "lineas": 19
+    },
+    "config/defaults/PlanetScope_0d05.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/MSG3_SEVIRI.txt": {
+      "sha256": "580ee313c4aecee30b28fdedf3307e5317c16fc37d1fb03e86637f8070edbfac",
+      "lineas": 54
+    },
+    "config/defaults/OpenCosmos_Hammer.txt": {
+      "sha256": "14b16b5348dff74ae04978fe21b2d863371f66def15542f5d2fd587f705e392b",
+      "lineas": 18
+    },
+    "config/defaults/GeoEye1.txt": {
+      "sha256": "e78b201ce520f99d0d427a3b64e89c6f11a559e0f47e35b9c8d0ae0181f17423",
+      "lineas": 40
+    },
+    "config/defaults/MetopB_AVHRR.txt": {
+      "sha256": "7fd887327b50e6f2b7d65c50526993292e03f31d44d61d35d3e767e883cd43ad",
+      "lineas": 25
+    },
+    "config/defaults/OpenCosmos_Menut.txt": {
+      "sha256": "45ea303c7d2636af5959a0db7642b0d75dd6546a9fc98312a5ecd11fc1150ad9",
+      "lineas": 18
+    },
+    "config/defaults/S2B_MSI.txt": {
+      "sha256": "0e9fa0840ab007de1dfb4d550e169cb857a3f8ab7843625f3b21e3c2b06a21a6",
+      "lineas": 40
+    },
+    "config/defaults/NOAA09_AVHRR.txt": {
+      "sha256": "4ae0b0a442b169a2a110faaca0756c546423c6eab1da72598552fa89fcd743e4",
+      "lineas": 25
+    },
+    "config/defaults/Skysat8.txt": {
+      "sha256": "aefcef8f96739635e14768ac6e6a60f07f3d8b1a254e2e76a85bdb8f3e3a0dcb",
+      "lineas": 13
+    },
+    "config/defaults/Skysat1.txt": {
+      "sha256": "d1dc8844b46675b145bcd0102a563bd7441f1d43a1ed50d203248e70d04db991",
+      "lineas": 13
+    },
+    "config/defaults/PlanetScope_22.txt": {
+      "sha256": "d67cebaabf58f05dd2d14248d84c500cbd3f830214d816bdc4a9f60765fb515c",
+      "lineas": 27
+    },
+    "config/defaults/NOAA10_AVHRR.txt": {
+      "sha256": "118f25121ff5b5c204dbc5b95077400ae8738f4c75bbe7315aada9305e76c656",
+      "lineas": 25
+    },
+    "config/defaults/CBERS4A_WFI.txt": {
+      "sha256": "d07ea7bfa76093ccd8b5bcb5aeef810c2a4e99a2e7f244bf46c47eae79a1a1d0",
+      "lineas": 19
+    },
+    "config/defaults/EO1_HYPERION.txt": {
+      "sha256": "826e8f37616fb10ecb362c018e57429b886e84bcc7e2eba6bcf9de42b6ae54e6",
+      "lineas": 19
+    },
+    "config/defaults/Skysat3.txt": {
+      "sha256": "55327f9afeb4efcc0017cbd0f89984045fa5f31f5d78b9bc37ea1f1ed3998866",
+      "lineas": 13
+    },
+    "config/defaults/NOAA19_AVHRR.txt": {
+      "sha256": "74c36667718a86016296e309fe475510cd113f943e22bbd9a2bf9a964affa94f",
+      "lineas": 25
+    },
+    "config/defaults/Wyvern_Dragonette-001.txt": {
+      "sha256": "afb2363c464ec9104258598c108eec0019321a8bf0c3fd9551f446cdc4a4ad2c",
+      "lineas": 15
+    },
+    "config/defaults/HYPSO1.txt": {
+      "sha256": "9e7dc355d6e80e79784cf0e83a2b4d9f7c43ae257e13e6772aa2e4fb8d5b85c4",
+      "lineas": 22
+    },
+    "config/defaults/PNEO4.txt": {
+      "sha256": "c32b3de4c6c09e823c3bc6f5328338795a4abf262a3563f6a0e2b399719cb8a6",
+      "lineas": 23
+    },
+    "data/Shared/algorithms/chl_oc/defaults.txt": {
+      "sha256": "6a2706a8b336c09db1087b32d7c522a9966f38bdcaa50564f3c44761b71e232a",
+      "lineas": 71
+    },
+    "data/Shared/algorithms/chl_ci/defaults.txt": {
+      "sha256": "cee9659f11e77bb7efd85cf918d67389c006412188f337c57d6a9dc1b985b574",
+      "lineas": 28
+    },
+    "data/Shared/algorithms/chl_ci/chl_ocx.txt": {
+      "sha256": "6c17b7aaa0b91141ab1e262881001c2f0d622ae2d6e2f1d8471460e66b938053",
+      "lineas": 18
+    },
+    "config/defaults.txt": {
+      "sha256": "d2b3b4e940bb646ac4325d11b78fe998d73a281f9e8d6666184552b0b2a6fbfb",
+      "lineas": 651
+    },
+    "environment.yml": {
+      "sha256": "0eab5abe5bb6b3969ea466c00464af6b1e0cd793f53f0c5bea00054119c65353",
+      "lineas": 23
+    },
+    "acolite/shared/read_band.py": {
+      "sha256": "9e851e44d1325b00af6f319284f5faac94bc53937a0270dd8cbfa47177cdfdf4",
+      "lineas": 120
+    },
+    "acolite/shared/roi_wkt.py": {
+      "sha256": "370068ad1e4baaa6ac0b08f5aea54d2db2ee5919750d6440ef7b53db2bc81f8c",
+      "lineas": 52
+    },
+    "acolite/masking/land_water_mask.py": {
+      "sha256": "408d345cd006c0ab6e1a3d4e8a0e693480172decf6aadef00c9d8f819b8d6e21",
+      "lineas": 125
+    },
+    "acolite/masking/ocm.py": {
+      "sha256": "25c2e60a5ea4345e55f77e8c11171184db11fe50ae93d980ca7dc9361900b8d6",
+      "lineas": 150
+    },
+    "acolite/shared/auth.py": {
+      "sha256": "81ed8de4c141ab5ea14f50abf577b36e526c7e86aee1f4b502469875b6c40141",
+      "lineas": 82
+    },
+    "acolite/shared/extract_bundle.py": {
+      "sha256": "23b186c2e8f16e8757cc9dbca01366dc294284d19bb655e7ffd8bfd3d78eee6b",
+      "lineas": 89
+    },
+    "acolite/shared/projection_netcdf.py": {
+      "sha256": "9ed04faf8bc80a9b23a56bf2b96708c1dcdea4427bc10c76fbe69d3264de09c0",
+      "lineas": 32
+    },
+    "config/parameter_cf_attributes.json": {
+      "sha256": "bff281f4f8b375fddb60e05c1e12f76e219e3b5f3f3dcb83e784aed2880eaf9b",
+      "lineas": 129
+    },
+    "acolite/parameters/chl_oc/coef.py": {
+      "sha256": "341428a9b21b6a8d376f04a0804c5cbdaa15741deafe5573561fd5be98f7db1c",
+      "lineas": 26
+    }
+  },
+  "entorno": {
+    "numpy": "2.5.3",
+    "GDAL": "3.13.3",
+    "netCDF4": "1.7.4",
+    "pyproj": "3.8.0",
+    "pyresample": "1.35.0",
+    "zarr": "3.3.0",
+    "fsspec": "2026.7.0",
+    "aiohttp": "3.14.3",
+    "scipy": "1.18.1"
+  }
+}

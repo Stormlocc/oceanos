@@ -28,3 +28,11 @@ El usuario prefiere liberar fuentes recuperables al agotar reintentos. Esto es u
 Resolver la ruta absoluta y comprobar que pertenece al directorio temporal de esa ejecución; rechazar enlaces o rutas que escapen de él. No eliminar entradas externas, credenciales, instalaciones, AOI ni resultados persistentes. El borrado repetido debe ser seguro y quedar registrado.
 
 Retención persistente sin caducidad automática por ahora. Respaldo y capacidad a largo plazo quedan pendientes; permanencia no equivale a disponer de una copia de seguridad.
+
+## Resultados de auditoría de fase 2
+
+`delete_extracted_input=True` puede borrar la extracción al terminar L1R, **antes de L2R/L2W y antes de validación propia**. Mantener False. Fuente: [acolite/acolite/acolite_l1r.py:365](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_l1r.py#L365-L380).
+
+Los defaults de descarga `remove_zip=True` y `remove_tar=True` borran archivos después de extracción sin QA científica; son argumentos distintos de los settings delete. Los flags l1r/l2r/l2w_delete_netcdf se aplican al finalizar run sobre archivos existentes, sin nuestro contrato de validación. Mantenerlos False durante benchmark y manejar selección/limpieza después. Fuente: [acolite/acolite/acolite_run.py:334](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_run.py#L334-L351).
+
+No se borró ninguna escena, fuente ni instalación durante la auditoría. La copia de código upstream en .work es referencia de investigación, no una escena temporal.

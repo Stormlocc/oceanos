@@ -1,0 +1,33 @@
+{
+  "metodo": "Bloque AST nativo del proyector ejecutado con rangos fase 1; no escena ni reproyecci\u00f3n real",
+  "resultados": {
+    "True": {
+      "xrange": [
+        701980,
+        775330
+      ],
+      "yrange": [
+        1997350,
+        1973050
+      ],
+      "shape_yx": [
+        2430,
+        7335
+      ]
+    },
+    "False": {
+      "xrange": [
+        701980,
+        775320
+      ],
+      "yrange": [
+        1997350,
+        1973040
+      ],
+      "shape_yx": [
+        2431,
+        7334
+      ]
+    }
+  }
+}

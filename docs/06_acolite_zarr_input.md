@@ -1,16 +1,34 @@
-# Zarr remoto frente a SAFE temporal
+# Zarr remoto: soporte real y comparación de fuentes
 
-Comparación conceptual, aún no experimental:
+Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
-| Aspecto | Zarr remoto | SAFE temporal |
+## Proveedor y contrato
+
+Descubrimiento nativo STAC dirigido por defecto a EOPF/EODC, colección `sentinel-2-l1c`. No es una lista universal de proveedores compatibles. El lector exige grupos `measurements/reflectance/r10m,r20m,r60m`, geometry y detector footprints en `conditions`, además de atributos `stac_discovery` y `other_metadata`. Rechaza nivel diferente de L1C.
+
+El acceso combina `zarr.open` para metadata/arrays auxiliares y GDAL `ZARR:"/vsicurl/..."` para bandas. Requiere Zarr moderno y GDAL con driver Zarr; fsspec/aiohttp forman parte del entorno declarado. El parser de metadata tiene una concatenación accidental de literales entre `cycle_number` y `UTM_zone_identification`, por lo que esas claves individuales pueden no recuperarse; CRS se obtiene de `horizontal_CRS_code`.
+
+Fuentes: [acolite/zarr/meta.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/zarr/meta.py#L7-L22), [acolite/zarr/meta_parse.py:19](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/zarr/meta_parse.py#L19-L49), [acolite/sentinel2/zarr/l1_convert.py:65](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/sentinel2/zarr/l1_convert.py#L65-L81).
+
+## Qué se lee
+
+Reflectancias se leen con warp al extent del ROI a través de GDAL. Los chunks realmente transferidos dependen del layout, driver y cachés; ACOLITE no proporciona un contador de chunks. `sub` deja de determinar la lectura cuando `read_band` recibe `warp_to`: GDAL usa los bounds del destino.
+
+Los vectores de coordenadas, ángulos solares y de visión se leen completos; detector footprints se leen sobre el tile completo a `geometry_res` (60 m por defecto). Por ello no equivale a descargar únicamente los píxeles del AOI. Auxiliares meteorológicos completos se leen si se activa `s2_auxiliary_include`.
+
+Fuentes: [acolite/sentinel2/zarr/l1_convert.py:127](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/sentinel2/zarr/l1_convert.py#L127-L151), [acolite/sentinel2/zarr/l1_convert.py:229](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/sentinel2/zarr/l1_convert.py#L229-L288), [acolite/sentinel2/zarr/l1_convert.py:447](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/sentinel2/zarr/l1_convert.py#L447-L454), [acolite/sentinel2/zarr/l1_convert.py:626](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/sentinel2/zarr/l1_convert.py#L626-L654), [acolite/shared/read_band.py:41](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/shared/read_band.py#L41-L114).
+
+## Comparación
+
+| Criterio | Zarr EOPF remoto | SAFE temporal |
 |---|---|---|
-| Compatibilidad ACOLITE | Pendiente de proveedor y revisión | Pendiente de formato y revisión |
-| Transferencia | Depende de chunks realmente leídos | Depende del producto adquirido |
-| Espacio temporal | Depende de cachés y materialización | Incluye descarga y posible extracción |
-| Reproducibilidad | Requiere identidad/versionado remoto | Requiere identidad/checksum del producto |
-| Riesgos | Cambios de servicio, autenticación, layout | Tamaño y extracción |
-| Decisión | Preferido solo si funciona correctamente | Fallback acordado |
+| Soporte estático | Sí, contrato concreto | Sí, L1C |
+| Fuente completa local | No exigida por lector | Descarga y extracción |
+| Lectura espacial | Warp del ROI, más geometría completa | Warp desde JP2 locales |
+| Escalado radiométrico | `_eopf_attrs`, escala/offset si uint16 | RADIO_ADD_OFFSET y cuantificación SAFE |
+| Geometría | Ruta propia de interpolación/footprints | Ruta SAFE; no idéntica |
+| Riesgo | Layout, servicio y formato de URL | RAM de descarga, espacio y extracción |
+| Ahorro medido | No medido | No medido |
+| Producción validada | No | No para este perfil |
 
-Auditar `acolite/sentinel2/zarr` y rutas de descubrimiento relacionadas. Identificar proveedores reales, metadata, selección de ventanas, bandas y chunks, uso de fsspec/HTTP y ubicación de cachés. No afirmar reducción de tráfico o almacenamiento sin medir.
-
-Si ambas fuentes están disponibles, comparar una misma adquisición: geometría, variables, valores válidos, diferencias científicas, tráfico, RAM, disco y tiempo. La ausencia de una fuente equivalente limita la comparación y debe declararse. No catalogar Zarr como estable para producción a partir de una única ejecución.
+El código demuestra viabilidad, no disponibilidad de 19QGV en agosto de 2026 ni equivalencia numérica. Mantener preferencia condicionada y fallback. No seleccionar definitivamente la fuente antes de fase 5.

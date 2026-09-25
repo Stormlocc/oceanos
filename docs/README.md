@@ -4,9 +4,9 @@ Fecha: 25 de septiembre de 2026. AOI: `lapargera_v1`.
 
 ## Estado de la entrega
 
-Requisitos de fase 0 cerrados. Fase 1 completada: ver análisis del AOI y evidencias. Esta entrega reúne las decisiones acordadas y el diseño preliminar solicitado en el paso 54. No constituye una auditoría de ACOLITE ni una configuración científica validada. No se ha programado el pipeline.
+Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática con comprobaciones aisladas. Ver [resultado de fase 2](23_phase2_audit_results.md). Todavía no hay pipeline, benchmark ni configuración científica validada.
 
-Las fases avanzan solamente por orden del usuario. El análisis geométrico se completó por orden del usuario. La auditoría del código y los experimentos requieren las fases correspondientes. Los apartados pendientes están identificados expresamente: no deben interpretarse como resultados.
+Cada nueva fase requiere orden del usuario. Esta entrega no convierte las decisiones candidatas de fases 3–5 en acuerdos finales.
 
 ## Índice
 
@@ -35,6 +35,7 @@ Las fases avanzan solamente por orden del usuario. El análisis geométrico se c
 | [20_multitile_future.md](20_multitile_future.md) | Cambios de AOI y mult tile |
 | [21_risks_and_decisions.md](21_risks_and_decisions.md) | Riesgos y pendientes |
 | [22_step54_delivery.md](22_step54_delivery.md) | Correspondencia con los 23 entregables |
+| [23_phase2_audit_results.md](23_phase2_audit_results.md) | Resultados y límites verificados de fase 2 |
 
 ## Fuentes y trazabilidad
 
@@ -42,4 +43,4 @@ Los requisitos provienen del documento de proyecto y las respuestas del usuario 
 
 Se verificó la existencia de `/home/antho/acolite`, `/home/antho/acolite.main-d61c8de` y `/home/antho/.netrc`. El contenido de las credenciales no se leyó. El SHA `0a963cd` observado pertenece a otra copia, `/home/antho/projects/EMC/tools/acolite`: no debe atribuirse a la instalación elegida.
 
-Autoridad técnica para la auditoría posterior: código de [ACOLITE](https://github.com/acolite/acolite), fijado a una revisión identificable y comparado con la instalación local. Ninguna API ni setting se considera verificado por aparecer en estos documentos.
+Autoridad técnica de la auditoría: código de [ACOLITE](https://github.com/acolite/acolite), fijado a una revisión identificable y comparado con la instalación local. Los documentos de fase 2 distinguen capacidades verificadas en código de resultados todavía pendientes de ejecución.

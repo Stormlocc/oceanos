@@ -27,3 +27,9 @@ Usar dobles sencillos para control de estados; reservar una escena real para int
 ## Validación científica
 
 Pendiente de datos in situ. Recordar al usuario antes de fase 7: CTD, muestras, clorofila, turbidez, observaciones OCEANOS/CariCOOS y controles de calidad. La revisión de flags y plausibilidad no sustituye comparación científica independiente.
+
+## Resultados de auditoría de fase 2
+
+Se ejecutaron seis comprobaciones aisladas de funciones nativas: precedencia de defaults de sensor, precedencia de override, OC3 presente para S2A/B/C, OC4 ausente para S2A/B/C, URL STAC defectuosa sin bbox y límite final STAC a medianoche. Además dos aserciones reprodujeron la forma de grilla con alineación activada/desactivada. Resultados en evidence/phase2/comprobaciones.json y alineacion_reproducida.json. Las comprobaciones con fallo esperado demuestran una limitación; no certifican funcionamiento de producción.
+
+Añadir a los tests futuros necesarios: detectar ausencia OC4 sin aceptar éxito parcial; conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.

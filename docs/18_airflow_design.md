@@ -11,3 +11,7 @@ Concurrencia inicial uno para procesamiento ACOLITE. Ajustar solamente con bench
 Inventariar dependencias Python, GDAL/JP2/OpenJPEG, NetCDF, pyproj, pyresample, Zarr, fsspec y aiohttp según imports reales. Comparar entorno WSL con contenedor ACOLITE solo después de estabilizar la base. Docker CLI instalado no demuestra daemon disponible ni entorno científico configurado.
 
 Colab se considerará tras la implementación base, contemplando almacenamiento efímero, persistencia externa y credenciales de sesión. Nube futura sin proveedor seleccionado.
+
+## Resultados de auditoría de fase 2
+
+Dependencias verificadas contra [environment.yml:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/environment.yml#L1); módulos remotos requieren Zarr/fsspec/aiohttp y GDAL Zarr. ACOLITE usa settings globales mutables; aislar proceso por ejecución antes de concurrencia entre AOI. Reintentos, límites, provenance y QA propios siguen siendo pequeños controles externos. Docker y Airflow no se implementaron ni se probaron en esta fase.

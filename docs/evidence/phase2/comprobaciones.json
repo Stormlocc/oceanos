@@ -1,0 +1,15 @@
+{
+  "metodo": "Funciones nativas ejecutadas aisladamente; dependencias ac minimas; STAC interceptado sin red. No procesamiento cientifico.",
+  "resultados": {
+    "precedencia_sensor": true,
+    "precedencia_usuario": true,
+    "chl_oc3_S2ABC": true,
+    "chl_oc4_ausente_S2ABC": true,
+    "stac_sin_bbox_url_malformada_reproducida": true,
+    "stac_fin_20_a_medianoche_reproducido": true
+  },
+  "urls_stac": [
+    "https://stac.core.eopf.eodc.eu//collections/sentinel-2-l1c/items?bbox=-67.092,17.835,-66.402,18.048&datetime=2026-08-01T00:00:00Z/2026-08-20T00:00:00Z&limit=100",
+    "?https://stac.core.eopf.eodc.eu//collections/sentinel-2-l1c/itemsdatetime=2026-08-01T00:00:00Z/2026-08-20T00:00:00Z&limit=100"
+  ]
+}

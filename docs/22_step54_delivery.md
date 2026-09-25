@@ -6,16 +6,16 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 |---|---|---|---|
 | 1 | Análisis AOI | 01 | Completado; costa estimada a escala cartográfica |
 | 2 | Tiles y grids | 01, 12 | Tiles comprobados; grilla geométrica candidata calculada |
-| 3 | Auditoría completa ACOLITE | 02 y 03–12 | Pendiente de inspección de código |
-| 4 | Matriz ACOLITE/código propio | 02 | Preliminar, capacidades sin verificar |
+| 3 | Auditoría ACOLITE | 02–12, 23 | Completada estáticamente; escena real pendiente |
+| 4 | Matriz ACOLITE/código propio | 02 | Capacidades y límites verificados en código |
 | 5 | Estrategia de catálogo | 03, 16 | Diseño preliminar |
 | 6 | Metadata/provenance | 16 | Esquema conceptual |
 | 7 | Detección de cambios | 03, 16 | Política propuesta |
 | 8 | SAFE frente a Zarr | 06 | Comparación conceptual; sin medición |
 | 9 | Fallback | 04 | Política acordada; sin implementación |
 | 10 | Configuración candidata | 14 | Perfil conceptual, no ejecutable |
-| 11 | Settings/defaults/razón/fuente | 14 | Tabla pendiente de evidencia |
-| 12 | Productos finales | 11 | Solicitudes confirmadas; soporte pendiente |
+| 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; overrides candidatos |
+| 12 | Productos finales | 11 | Soporte auditado; OC4 MSI no configurado |
 | 13 | Estrategia L2R/L2W | 10, 11 | Candidata |
 | 14 | Proyección | 12 | Requisitos fijados; parámetros pendientes |
 | 15 | Temporales | 17 | Política documentada |
