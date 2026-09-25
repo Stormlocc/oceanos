@@ -24,7 +24,7 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 0. Discovery: completado.
 1. Analizar AOI: completado; 19QGV cubre todo el AOI.
 2. Auditar ACOLITE: auditoría estática completada; ver documento 23.
-3. Diseñar catálogo y provenance con metadata real.
+3. Diseñar catálogo y provenance: completado según retornos auditados; mapeo con respuestas reales pendiente de ejecución.
 4. Definir configuración científica del AOI.
 5. Seleccionar adquisición y fallback.
 6. Procesar una escena.

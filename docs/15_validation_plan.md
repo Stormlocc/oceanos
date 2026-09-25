@@ -33,3 +33,7 @@ Pendiente de datos in situ. Recordar al usuario antes de fase 7: CTD, muestras, 
 Se ejecutaron seis comprobaciones aisladas de funciones nativas: precedencia de defaults de sensor, precedencia de override, OC3 presente para S2A/B/C, OC4 ausente para S2A/B/C, URL STAC defectuosa sin bbox y límite final STAC a medianoche. Además dos aserciones reprodujeron la forma de grilla con alineación activada/desactivada. Resultados en evidence/phase2/comprobaciones.json y alineacion_reproducida.json. Las comprobaciones con fallo esperado demuestran una limitación; no certifican funcionamiento de producción.
 
 Añadir a los tests futuros necesarios: detectar ausencia OC4 sin aceptar éxito parcial; conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.
+
+## Casos de aceptación de fase 3
+
+El apartado 11 del [diseño del catálogo](16_catalog_provenance.md) define doce escenarios de comportamiento para futuras pruebas. Se revisaron como diseño, no se ejecutaron tests de una base aún no implementada. Priorizar idempotencia, cambios de contenido, reutilización L2R, completitud y separación validación/limpieza.

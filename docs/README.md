@@ -4,9 +4,9 @@ Fecha: 25 de septiembre de 2026. AOI: `lapargera_v1`.
 
 ## Estado de la entrega
 
-Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática con comprobaciones aisladas. Ver [resultado de fase 2](23_phase2_audit_results.md). Todavía no hay pipeline, benchmark ni configuración científica validada.
+Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática; fase 3 completada como diseño de catálogo/provenance. Ver [resultado de fase 2](23_phase2_audit_results.md) y [diseño de fase 3](24_phase3_catalog_design.md). Todavía no hay pipeline, benchmark ni configuración científica validada.
 
-Cada nueva fase requiere orden del usuario. Esta entrega no convierte las decisiones candidatas de fases 3–5 en acuerdos finales.
+Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño definido; las decisiones científicas y de adquisición de fases 4–5 siguen pendientes.
 
 ## Índice
 
@@ -36,6 +36,7 @@ Cada nueva fase requiere orden del usuario. Esta entrega no convierte las decisi
 | [21_risks_and_decisions.md](21_risks_and_decisions.md) | Riesgos y pendientes |
 | [22_step54_delivery.md](22_step54_delivery.md) | Correspondencia con los 23 entregables |
 | [23_phase2_audit_results.md](23_phase2_audit_results.md) | Resultados y límites verificados de fase 2 |
+| [24_phase3_catalog_design.md](24_phase3_catalog_design.md) | Decisiones del catálogo y provenance |
 
 ## Fuentes y trazabilidad
 

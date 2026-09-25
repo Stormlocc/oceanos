@@ -27,3 +27,7 @@ El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y aus
 Pendientes resueltos: defaults y precedencia identificados; firmas/retornos API auditados; soporte L1C SAFE/EOPF confirmado en código; OC4 no configurado para MSI; EPSG/MGRS/grilla geométrica ya calculados en fase 1.
 
 Decisiones abiertas antes de ejecutar: revisión ACOLITE a fijar; tratamiento de OC4; máscara oceánica para FAI/NDVI; evitar reproyección o resolver pérdida de flags/alineación; acceso a metadata CDSE omitida; streaming/reintentos mínimos; disponibilidad Zarr real para período y tile. Estas decisiones se llevan a fases 3–5. Sin selección final ni cambios a la instalación local.
+
+## Actualización de fase 3
+
+Resuelto el formato de persistencia: SQLite único, metadata seleccionada en JSON interno y archivos científicos externos. Definidas identidad, cambios, recuperación y reutilización. Se eligió una extensión futura opcional del retorno CDSE para evitar un cliente propio; aún no implementada. Se documenta explícitamente que UTC es la convención del intervalo y que identidad incompleta impide deduplicación científica automática.

@@ -37,3 +37,7 @@ Fuentes: [acolite/api/stac/query.py:7](https://github.com/acolite/acolite/blob/8
 ## Identidades
 
 Mantener adquisición, producto/baseline y representación como conceptos distintos. Checksum del proveedor se almacena con algoritmo; no asumir SHA-256. Los parámetros de consulta y sus timestamps pertenecen a provenance, no al fingerprint científico. Diseñar persistencia definitiva en fase 3 con estas limitaciones ya conocidas.
+
+## Decisión de fase 3
+
+El [diseño definitivo del catálogo](16_catalog_provenance.md) elige SQLite, snapshots inmutables de metadata seleccionada, seis tablas y extensión mínima compatible del retorno CDSE cuando se programe. Define el intervalo interno UTC semiabierto y las diferencias entre proveedores. No hubo consultas reales de adquisiciones durante esa fase.

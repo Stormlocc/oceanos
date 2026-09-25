@@ -8,9 +8,9 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 2 | Tiles y grids | 01, 12 | Tiles comprobados; grilla geométrica candidata calculada |
 | 3 | Auditoría ACOLITE | 02–12, 23 | Completada estáticamente; escena real pendiente |
 | 4 | Matriz ACOLITE/código propio | 02 | Capacidades y límites verificados en código |
-| 5 | Estrategia de catálogo | 03, 16 | Diseño preliminar |
-| 6 | Metadata/provenance | 16 | Esquema conceptual |
-| 7 | Detección de cambios | 03, 16 | Política propuesta |
+| 5 | Estrategia de catálogo | 03, 16, 24 | Diseño terminado: SQLite único, sin implementar |
+| 6 | Metadata/provenance | 16 | Seis entidades, campos, origen y ausencia definidos |
+| 7 | Detección de cambios | 03, 16 | Reglas de cambios, hashes y reutilización definidas |
 | 8 | SAFE frente a Zarr | 06 | Comparación conceptual; sin medición |
 | 9 | Fallback | 04 | Política acordada; sin implementación |
 | 10 | Configuración candidata | 14 | Perfil conceptual, no ejecutable |
