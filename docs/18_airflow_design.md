@@ -1,0 +1,13 @@
+# Airflow y Docker futuros
+
+No implementar antes de estabilizar el procesamiento manual, repetir fechas e incorporar Landsat. La automatización no debe cambiar decisiones científicas.
+
+Flujo conceptual: descubrir catálogo → comparar versiones → seleccionar → adquirir → ACOLITE → validar → persistir resultados → limpiar → futura ingestión Zarr.
+
+Cada operación tendrá identificador, estado y resultado observable. Reanudar a partir de resultados válidos; no repetir una corrección completa por un fallo de limpieza. Evitar reintentos multiplicados entre Airflow, wrapper y cliente nativo.
+
+Concurrencia inicial uno para procesamiento ACOLITE. Ajustar solamente con benchmark. Ejecución manual por rango de fechas prioritario; no se requiere tiempo casi real.
+
+Inventariar dependencias Python, GDAL/JP2/OpenJPEG, NetCDF, pyproj, pyresample, Zarr, fsspec y aiohttp según imports reales. Comparar entorno WSL con contenedor ACOLITE solo después de estabilizar la base. Docker CLI instalado no demuestra daemon disponible ni entorno científico configurado.
+
+Colab se considerará tras la implementación base, contemplando almacenamiento efímero, persistencia externa y credenciales de sesión. Nube futura sin proveedor seleccionado.

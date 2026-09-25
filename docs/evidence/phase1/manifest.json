@@ -1,0 +1,34 @@
+{
+  "analysis.json": {
+    "bytes": 1673,
+    "sha256": "cb1017209f99ade8fe37906cb9a3376d74f32dc759abaf616ddb31919561e227"
+  },
+  "aoi_coverage.png": {
+    "bytes": 112546,
+    "sha256": "6380f94257ccbee05da8aa0489b6e4a994db997daa90f7b2395baa24259b8424"
+  },
+  "wrs2_local.geojson": {
+    "bytes": 1690,
+    "sha256": "5e204428287d80d04ad56e470d64fba550d4b1f19813e0f30d685557e2e31a45"
+  },
+  "aoi.geojson": {
+    "bytes": 628,
+    "sha256": "324cc1cef3e8724f246d11a4587c1a1abbc41847143ade50092b64b95363e59f"
+  },
+  "sentinel2_grid.zip": {
+    "bytes": 10153565,
+    "sha256": "67e222547cfea235f69d1dd35317babb0296c8c61556c198fc9f1e2dec7bcf29"
+  },
+  "ne_10m_land.zip": {
+    "bytes": 3269070,
+    "sha256": "e547d749445eaa0964aba76738090ec88f5e63c4585122170f98c67a7ea922dc"
+  },
+  "sentinel2_local.geojson": {
+    "bytes": 2914,
+    "sha256": "f004acb11eb7bb95f06df90c07d249c3c23a26c091576e32a8b57054bd85fa99"
+  },
+  "land_local.geojson": {
+    "bytes": 4750,
+    "sha256": "7aa0fcb51bb3eca618b70ee8a2394d61a27ef07adff9a0824bbd09f47ef2b707"
+  }
+}

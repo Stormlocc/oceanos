@@ -1,0 +1,29 @@
+# Validación y tests
+
+## Criterio de simplicidad
+
+Validar los límites del sistema y los resultados importantes, sin replicar el algoritmo de ACOLITE. No crear código de tests hasta la fase de implementación autorizada.
+
+## Validación técnica mínima
+
+Antes de procesar: perfil legible, AOI presente, configuración coherente y espacio temporal suficiente. Después: NetCDF requerido existente y legible, variables obligatorias disponibles, dimensiones y grilla esperadas, metadatos esenciales y reporte de proporción de datos válidos/flags.
+
+Un archivo existente pero vacío o sin las variables requeridas no autoriza eliminación de la fuente. Un producto con todo el AOI enmascarado debe quedar registrado explícitamente; la política de aceptación científica se definirá antes de automatizar limpieza.
+
+Conservar reporte simple de resultado, motivos de fallo y métricas. No imponer umbrales científicos arbitrarios.
+
+## Tests futuros prioritarios
+
+- Una salida ausente o ilegible impide marcar validación exitosa y activar limpieza por éxito.
+- Un archivo fuera del directorio temporal de la ejecución nunca se elimina.
+- Misma entrada y configuración no generan procesamiento duplicado; cambio científico sí genera nueva ejecución.
+- Nuevos productos reutilizan L2R solo si se satisfacen sus dependencias.
+- Agotar reintentos Zarr activa fallback registrado y acotado.
+- Las fechas incluyen íntegramente el día 20 y excluyen el siguiente según el contrato de la API.
+- Productos comparables mantienen grilla y variables previstas en una pequeña prueba de integración.
+
+Usar dobles sencillos para control de estados; reservar una escena real para integración y benchmark. No descargar escenas en cada test unitario ni exigir igualdad bit a bit entre entornos sin justificación.
+
+## Validación científica
+
+Pendiente de datos in situ. Recordar al usuario antes de fase 7: CTD, muestras, clorofila, turbidez, observaciones OCEANOS/CariCOOS y controles de calidad. La revisión de flags y plausibilidad no sustituye comparación científica independiente.

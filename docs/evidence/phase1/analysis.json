@@ -1,0 +1,77 @@
+{
+  "aoi_sha256": "e7934bc269e0566f289cc8ab995a5fcb937065ec1b630789f84f226b50f981d5",
+  "valid": true,
+  "vertices_without_closure": 5,
+  "bounds_lonlat": [
+    -67.09176880642183,
+    17.83506768071816,
+    -66.40241185767644,
+    18.047432637275
+  ],
+  "centroid_lonlat": [
+    -66.7469888230587,
+    17.941397259587163
+  ],
+  "area_km2_geodesic": 1712.2305992755978,
+  "perimeter_km": 192.90772954142744,
+  "utm_bounds_densified_m": [
+    701986.6767006733,
+    1973043.0118954168,
+    775319.1418172235,
+    1997344.3793864036
+  ],
+  "width_utm_km": 73.33246511655021,
+  "height_utm_km": 24.301367490986827,
+  "candidate_grid_bounds_m": [
+    701980,
+    1973040,
+    775320,
+    1997350
+  ],
+  "candidate_shape_yx": [
+    2431,
+    7334
+  ],
+  "sentinel2": [
+    {
+      "tile": "19QFA",
+      "covers_aoi": false,
+      "coverage_fraction": 0.02873030344173763
+    },
+    {
+      "tile": "19QFV",
+      "covers_aoi": false,
+      "coverage_fraction": 0.10519366738669203
+    },
+    {
+      "tile": "19QGA",
+      "covers_aoi": false,
+      "coverage_fraction": 0.28729815896444255
+    },
+    {
+      "tile": "19QGV",
+      "covers_aoi": true,
+      "coverage_fraction": 1.0
+    }
+  ],
+  "wrs2": [
+    {
+      "path": 5,
+      "row": 47,
+      "covers_aoi": false,
+      "coverage_fraction": 0.16876847842154727
+    },
+    {
+      "path": 5,
+      "row": 48,
+      "covers_aoi": false,
+      "coverage_fraction": 0.9988611034610281
+    }
+  ],
+  "land_estimate": {
+    "dataset": "Natural Earth land 5.1.1, scale 1:10 million",
+    "land_km2": 641.6658216481833,
+    "water_complement_km2": 1070.5646877125787,
+    "coastline_inside_aoi_km_utm": 87.86578869503936
+  }
+}
