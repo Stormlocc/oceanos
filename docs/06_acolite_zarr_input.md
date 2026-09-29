@@ -32,3 +32,8 @@ Fuentes: [acolite/sentinel2/zarr/l1_convert.py:127](https://github.com/acolite/a
 | Producción validada | No | No para este perfil |
 
 El código demuestra viabilidad, no disponibilidad de 19QGV en agosto de 2026 ni equivalencia numérica. Mantener preferencia condicionada y fallback. No seleccionar definitivamente la fuente antes de fase 5.
+
+
+## Actualización de fase 5 — 29 de septiembre de 2026
+
+La consulta de metadata encontró cinco SAFE L1C de 19QGV y ningún Zarr para el intervalo inicial. Se mantiene preferencia Zarr con comprobación al ejecutar; SAFE es la entrada prevista del primer ensayo. Ver [estrategia de adquisición y evidencia](26_phase5_input_strategy.md). No se descargaron escenas ni se midió rendimiento.

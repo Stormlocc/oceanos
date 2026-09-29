@@ -1,6 +1,6 @@
 # Fase 4 — configuración científica candidata de lapargera_v1
 
-Fecha: 25 de septiembre de 2026. Estado: **perfil preparado y comprobado con parsers; pendiente de decisión sobre OC4 y validación experimental posterior**. No se ejecutó ACOLITE sobre escenas ni se avanzó a fase 5.
+Fecha: 25 de septiembre de 2026. Estado actualizado el 29 de septiembre: **fase 4 cerrada como configuración candidata; OC4 excluido por decisión del usuario**. La validación con escena sigue pendiente. La continuación autorizada de fase 5 está en el informe 26.
 
 ## Archivos entregados
 
@@ -35,7 +35,7 @@ La [tabla de 81 settings](14_selected_aoi_configuration.md) conserva las fuentes
 
 Se mantienen activos los seis parámetros nativos compatibles y se exige l2_flags como dataset de calidad generado por ACOLITE. Rrs_* se expande a bandas presentes; la validación debe comprobar presencia útil y coherencia, no solo que exista algún nombre Rrs. Turbidez puede escribirse como TUR_Nechad2009_<longitud>; no validar el nombre de entrada como si fuera exactamente el nombre del dataset.
 
-OC4 permanece en `products.pending`, sin reemplazo científico ni implementación propia. Se ha solicitado al usuario decidir si queda aplazado o si se evalúa otra alternativa nativa antes de cerrar el perfil. El subconjunto activo no se presenta como cumplimiento total de la lista original.
+El 29 de septiembre el usuario excluyó OC4. Se elimina `products.pending`; los seis parámetros activos constituyen la solicitud vigente. OC3 permanece como producto de clorofila, sin introducir un sustituto para OC4.
 
 La máscara L2W nativa se conserva para productos acuáticos. FAI/NDVI mantienen valores sobre tierra porque su implementación no aplica esa máscara. Esto sigue la excepción permitida por el usuario: conservar y filtrar posteriormente cuando corresponda. No se publica como salida exclusivamente oceánica. La aplicación de `masking.land_water_mask` se evaluará con datos reales antes de convertirla en parte del flujo; no se utiliza Natural Earth como máscara a 10 m ni se inventa un setting para forzar FAI/NDVI.
 
@@ -74,4 +74,4 @@ La grilla se calculó con función nativa, no con una escena. No hay validación
 
 ## Límite de fase
 
-Perfil candidato entregado. Pendiente de respuesta sobre OC4 para cerrar la decisión de productos. La siguiente fase será comparar/seleccionar estrategia de adquisición, únicamente tras orden del usuario. Los resultados reales se verificarán en las fases 6–8 y la limpieza en fase 9.
+Perfil candidato entregado y decisión de productos cerrada. El usuario autorizó continuar con fase 5; ver informe 26. Los resultados reales se verificarán en las fases 6–8 y la limpieza en fase 9. El manifest de fase 4 conserva los hashes de la entrega original; la revisión 2 del perfil queda registrada en el manifest de fase 5.

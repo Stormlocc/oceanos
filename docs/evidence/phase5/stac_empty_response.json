@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-09-29T04:49:36.907471+00:00",
+  "url": "https://stac.core.eopf.eodc.eu/collections/sentinel-2-l1c/items?bbox=-67.09176880642183,17.83506768071816,-66.40241185767644,18.047432637275&datetime=2026-08-01T00:00:00Z/2026-08-21T00:00:00Z&limit=100",
+  "status": 200,
+  "response": {
+    "type": "FeatureCollection",
+    "links": [
+      {
+        "rel": "collection",
+        "type": "application/json",
+        "href": "https://stac.core.eopf.eodc.eu/collections/sentinel-2-l1c"
+      },
+      {
+        "rel": "parent",
+        "type": "application/json",
+        "href": "https://stac.core.eopf.eodc.eu/collections/sentinel-2-l1c"
+      },
+      {
+        "rel": "root",
+        "type": "application/json",
+        "href": "https://stac.core.eopf.eodc.eu/"
+      },
+      {
+        "rel": "self",
+        "type": "application/geo+json",
+        "href": "https://stac.core.eopf.eodc.eu/collections/sentinel-2-l1c/items"
+      }
+    ],
+    "features": [],
+    "numberReturned": 0
+  }
+}

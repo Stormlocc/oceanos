@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-09-29T05:03:37.674167+00:00",
+  "stages": {
+    "consulta_zarr": 0.9205816430003324,
+    "consulta_safe": 19.566752650000126,
+    "descarga": 368.0262441569994,
+    "extraccion": 1.275888201998896,
+    "acolite_l1r": 1.6820820320008352,
+    "procesamiento_total": 1.6838003979992209
+  },
+  "peak_sampled_rss_bytes": 1721569280,
+  "peak_sampled_disk_bytes": 1018603531,
+  "sample_seconds": 5,
+  "fallback": "SAFE: consulta Zarr exitosa sin resultados",
+  "source_hashes": {
+    "md5": "114b1a12faec0303d95f9a548276d812",
+    "sha256": "57145c15556f5f5c129249d079dd42e62cf5aaad4b3432d3c2d508633826d968"
+  },
+  "status": "fallo",
+  "error_type": "RuntimeError",
+  "peak_self_rss_bytes": 2519633920,
+  "finished_at": "2026-09-29T05:10:13.261677+00:00"
+}

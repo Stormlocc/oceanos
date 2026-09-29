@@ -1,0 +1,19 @@
+{
+  "flag_value_counts": {
+    "1": 13802211,
+    "5": 4092761,
+    "7": 2428
+  },
+  "bit_counts": {
+    "0": 17897400,
+    "1": 2428,
+    "2": 4095189,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 0
+  },
+  "total_pixels": 17897400,
+  "science_accepted": false,
+  "issue": "Productos acu\u00e1ticos totalmente enmascarados; diagn\u00f3stico en fase 7"
+}

@@ -32,8 +32,18 @@ Pendiente de datos in situ. Recordar al usuario antes de fase 7: CTD, muestras, 
 
 Se ejecutaron seis comprobaciones aisladas de funciones nativas: precedencia de defaults de sensor, precedencia de override, OC3 presente para S2A/B/C, OC4 ausente para S2A/B/C, URL STAC defectuosa sin bbox y límite final STAC a medianoche. Además dos aserciones reprodujeron la forma de grilla con alineación activada/desactivada. Resultados en evidence/phase2/comprobaciones.json y alineacion_reproducida.json. Las comprobaciones con fallo esperado demuestran una limitación; no certifican funcionamiento de producción.
 
-Añadir a los tests futuros necesarios: detectar ausencia OC4 sin aceptar éxito parcial; conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.
+Añadir a los tests futuros necesarios: detectar ausencia de cualquier producto requerido sin aceptar éxito parcial (OC4 está excluido); conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.
 
 ## Casos de aceptación de fase 3
 
 El apartado 11 del [diseño del catálogo](16_catalog_provenance.md) define doce escenarios de comportamiento para futuras pruebas. Se revisaron como diseño, no se ejecutaron tests de una base aún no implementada. Priorizar idempotencia, cambios de contenido, reutilización L2R, completitud y separación validación/limpieza.
+
+
+## Resultado de fase 6
+
+El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.
+
+
+## Revisión de fase 7
+
+Se confirmó que el SWIR TOA supera el umbral en todo el recorte; las pruebas de escala SAFE/L1R, continuidad TOA y geolocalización pasaron. El brillo solar es una hipótesis compatible con la geometría, no una causa única demostrada. No se cambiaron parámetros; los productos acuáticos siguen no aceptados. Ver [dictamen y evidencia](28_phase7_validation.md).

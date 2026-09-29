@@ -1,0 +1,192 @@
+[
+  {
+    "path": ".work/acolite-audit/data/LUT/WV/WV_201710C.nc",
+    "bytes": 7032219,
+    "sha256": "b2bc88f7cbfacb16f47fe8aaa205340f6f322639b0a2075e37b786f05390e29b"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/Gas/Gas_202106F.nc",
+    "bytes": 31251577,
+    "sha256": "584a660746b15e9ef81211574363797952b17d519f7cfd4186c44b7d39580449"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-8A.nc",
+    "bytes": 7281229,
+    "sha256": "d685cca09ba36790d5e7f1cba8c66c5ec7d80382e2fa2f7abdae8b6c16080e36"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-10.nc",
+    "bytes": 7281229,
+    "sha256": "54fa4eac540492452c8be4a4f7378b5c22a76630551cf324cc5a7ff30bfe5405"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-7.nc",
+    "bytes": 7281229,
+    "sha256": "06724c69709796115ed4d9ce67841d13d47c1ac2f7ef0644d15be351715d8b95"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-2.nc",
+    "bytes": 7281229,
+    "sha256": "d9fa644c2d4e2d808d7f9190160a7a73e5ec0f8c3708f518d5615af0777f2445"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-3.nc",
+    "bytes": 7281229,
+    "sha256": "0b5e01a865ac45ba59f67b433af2940ba46f9d9b1c44b06b6baeae4db051bb97"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-1.nc",
+    "bytes": 7281229,
+    "sha256": "64d30e2e308a9d3c0a391fbd0fcb95066ed58320d1be6024532fa97fe21b568a"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-12.nc",
+    "bytes": 7281229,
+    "sha256": "790849e982a83469fd7f7664f1f53522907f32446b06784394bcee6ff1af6835"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-6.nc",
+    "bytes": 7281229,
+    "sha256": "e406daa725c430b7606bc405d6b225443bb87ada1b9eeddcac24e82efe0acb3b"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-11.nc",
+    "bytes": 7281229,
+    "sha256": "79fc52476ebb22382ca793d68dfe8c4306373f732332bf6209d11bb9fb4a9f37"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-5.nc",
+    "bytes": 7281229,
+    "sha256": "7a1af765461676a2d0f1d7ca92b088a2be279e2d8518b876a67de711c9c0d50a"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-9.nc",
+    "bytes": 7281229,
+    "sha256": "57d73e46d64cfee1f291b0871c4429c1e252866d79ec3c2946e495475effe270"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-8A.nc",
+    "bytes": 7281229,
+    "sha256": "e573867265d22fdc9467f90f66564b65c777d87b5dc8365212fd27e6931b8898"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-4.nc",
+    "bytes": 7281229,
+    "sha256": "72acf6875994e8890af0d67986ad9a5a0e9d569c78b67260def98e55c89f8bdd"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-2.nc",
+    "bytes": 7281229,
+    "sha256": "a80d5cdf5f514e4dfca4f6993f82c8580e1523f40f9af9ff1beb9e9ed331576f"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-8.nc",
+    "bytes": 7281229,
+    "sha256": "dc1e6920a02c1e579c1b2fa5a003881dff2a6fdc63de32817df458e3ad84d938"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-9.nc",
+    "bytes": 7281229,
+    "sha256": "47015f6aee83ffc5bfb5329c5ea5e6fcc534aac766cfe7c84fb8f462aa49cdec"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-6.nc",
+    "bytes": 7281229,
+    "sha256": "f417b6a37ecf1fde31a58f4185d988a04d79094146a797ab2d15520488cd1ba2"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-10.nc",
+    "bytes": 7281229,
+    "sha256": "963f70ee400930b40c1c239a523d6858e384d4aab167e13c48fa83622548c2ee"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-8.nc",
+    "bytes": 7281229,
+    "sha256": "b433bce9843dfe1d5a5b60f10a7f06ec155e69541ed6486383f5b4bf56b1b536"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-7.nc",
+    "bytes": 7281229,
+    "sha256": "600a96dd8373d5737fac227e13546c3a4634a6bc27fc672db30ae7473be5047f"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-12.nc",
+    "bytes": 7281229,
+    "sha256": "c5fe868cd8d3633a7829a2a1533728f50193a8d46d48fc288ea3e9951b61af91"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-11.nc",
+    "bytes": 7281229,
+    "sha256": "308e5ccd2ebb37980dd347046999183a5b2ea57cb5f4124992901830e388c421"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-1.nc",
+    "bytes": 7281229,
+    "sha256": "a9d26e5de71a4d02a522fa2a5c2a9e72bf051a5849736122e717d7dafc7af727"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-3.nc",
+    "bytes": 7281229,
+    "sha256": "7c6f9ecf06cb9dab93323912e488b52e4261e165bf07b584119d6958fd837ed6"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2B_MSI-romix+rsky_t-4.nc",
+    "bytes": 7281229,
+    "sha256": "53986c696f26c2bac64d586f9052fa0d1be4515eb20252bc8a46f7875ff3ee6e"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2B_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2B_MSI-romix+rsky_t-5.nc",
+    "bytes": 7281229,
+    "sha256": "26bf5cbb12654e3c88259f744f7fae68815aeecf88a8b1d3e97147d3756b5f45"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/RSKY-202102/S2B_MSI/ACOLITE-RSKY-202102-82W-MOD2_S2B_MSI.nc",
+    "bytes": 18026687,
+    "sha256": "91d99b17a4100bec1d69fdedbf703c03801f30d99cfdd38b663021ad19b1baa4"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/RSKY-202102/S2B_MSI/ACOLITE-RSKY-202102-82W-MOD1_S2B_MSI.nc",
+    "bytes": 18026687,
+    "sha256": "5a5fa9d11c948ab7e774fa17b1483c0ab209c69247b91ab21da26722106d3151"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD2-1013mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "7cf8eb311c04bcbe3af8f058385e86b89270fbe4e52109f7153d2750325f8f0e"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD2-0500mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "c7f85bc3622e5537d94fecc8c26953f1d3907a686dc0a1c259ad4435b0374a55"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD1-0750mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "03676e0518602af3bad38dbb4ac544f48acceaefaad63b8ed4006523529f9f15"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD1-1100mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "179a3d6cda42e9a2fe8954c3d08a77b021e530969fe4bda90e10dee32481c653"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD2-0750mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "488ec3de9eda48d0803c18d999a4ea438e90f1eab7816f25660605af6646c5ac"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD1-1013mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "831df78ac119ff16c0e9727e818a8342bea7b02751fbac5426607ba2d71f112d"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD1-0500mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "4d63434199ed807c0a4a4a356458b46e07d0bd7153e577e5293b60b3d7c6d1db"
+  },
+  {
+    "path": ".work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2B_MSI/ACOLITE-LUT-202110-MOD2-1100mb_S2B_MSI.nc",
+    "bytes": 42771826,
+    "sha256": "ac91258f9a22cbfce35431efd922ed393ef2e35cf7c4cb13eac303ff519ce79b"
+  }
+]

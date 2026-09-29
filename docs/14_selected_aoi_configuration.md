@@ -6,7 +6,7 @@ Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b77378
 
 AOI lapargera_v1; Sentinel-2, tile 19QGV, 1–20 agosto 2026 inclusive; cloud_cover=None; una escena; 50 GB temporales; Zarr remoto condicionado con fallback automático informado. La nubosidad es un argumento del catálogo/perfil, no un setting ACOLITE de corrección inventado.
 
-La fase 4 preparó project.yaml y acolite_s2.txt con referencia a la revisión auditada. Ver [configuración candidata de fase 4](25_phase4_aoi_configuration.md). Solo cinco overrides están activos; la tabla siguiente conserva también alternativas auditadas de reproyección. OC4 está pendiente de decisión.
+La fase 4 preparó project.yaml y acolite_s2.txt con referencia a la revisión auditada. Ver [configuración candidata de fase 4](25_phase4_aoi_configuration.md). Solo cinco overrides están activos; la tabla siguiente conserva también alternativas auditadas de reproyección. OC4 fue excluido por el usuario el 29 de septiembre de 2026.
 
 “Hereda” significa ausencia de override en el archivo sensor. Los números generales proceden del archivo, antes de conversiones del parser; pressure=None se convierte a 1013,25 cuando corresponde. La fuente de defaults sensor se conserva en JSON y archivos fijados al commit.
 
@@ -54,7 +54,7 @@ La fase 4 preparó project.yaml y acolite_s2.txt con referencia a la revisión a
 | `dsf_interface_reflectance` | False | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:344](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L344) |
 | `dsf_residual_glint_correction` | False | hereda | hereda | Experimental; mantener False inicialmente | [config/defaults.txt:351](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L351) |
 | `adjacency_correction` | False | hereda | hereda | Experimental; mantener False inicialmente | [config/defaults.txt:363](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L363) |
-| `l2w_parameters` | None | hereda | hereda | Override: productos compatibles; OC4 pendiente | [config/defaults.txt:242](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L242) |
+| `l2w_parameters` | None | hereda | hereda | Override: productos compatibles; OC4 excluido | [config/defaults.txt:242](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L242) |
 | `l2w_mask` | True | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:243](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L243) |
 | `l2w_mask_wave` | 1600 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:244](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L244) |
 | `l2w_mask_threshold` | 0.0215 | hereda | hereda | Conservar default; sin override inicial | [config/defaults.txt:245](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/config/defaults.txt#L245) |

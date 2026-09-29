@@ -1,0 +1,4 @@
+
+# Entorno de ensayo, RAW y salidas temporales voluminosas.
+/.work/
+__pycache__/

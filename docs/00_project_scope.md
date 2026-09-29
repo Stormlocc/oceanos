@@ -25,10 +25,10 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 1. Analizar AOI: completado; 19QGV cubre todo el AOI.
 2. Auditar ACOLITE: auditoría estática completada; ver documento 23.
 3. Diseñar catálogo y provenance: completado según retornos auditados; mapeo con respuestas reales pendiente de ejecución.
-4. Perfil científico candidato preparado; pendiente de decisión sobre OC4 y ensayo posterior.
-5. Seleccionar adquisición y fallback.
-6. Procesar una escena.
-7. Validar resultados.
+4. Perfil científico candidato preparado; OC4 excluido por el usuario. Ensayo real pendiente.
+5. Adquisición y fallback definidos; disponibilidad consultada: cinco SAFE, cero Zarr. Ver documento 26.
+6. Escena procesada; productos acuáticos totalmente enmascarados. Ver documento 27.
+7. Revisión técnica completada: escala y grilla correctas en las pruebas; productos acuáticos no aceptados. Validación científica pendiente. Ver documento 28.
 8. Analizar benchmark, instrumentado desde la ejecución de fase 6.
 9. Limpiar fuentes temporales.
 10. Repetir manualmente en varias fechas e incorporar Landsat antes de Docker.

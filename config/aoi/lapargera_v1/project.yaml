@@ -1,7 +1,7 @@
 # Perfil OCEANOS. No es un archivo de settings de ACOLITE.
 # Configuración candidata para el primer ensayo; no validada con una escena.
 schema_version: 1
-profile_version: 1
+profile_version: 3
 status: candidate
 
 aoi:
@@ -35,10 +35,7 @@ acolite:
 products:
   # Esta lista expresa obligaciones científicas; acolite_s2.txt contiene la solicitud nativa.
   active: ["Rrs_*", tur_nechad2009, chl_oc3, ndci, fai, ndvi]
-  pending:
-    - name: chl_oc4
-      reason: no_configurado_para_Sentinel2_en_revision_auditada
-      decision: pendiente_del_usuario
+  # OC4 excluido por decisión del usuario el 29 de septiembre de 2026.
   required_quality_dataset: l2_flags
   preserve_l2r_for_derivation: true
   ocean_mask:
@@ -60,12 +57,17 @@ grid:
     yrange_m: [1997360, 1972960]
     shape_yx: [2440, 7335]
     pixel_size_xy_m: [10, -10]
-    verified_with_scene: false
+    verified_with_scene: true
   mismatch_action: detener_publicacion_y_revisar
 
 input:
-  # Preferencia acordada; disponibilidad y selección definitiva se resuelven en fase 5.
-  strategy_status: pendiente_fase_5
+  # Consulta de fase 5: Zarr sin resultados; cinco productos SAFE disponibles.
+  strategy_status: definida_fase_5
+  stac_base_url: https://stac.core.eopf.eodc.eu
+  initial_expected_source: safe_temporal
+  recheck_zarr_on_execution: true
+  remove_zip: false
+  remove_tar: false
   preferred: zarr_remoto_compatible
   fallback: safe_temporal
   notify_on_fallback: true
@@ -83,7 +85,7 @@ storage:
   raw_cleanup_on_exhausted_failure: informar_y_eliminar_solo_fuentes_recuperables
 
 validation:
-  profile_state: pendiente_de_escena_real
+  profile_state: ensayo_ejecutado_productos_acuaticos_totalmente_enmascarados
   check_required_variables: true
   check_matching_grid: true
   report_valid_pixel_fraction: true

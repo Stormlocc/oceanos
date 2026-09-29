@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "escala_B02": true,
+    "escala_B11": true,
+    "toa_conservada_L1R_L2R": true,
+    "geolocalizacion_coherente": true,
+    "todo_swir_supera_umbral": true,
+    "flag_swir_activo_en_todo_el_recorte": true
+  },
+  "details": {
+    "B02_max_abs_error": 0.0,
+    "B11_max_abs_error": 0.0,
+    "max_error_geolocation_degrees": 3.812236684552772e-06,
+    "swir_min": 0.026000000536441803
+  },
+  "scientific_validation": "pendiente_in_situ",
+  "water_products_accepted": false
+}

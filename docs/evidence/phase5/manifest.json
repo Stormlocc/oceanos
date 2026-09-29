@@ -1,0 +1,12 @@
+{
+  "docs/evidence/phase5/checks.json": "5678a2b4cbc8ccec4723f96a293bf464f85cac66c203db07b3b15c3ef2e64ce5",
+  "docs/evidence/phase5/eopf_collection_probe.json": "6b0ba6f3fcdee5c9b531170d9c8abd0a20156f096e516c3ca122fbad9496dcd9",
+  "docs/evidence/phase5/stac_empty_response.json": "6f3ed6a785ebb57777fadfd57fa6099d9bf4a54da5878d8d5716e37cb84b966e",
+  "docs/evidence/phase5/candidates.json": "5a5d752265b903e70babaa603cca4af6d8aff690ae097c9d0dc37c13084796dc",
+  "docs/evidence/phase5/stac_query_normalized.json": "aa3abd8479fa1613c84eaf2ad4da52fa3d44197190e548daec2c71f186707e38",
+  "docs/evidence/phase5/stac_query.json": "ef2caba43955330902d4c64b15c812c73b14f696d7759a98a2e026d4ee6a5c66",
+  "docs/evidence/phase5/cdse_query.json": "c6b946eb86f61ee6cc9e0738e7d1abaa0d2d63a17b6942f632191021e32f8ae1",
+  "config/aoi/lapargera_v1/project.yaml": "317612e4b683e80482f22515c37d79a25c3468511a8ffe19ec1e1ede15de537d",
+  "config/aoi/lapargera_v1/acolite_s2.txt": "4a7898b621e31e8850d9f295f7fd87a1ff9034cfa757f22e015fad327b57440b",
+  "docs/26_phase5_input_strategy.md": "5f74c6b978521701441693b24d2a00f0bb890864d9beff65c96d4f57a5c1b840"
+}

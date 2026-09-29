@@ -25,3 +25,8 @@ Fuente: [acolite/api/cdse/download.py:10](https://github.com/acolite/acolite/blo
 ## Política de producto
 
 Conservar los tres intentos totales propuestos para fallos transitorios, esperas 1/5 minutos, fallback informado y límite 50 GB. La auditoría demuestra que ese control pertenece a nuestro wrapper mínimo. Una corrección pequeña de streaming/timeout nativos puede ser necesaria; no se implementó ni se eligió aún una estrategia de parche. Sin benchmark no certificar consumo de RAM ni disco.
+
+
+## Actualización de fase 5 — 29 de septiembre de 2026
+
+La consulta de metadata encontró cinco SAFE L1C de 19QGV y ningún Zarr para el intervalo inicial. Se mantiene preferencia Zarr con comprobación al ejecutar; SAFE es la entrada prevista del primer ensayo. Ver [estrategia de adquisición y evidencia](26_phase5_input_strategy.md). No se descargaron escenas ni se midió rendimiento.

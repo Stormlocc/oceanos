@@ -4,9 +4,9 @@ Fecha: 25 de septiembre de 2026. AOI: `lapargera_v1`.
 
 ## Estado de la entrega
 
-Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática; fase 3 completada como diseño de catálogo/provenance. Ver [resultado de fase 2](23_phase2_audit_results.md) y [diseño de fase 3](24_phase3_catalog_design.md). Fase 4: perfil candidato preparado; OC4 pendiente de decisión. Todavía no hay pipeline, benchmark ni configuración científica validada con escena.
+Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática; fase 3 completada como diseño de catálogo/provenance. Ver [resultado de fase 2](23_phase2_audit_results.md) y [diseño de fase 3](24_phase3_catalog_design.md). Fase 4 cerrada como configuración candidata; OC4 excluido por el usuario. Fase 5 completada como estrategia de adquisición y consulta de disponibilidad; ver [informe de fase 5](26_phase5_input_strategy.md). Fase 6 ejecutada: NetCDF generados, pero los productos acuáticos quedaron totalmente enmascarados; ver [ensayo real](27_phase6_first_scene.md). No hay pipeline ni validación científica aprobada.
 
-Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño definido; el perfil científico candidato está documentado en fase 4; la selección de adquisición de fase 5 sigue pendiente.
+Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño definido; el perfil científico candidato está documentado en fase 4; la fase 5 define preferencia Zarr y fallback SAFE; el ensayo de fase 6 concluyó con una incidencia de enmascarado; la revisión técnica de fase 7 se completó con productos acuáticos no aceptados; la validación científica sigue pendiente. No se inició fase 8.
 
 ## Índice
 
@@ -38,6 +38,12 @@ Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño
 | [23_phase2_audit_results.md](23_phase2_audit_results.md) | Resultados y límites verificados de fase 2 |
 | [24_phase3_catalog_design.md](24_phase3_catalog_design.md) | Decisiones del catálogo y provenance |
 | [25_phase4_aoi_configuration.md](25_phase4_aoi_configuration.md) | Perfil científico candidato y comprobaciones |
+
+| [26_phase5_input_strategy.md](26_phase5_input_strategy.md) | Disponibilidad comprobada y adquisición seleccionada |
+
+| [27_phase6_first_scene.md](27_phase6_first_scene.md) | Ensayo real, métricas e incidencia de enmascarado |
+
+| [28_phase7_validation.md](28_phase7_validation.md) | Validación técnica y dictamen de productos acuáticos no aceptados |
 
 ## Fuentes y trazabilidad
 

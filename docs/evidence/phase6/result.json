@@ -1,0 +1,13 @@
+{
+  "phase": 6,
+  "execution_completed": true,
+  "scientifically_accepted": false,
+  "reason": "Rrs, turbidez, OC3 y NDCI totalmente enmascarados",
+  "download_seconds": 368.0262441569994,
+  "processing_seconds": 519.3808616059996,
+  "peak_self_rss_bytes": 4744155136,
+  "sampled_peak_tree_rss_bytes": 4612444160,
+  "sampled_peak_disk_bytes": 3360989947,
+  "final_measured_disk_bytes": 3419458515,
+  "resources_retained": true
+}

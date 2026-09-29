@@ -11,11 +11,11 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 5 | Estrategia de catálogo | 03, 16, 24 | Diseño terminado: SQLite único, sin implementar |
 | 6 | Metadata/provenance | 16 | Seis entidades, campos, origen y ausencia definidos |
 | 7 | Detección de cambios | 03, 16 | Reglas de cambios, hashes y reutilización definidas |
-| 8 | SAFE frente a Zarr | 06 | Comparación conceptual; sin medición |
+| 8 | SAFE frente a Zarr | 06 | Disponibilidad consultada en fase 5; rendimiento sin medir |
 | 9 | Fallback | 04 | Política acordada; sin implementación |
-| 10 | Configuración candidata | 14, 25 | YAML del perfil y TXT nativo preparados; OC4 pendiente |
+| 10 | Configuración candidata | 14, 25 | YAML del perfil y TXT nativo preparados; OC4 excluido |
 | 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; overrides candidatos |
-| 12 | Productos finales | 11 | Soporte auditado; OC4 MSI no configurado |
+| 12 | Productos finales | 11 | Soporte auditado; OC4 excluido por el usuario |
 | 13 | Estrategia L2R/L2W | 10, 11, 25 | Conservar L2R/L2W nativos; validar con escena |
 | 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
 | 15 | Temporales | 17 | Política documentada |

@@ -26,8 +26,18 @@ El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y aus
 
 Pendientes resueltos: defaults y precedencia identificados; firmas/retornos API auditados; soporte L1C SAFE/EOPF confirmado en código; OC4 no configurado para MSI; EPSG/MGRS/grilla geométrica ya calculados en fase 1.
 
-Decisiones abiertas antes de ejecutar: revisión ACOLITE a fijar; tratamiento de OC4; máscara oceánica para FAI/NDVI; evitar reproyección o resolver pérdida de flags/alineación; acceso a metadata CDSE omitida; streaming/reintentos mínimos; disponibilidad Zarr real para período y tile. Estas decisiones se llevan a fases 3–5. Sin selección final ni cambios a la instalación local.
+Actualización del 29 de septiembre: revisión ACOLITE fijada en fase 4; OC4 excluido por el usuario; ensayo sin reproyección final; fase 5 consultó Zarr (sin resultados) y CDSE (cinco SAFE). Siguen pendientes la máscara oceánica para FAI/NDVI, preparar el entorno de la revisión elegida, comprobar autenticación de descarga, validar recursos y ejecutar el ensayo. El diseño de captura de metadata/reintentos aún no está implementado. La instalación local no se modificó.
 
 ## Actualización de fase 3
 
 Resuelto el formato de persistencia: SQLite único, metadata seleccionada en JSON interno y archivos científicos externos. Definidas identidad, cambios, recuperación y reutilización. Se eligió una extensión futura opcional del retorno CDSE para evitar un cliente propio; aún no implementada. Se documenta explícitamente que UTC es la convención del intervalo y que identidad incompleta impide deduplicación científica automática.
+
+
+## Resultado de fase 6
+
+El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.
+
+
+## Revisión de fase 7
+
+Se confirmó que el SWIR TOA supera el umbral en todo el recorte; las pruebas de escala SAFE/L1R, continuidad TOA y geolocalización pasaron. El brillo solar es una hipótesis compatible con la geometría, no una causa única demostrada. No se cambiaron parámetros; los productos acuáticos siguen no aceptados. Ver [dictamen y evidencia](28_phase7_validation.md).

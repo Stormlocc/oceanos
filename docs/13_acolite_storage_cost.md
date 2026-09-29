@@ -25,3 +25,8 @@ GeoTIFF está desactivado por defecto para L1R/L2R/L2W. Sin embargo rgb_rhot/rgb
 Entorno inspeccionado: GDAL 3.13.3 con drivers JP2OpenJPEG, netCDF y Zarr disponibles; Python packages numpy 2.5.3, netCDF4 1.7.4, pyproj 3.8.0, pyresample 1.35.0, zarr 3.3.0, fsspec 2026.7.0, aiohttp 3.14.3, scipy 1.18.1. Existencia/import de drivers no prueba una escena EOPF remota.
 
 La ruta project_acolite_netcdf apila datasets y hace copias; la descarga nativa CDSE/EarthExplorer no usa streaming explícito. Ambos factores justifican mantener concurrencia uno y medir RAM. LUT/auxiliares también ocupan disco. No hay benchmark ejecutado en fase 2.
+
+
+## Resultado de fase 6
+
+El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.

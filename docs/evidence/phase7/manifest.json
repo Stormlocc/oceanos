@@ -1,0 +1,9 @@
+{
+  "docs/evidence/phase7/result.json": "5d4d9f73faf62d00bb9340abdd6c73387cfd12d2258bde9fb514592f3ba5e6c2",
+  "docs/evidence/phase7/diagnostic.png": "2f43c0f77632650222aad8def7b85716423de7cb8fb3c0c141d351635f686796",
+  "docs/evidence/phase7/spatial_diagnostic.json": "f784424deb5f6a44e176360af009db2794ea80ede5ea5fe3a54f188ef61a556a",
+  "docs/evidence/phase7/contract_checks.json": "871e3daa5e0677dba2113b56a2e1cfc86bc2680bb55702fa4f06623e0817689e",
+  "docs/evidence/phase7/radiometry.json": "de035e73083c18c09d4b7ec48014ad86fde80b0870fcf21542d471d546b1c6e3",
+  "docs/evidence/phase7/validate_scene.py": "0a418dbabaa7e1ff4e4cb8a5c7adc9868241b203a237fcae38fd5b12f1dccb47",
+  "docs/28_phase7_validation.md": "bdda93f6bd7d67955a43ae8fd1be13b1d8b1c7c8ee537b07ce40c765c013a76c"
+}

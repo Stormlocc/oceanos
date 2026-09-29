@@ -11,8 +11,8 @@ El KMZ es la geometría original; no se alteró. El límite enviado a ACOLITE es
 - DSF, auxiliares, gases, geometría y compresión: conservar defaults por plataforma de esa revisión.
 - Resolución 10 m, merge_tiles=False, sin buffer y sin reproyección final. Estos valores ya son defaults, por eso no se copian al TXT.
 - Conservar L2R y L2W nativos; L1R y temporales se conservan durante el ensayo hasta validar y decidir limpieza.
-- No activar borrado nativo. La descarga tiene argumentos propios remove_zip/remove_tar; se resolverán en fase 5 y no quedan controlados por este TXT.
-- OC4 no está soportado para MSI; está registrado como pendiente, no sustituido ni solicitado silenciosamente.
+- No activar borrado nativo. La descarga usará remove_zip=False y remove_tar=False; son argumentos de adquisición, no settings del TXT.
+- OC4 excluido por decisión del usuario del 29 de septiembre de 2026; OC3 permanece activo.
 - FAI/NDVI permanecen sin máscara acuática nativa; una salida exclusivamente oceánica para todas las variables sigue pendiente. El usuario permite conservar tierra y aplicar filtro posteriormente.
 
 ## Grilla candidata
@@ -24,3 +24,7 @@ No es una grilla validada de escena. SAFE y Zarr deben producir coordenadas/exte
 No crear aún `acolite_l89.txt`: Landsat será configurado y validado antes de Docker, no por copiar settings Sentinel-2.
 
 Detalles y límites: [informe de fase 4](../../../docs/25_phase4_aoi_configuration.md).
+
+## Ensayo real de fase 6
+
+La grilla candidata fue confirmada con la escena del 4 de agosto. L1R, L2R y L2W se generaron, pero Rrs, turbidez, OC3 y NDCI quedaron totalmente enmascarados. El perfil conserva estado candidato; no modificar umbrales ni declarar aceptación científica. Ver [informe de fase 6](../../../docs/27_phase6_first_scene.md).
