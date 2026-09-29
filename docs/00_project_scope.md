@@ -29,7 +29,7 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 5. Adquisición y fallback definidos; disponibilidad consultada: cinco SAFE, cero Zarr. Ver documento 26.
 6. Escena procesada; productos acuáticos totalmente enmascarados. Ver documento 27.
 7. Revisión técnica completada: escala y grilla correctas en las pruebas; productos acuáticos no aceptados. Validación científica pendiente. Ver documento 28.
-8. Analizar benchmark, instrumentado desde la ejecución de fase 6.
+8. Benchmark de una escena analizado; concurrencia uno mantenida. Ver documento 29.
 9. Limpiar fuentes temporales.
 10. Repetir manualmente en varias fechas e incorporar Landsat antes de Docker.
 11. Implementar wrapper mínimo.

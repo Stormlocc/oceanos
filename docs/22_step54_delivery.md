@@ -20,8 +20,8 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
 | 15 | Temporales | 17 | Política documentada |
 | 16 | Eliminación SAFE | 17 | Política documentada |
-| 17 | Estimación computacional | 13 | Restricciones conocidas; recursos reales pendientes |
-| 18 | Benchmark | 13 | Plan documentado |
+| 17 | Estimación computacional | 13 | Una escena medida; análisis y límites en documento 29 |
+| 18 | Benchmark | 13, 29 | Medición analizada; sin comparación Zarr ni escena científicamente aceptada |
 | 19 | Validación | 15 | Plan técnico y tests; ciencia pendiente |
 | 20 | Airflow | 18 | Arquitectura futura conceptual |
 | 21 | Zarr | 19 | Arquitectura futura conceptual |

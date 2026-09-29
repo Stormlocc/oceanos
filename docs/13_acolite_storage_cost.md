@@ -2,7 +2,7 @@
 
 Entorno declarado: Intel Core i9 de 13.ª generación, 16 GB RAM físicos, WSL Ubuntu sobre Windows 11, asignación dinámica de RAM, WSL 2.6.1.0, aproximadamente 100 GB SSD libres y conexión de 100 Mbps. Presupuesto máximo de temporales: 50 GB. Estos valores no sustituyen mediciones del entorno efectivo.
 
-Procesar una escena a la vez. No existen aún mediciones reales de duración, RAM o tamaños de producto y no se presentan estimaciones como resultados.
+Procesar una escena a la vez. Ya existen mediciones de una escena SAFE, analizadas en [fase 8](29_phase8_benchmark.md): procesamiento 519,38 s, RSS máximo 4,74 GB y ocupación final 3,42 GB. Los productos acuáticos no fueron aceptados; estos resultados no representan todavía la producción de una escena científicamente válida.
 
 ## Plan de medición
 
