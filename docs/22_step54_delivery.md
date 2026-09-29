@@ -13,11 +13,11 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 7 | Detección de cambios | 03, 16 | Reglas de cambios, hashes y reutilización definidas |
 | 8 | SAFE frente a Zarr | 06 | Comparación conceptual; sin medición |
 | 9 | Fallback | 04 | Política acordada; sin implementación |
-| 10 | Configuración candidata | 14 | Perfil conceptual, no ejecutable |
+| 10 | Configuración candidata | 14, 25 | YAML del perfil y TXT nativo preparados; OC4 pendiente |
 | 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; overrides candidatos |
 | 12 | Productos finales | 11 | Soporte auditado; OC4 MSI no configurado |
-| 13 | Estrategia L2R/L2W | 10, 11 | Candidata |
-| 14 | Proyección | 12 | Requisitos fijados; parámetros pendientes |
+| 13 | Estrategia L2R/L2W | 10, 11, 25 | Conservar L2R/L2W nativos; validar con escena |
+| 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
 | 15 | Temporales | 17 | Política documentada |
 | 16 | Eliminación SAFE | 17 | Política documentada |
 | 17 | Estimación computacional | 13 | Restricciones conocidas; recursos reales pendientes |

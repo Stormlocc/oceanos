@@ -1,0 +1,21 @@
+{
+  "sub": [
+    202,
+    268,
+    7335,
+    2440
+  ],
+  "xrange": [
+    701980.0,
+    775330.0
+  ],
+  "yrange": [
+    1997360.0,
+    1972960.0
+  ],
+  "xdim": 7335,
+  "ydim": 2440,
+  "out_lon": false,
+  "out_lat": false,
+  "metodo": "projection_sub nativo; extent nominal 19QGV del KML ESA. No metadata de escena real."
+}

@@ -1,0 +1,152 @@
+{
+  "alcance": "Parser YAML y parser/merge nativos aislados. Sin escena ni correccion atmosferica.",
+  "checks": {
+    "integridad_kmz": true,
+    "settings_reconocidos": true,
+    "productos_sin_divergencia": true,
+    "limite_sin_divergencia": true,
+    "sin_oc4_no_soportado": true,
+    "nubosidad_desactivada": true,
+    "defaults_operativos_S2A_MSI": true,
+    "defaults_operativos_S2B_MSI": true,
+    "defaults_operativos_S2C_MSI": true
+  },
+  "overrides": {
+    "region_name": "lapargera_v1",
+    "limit": [
+      17.83506768071816,
+      -67.09176880642183,
+      18.047432637275,
+      -66.40241185767644
+    ],
+    "l2w_parameters": [
+      "Rrs_*",
+      "tur_nechad2009",
+      "chl_oc3",
+      "ndci",
+      "fai",
+      "ndvi"
+    ],
+    "rgb_rhot": false,
+    "rgb_rhos": false
+  },
+  "effective_selected_by_sensor": {
+    "S2A_MSI": {
+      "s2_target_res": 10,
+      "merge_tiles": false,
+      "output_projection": false,
+      "reproject_before_ac": false,
+      "limit_buffer": null,
+      "polygon": null,
+      "polygon_clip": false,
+      "atmospheric_correction_method": "dark_spectrum",
+      "ancillary_data": true,
+      "dsf_aot_estimate": "tiled",
+      "dsf_intercept_pixels": 200,
+      "dsf_tile_dimensions": [
+        600,
+        600
+      ],
+      "dsf_wave_range": [
+        400.0,
+        900.0
+      ],
+      "copy_datasets": [
+        "lon",
+        "lat",
+        "sza",
+        "vza",
+        "raa",
+        "rhot_*"
+      ],
+      "netcdf_compression": true,
+      "netcdf_compression_level": 4,
+      "l2w_mask": true,
+      "l2w_mask_water_parameters": true,
+      "l2w_data_in_memory": false,
+      "rsr_version": null,
+      "delete_extracted_input": false,
+      "l1r_delete_netcdf": false,
+      "l2r_delete_netcdf": false,
+      "l2w_delete_netcdf": false
+    },
+    "S2B_MSI": {
+      "s2_target_res": 10,
+      "merge_tiles": false,
+      "output_projection": false,
+      "reproject_before_ac": false,
+      "limit_buffer": null,
+      "polygon": null,
+      "polygon_clip": false,
+      "atmospheric_correction_method": "dark_spectrum",
+      "ancillary_data": true,
+      "dsf_aot_estimate": "tiled",
+      "dsf_intercept_pixels": 200,
+      "dsf_tile_dimensions": [
+        600,
+        600
+      ],
+      "dsf_wave_range": [
+        400.0,
+        900.0
+      ],
+      "copy_datasets": [
+        "lon",
+        "lat",
+        "sza",
+        "vza",
+        "raa",
+        "rhot_*"
+      ],
+      "netcdf_compression": true,
+      "netcdf_compression_level": 4,
+      "l2w_mask": true,
+      "l2w_mask_water_parameters": true,
+      "l2w_data_in_memory": false,
+      "rsr_version": null,
+      "delete_extracted_input": false,
+      "l1r_delete_netcdf": false,
+      "l2r_delete_netcdf": false,
+      "l2w_delete_netcdf": false
+    },
+    "S2C_MSI": {
+      "s2_target_res": 10,
+      "merge_tiles": false,
+      "output_projection": false,
+      "reproject_before_ac": false,
+      "limit_buffer": null,
+      "polygon": null,
+      "polygon_clip": false,
+      "atmospheric_correction_method": "dark_spectrum",
+      "ancillary_data": true,
+      "dsf_aot_estimate": "tiled",
+      "dsf_intercept_pixels": 200,
+      "dsf_tile_dimensions": [
+        600,
+        600
+      ],
+      "dsf_wave_range": [
+        400.0,
+        900.0
+      ],
+      "copy_datasets": [
+        "lon",
+        "lat",
+        "sza",
+        "vza",
+        "raa",
+        "rhot_*"
+      ],
+      "netcdf_compression": true,
+      "netcdf_compression_level": 4,
+      "l2w_mask": true,
+      "l2w_mask_water_parameters": true,
+      "l2w_data_in_memory": false,
+      "rsr_version": "V4",
+      "delete_extracted_input": false,
+      "l1r_delete_netcdf": false,
+      "l2r_delete_netcdf": false,
+      "l2w_delete_netcdf": false
+    }
+  }
+}

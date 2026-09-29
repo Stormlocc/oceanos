@@ -33,3 +33,7 @@ Fuentes: [acolite/output/project_acolite_netcdf.py:228](https://github.com/acoli
 `reproject_acolite_netcdf(ncf,dct,...,warp_alg='bilinear')` trabaja un dataset a la vez mediante GDAL, pero fuerza Float32 para buffers, comparte interpolación para todas las variables, usa add_half_pixel=False y no resuelve automáticamente el contrato de flags/geometría. No sustituir a ciegas la ruta general. Fuente: [acolite/output/reproject_acolite_netcdf.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/reproject_acolite_netcdf.py#L7-L114).
 
 La prioridad es comprobar grilla nativa de 19QGV en varias fechas antes de introducir un warp redundante. Si se demuestra una limitación, emplear función nativa y un ajuste mínimo específico, nunca construir un motor propio. Co-registration permanece fuera del MVP.
+
+## Actualización de fase 4
+
+El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como candidata del primer ensayo, no como resultado validado con una escena. Ver el informe para la diferencia de extent y método.

@@ -6,7 +6,7 @@ Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b77378
 
 AOI lapargera_v1; Sentinel-2, tile 19QGV, 1–20 agosto 2026 inclusive; cloud_cover=None; una escena; 50 GB temporales; Zarr remoto condicionado con fallback automático informado. La nubosidad es un argumento del catálogo/perfil, no un setting ACOLITE de corrección inventado.
 
-Geometría, identificación de productos, retención y reintentos pertenecen a nuestro perfil. La tabla siguiente identifica overrides candidatos, no un archivo ejecutable aprobado. No se ha avanzado a fase 4 ni elegido revisión de ejecución definitiva.
+La fase 4 preparó project.yaml y acolite_s2.txt con referencia a la revisión auditada. Ver [configuración candidata de fase 4](25_phase4_aoi_configuration.md). Solo cinco overrides están activos; la tabla siguiente conserva también alternativas auditadas de reproyección. OC4 está pendiente de decisión.
 
 “Hereda” significa ausencia de override en el archivo sensor. Los números generales proceden del archivo, antes de conversiones del parser; pressure=None se convierte a 1013,25 cuando corresponde. La fuente de defaults sensor se conserva en JSON y archivos fijados al commit.
 

@@ -94,3 +94,7 @@ Esta es una propuesta geométrica, no una configuración ACOLITE ejecutable ni g
 ## Decisiones al cerrar fase 1
 
 Mantener el AOI recibido, candidato single-tile 19QGV, EPSG:32619, resolución final Sentinel-2 de 10 m y sin buffer adicional. La grilla propuesta y el manejo terrestre quedan sujetos a comprobación en ACOLITE. La fase 2 requiere una nueva orden del usuario.
+
+## Actualización de fase 4
+
+El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como candidata del primer ensayo, no como resultado validado con una escena. Ver el informe para la diferencia de extent y método.

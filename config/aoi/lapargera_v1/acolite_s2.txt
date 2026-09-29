@@ -1,0 +1,10 @@
+## Overrides mínimos para lapargera_v1 — Sentinel-2 L1C.
+## Referencia: ACOLITE 80da0c0c681d9597fd4b7737837d6a3e61907b33.
+## Candidato de fase 4: aún no validado con una escena real.
+## inputfile/output se proporcionarán por ejecución; no lanzar este archivo solo.
+region_name=lapargera_v1
+limit=17.83506768071816,-67.09176880642183,18.047432637275,-66.40241185767644
+l2w_parameters=Rrs_*,tur_nechad2009,chl_oc3,ndci,fai,ndvi
+## Evitar mapas RGB no solicitados; los GeoTIFF ya están desactivados por defecto.
+rgb_rhot=False
+rgb_rhos=False
