@@ -15,3 +15,7 @@ El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y aus
 ## Resultados de auditoría de fase 2
 
 Los lectores SAFE/Zarr ya implementan merge_tiles, merge_full_tiles, extend_region y controles de sensor/tiempo; max_merge_time aparece como argumento de lector (600 s), no debe inventarse como setting global sin seguir su propagación. Para nuestro AOI merge_tiles=False ya es default y single-tile está confirmado. No activar mezcla ni extrapolar cruces UTM a partir de un caso sin cruce.
+
+## Política vigente de conservación
+
+Un L1R recortado no permite ampliar después el AOI ni recuperar bandas descartadas. Un AOI más grande puede requerir fuentes nuevas; conservar L1R no implica reutilización universal. Ver [decisión transversal](33_retention_and_reset.md).

@@ -14,7 +14,7 @@
 | Falta validación in situ | Recordatorio obligatorio antes de fase 7 |
 | Persistencia sin respaldo | Definir destino de backup más adelante |
 
-Pendientes técnicos: EPSG, MGRS/WRS, extent y origen; versión ACOLITE; firmas API; defaults efectivos; soporte de productos; origen de auxiliares; comparación de fuentes; grilla Landsat; formato definitivo de catálogo; selección L2R/L2W; límites de aceptación científica y métricas reales.
+Pendientes técnicos: EPSG, MGRS/WRS, extent y origen; versión ACOLITE; firmas API; defaults efectivos; soporte de productos; origen de auxiliares; comparación de fuentes; grilla Landsat; formato definitivo de catálogo; conservación L1R/L2W con L2R temporal; límites de aceptación científica y métricas reales.
 
 No se necesitan más preguntas de Discovery para documentar el alcance. Los pendientes técnicos deben resolverse mediante las fases autorizadas, no mediante supuestos presentados como hechos.
 

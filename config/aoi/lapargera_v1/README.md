@@ -1,6 +1,6 @@
 # Perfil científico lapargera_v1
 
-`project.yaml` expresa el contrato OCEANOS; **ACOLITE no interpreta este YAML**. No existe todavía un wrapper que lo ejecute. `acolite_s2.txt` sí usa settings nativos y contiene solo cinco overrides respecto de la revisión auditada.
+`project.yaml` expresa el contrato OCEANOS; **ACOLITE no interpreta este YAML**. El wrapper de fase 11 interpreta este perfil y ejecuta ACOLITE; ver [operación](../../../README.md). `acolite_s2.txt` sí usa settings nativos y contiene solo cinco overrides respecto de la revisión auditada.
 
 El KMZ es la geometría original; no se alteró. El límite enviado a ACOLITE está en orden sur, oeste, norte, este y produce un recorte rectangular. No se pasa `polygon`, porque la ruta auditada de polygon_limit activa clipping.
 
@@ -10,8 +10,8 @@ El KMZ es la geometría original; no se alteró. El límite enviado a ACOLITE es
 - Revisión candidata ACOLITE `80da0c0c681d9597fd4b7737837d6a3e61907b33`. No ejecutar silenciosamente con otra revisión: los defaults locales difieren.
 - DSF, auxiliares, gases, geometría y compresión: conservar defaults por plataforma de esa revisión.
 - Resolución 10 m, merge_tiles=False, sin buffer y sin reproyección final. Estos valores ya son defaults, por eso no se copian al TXT.
-- Conservar L2R y L2W nativos; L1R y temporales se conservan durante el ensayo hasta validar y decidir limpieza.
-- No activar borrado nativo. La descarga usará remove_zip=False y remove_tar=False; son argumentos de adquisición, no settings del TXT.
+- Conservar L1R y L2W; L2R es temporal hasta el QA técnico y registro en SQLite. Regenerar desde L1R repite AC.
+- No activar borrado nativo de NetCDF. El wrapper elimina RAW/L2R después del QA técnico y registro; remove_zip=False y remove_tar=False evitan borrado anticipado.
 - OC4 excluido por decisión del usuario del 29 de septiembre de 2026; OC3 permanece activo.
 - FAI/NDVI permanecen sin máscara acuática nativa; una salida exclusivamente oceánica para todas las variables sigue pendiente. El usuario permite conservar tierra y aplicar filtro posteriormente.
 

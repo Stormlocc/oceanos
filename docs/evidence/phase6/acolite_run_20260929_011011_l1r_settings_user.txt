@@ -1,9 +1,0 @@
-## ACOLITE settings
-## Written at 2026-09-29 01:10:11
-region_name=lapargera_v1
-limit=17.83506768071816,-67.09176880642183,18.047432637275,-66.40241185767644
-l2w_parameters=Rrs_*,tur_nechad2009,chl_oc3,ndci,fai,ndvi
-rgb_rhot=False
-rgb_rhos=False
-inputfile=/home/antho/projects/oceanos/.work/phase6_20260804/raw/S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE
-output=/home/antho/projects/oceanos/.work/phase6_20260804/output

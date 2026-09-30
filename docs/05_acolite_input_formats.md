@@ -16,4 +16,4 @@ Fuentes: [acolite/acolite/inputfile_test.py:20](https://github.com/acolite/acoli
 
 La restricción Zarr local es del reconocimiento automático, no prueba de imposibilidad del lector. Resolver solo si realmente se necesita, sin escribir otro lector.
 
-`acolite_run` permite que un NetCDF ya L2R omita corrección atmosférica y llegue a L2W; el archivo debe cumplir contrato de identificación y contener reflectancias/metadata requeridas. Esto favorece conservar L2R completo útil, sin garantizar reprocesamiento ilimitado.
+`acolite_run` permite que un NetCDF ya L2R omita corrección atmosférica y llegue a L2W; el archivo debe cumplir contrato de identificación y contener reflectancias/metadata requeridas. La política actual conserva L1R: vuelve a generar L2R temporal y después L2W, sin garantizar reprocesamiento ilimitado.

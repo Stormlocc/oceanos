@@ -1,6 +1,6 @@
 # Perfil de ensayo Landsat de este AOI. No lo interpreta ACOLITE directamente.
 schema_version: 1
-profile_version: 2
+profile_version: 3
 status: candidate
 aoi_id: lapargera_v1
 settings_file: acolite_l89_candidate.txt
@@ -39,3 +39,5 @@ technical_validation:
   phase: 10
   completed_scenes: 3
   matching_grid_and_integer_flags: true
+persistent_science: [L1R, L2W]
+l2r_retention: temporal_hasta_validacion_tecnica

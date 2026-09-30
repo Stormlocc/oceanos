@@ -24,7 +24,7 @@ La función lee todos los datasets 2D —incluyendo geolocalización y flags— 
 
 Al escribir, **omite l2_flags** explícitamente. Seleccionar nearest no soluciona esa omisión. Por tanto, L2W proyectado solo no satisface conservar flags interpretables sobre su grilla. Mantener el original y resolver la estrategia antes de configuración final.
 
-Para 17.828.954 píxeles, cada banda float32 sin compresión ocupa 71,32 MB decimales; 30 bandas suman 2,14 GB antes de copias, vecinos y salida. Mezclar dtypes puede promover la pila. Es una cota de arrays, no estimación fiable del pico. Comparar L2R+L2W proyectados contra solo L2W, y considerar evitar reproyección si el recorte single-tile ya satisface la grilla estable.
+Para 17.828.954 píxeles, cada banda float32 sin compresión ocupa 71,32 MB decimales; 30 bandas suman 2,14 GB antes de copias, vecinos y salida. Mezclar dtypes puede promover la pila. Es una cota de arrays, no estimación fiable del pico. Medir L2R como costo temporal; conservar L1R/L2W en la grilla común y evitar reproyección redundante si el recorte ya la satisface.
 
 Fuentes: [acolite/output/project_acolite_netcdf.py:228](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/project_acolite_netcdf.py#L228-L246), [acolite/output/project_acolite_netcdf.py:278](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/project_acolite_netcdf.py#L278-L341).
 

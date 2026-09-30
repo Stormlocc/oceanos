@@ -1,8 +1,0 @@
-{
-  "checked_at": "2026-09-29T05:01:28.496816+00:00",
-  "module": "/home/antho/projects/oceanos/.work/acolite-audit/acolite/__init__.py",
-  "git_sha": "80da0c0c681d9597fd4b7737837d6a3e61907b33",
-  "disk_free_wsl_bytes": 988905652224,
-  "cdse_credentials_available": true,
-  "python": "3.14.7 | packaged by conda-forge | (main, Sep  2 2026, 21:08:32) [GCC 15.3.0]"
-}

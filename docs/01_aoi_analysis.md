@@ -87,7 +87,7 @@ Esta es una propuesta geométrica, no una configuración ACOLITE ejecutable ni g
 
 ## Evidencias y verificaciones simples
 
-[evidence/phase1/analysis.json](evidence/phase1/analysis.json) conserva métricas completas; los GeoJSON preservan AOI y footprints locales, y [manifest.json](evidence/phase1/manifest.json) registra tamaños y SHA-256. Se comprobó validez geométrica, cobertura e intersecciones, y se inspeccionó visualmente el mapa. Herramientas: Python del entorno local `acolite`, Shapely 2.1.2 y pyproj 3.8.0. Se utilizaron cálculos de análisis puntuales, sin crear un wrapper ni software del pipeline.
+[evidence/phase1/analysis.json — evidencia consolidada](33_retention_and_reset.md#historial) conserva métricas completas; los GeoJSON preservan AOI y footprints locales, y [manifest.json — evidencia consolidada](33_retention_and_reset.md#historial) registra tamaños y SHA-256. Se comprobó validez geométrica, cobertura e intersecciones, y se inspeccionó visualmente el mapa. Herramientas: Python del entorno local `acolite`, Shapely 2.1.2 y pyproj 3.8.0. Se utilizaron cálculos de análisis puntuales, sin crear un wrapper ni software del pipeline.
 
 ![Mapa de cobertura](evidence/phase1/aoi_coverage.png)
 

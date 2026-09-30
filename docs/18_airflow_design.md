@@ -15,3 +15,7 @@ Colab se considerará tras la implementación base, contemplando almacenamiento 
 ## Resultados de auditoría de fase 2
 
 Dependencias verificadas contra [environment.yml:1](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/environment.yml#L1); módulos remotos requieren Zarr/fsspec/aiohttp y GDAL Zarr. ACOLITE usa settings globales mutables; aislar proceso por ejecución antes de concurrencia entre AOI. Reintentos, límites, provenance y QA propios siguen siendo pequeños controles externos. Docker y Airflow no se implementaron ni se probaron en esta fase.
+
+## Política vigente de conservación
+
+En la futura fase de orquestación, persistir solo L1R/L2W y SQLite. La tarea de regeneración parte de L1R, repite AC y retira L2R tras QA técnico. Airflow no deberá crear otra copia del catálogo ni logs científicos redundantes. Ver [decisión transversal](33_retention_and_reset.md).

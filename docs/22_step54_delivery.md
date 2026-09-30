@@ -16,7 +16,7 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 10 | Configuración candidata | 14, 25 | YAML del perfil y TXT nativo preparados; OC4 excluido |
 | 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; overrides candidatos |
 | 12 | Productos finales | 11 | Soporte auditado; OC4 excluido por el usuario |
-| 13 | Estrategia L2R/L2W | 10, 11, 25 | Conservar L2R/L2W nativos; validar con escena |
+| 13 | Conservación L1R/L2W | 10, 11, 25 | Conservar L1R/L2W; regenerar AC y eliminar L2R temporal tras QA técnico |
 | 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
 | 15 | Temporales | 17, 30 | Política aplicada: retención del ensayo no aceptado |
 | 16 | Eliminación SAFE | 17, 30 | Borrado aplazado; integridad de fuente conservada |
@@ -33,3 +33,7 @@ No declarar completo el paso 54 en su sentido técnico hasta resolver la investi
 ## Actualización de fase 10
 
 Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
+
+## Implementación en fase 11
+
+El diseño histórico se materializó en el wrapper local y seis tablas SQLite, agrupando metadata en JSON. La aceptación técnica permite reutilización, pero no implica aprobación científica ni limpieza por éxito. Consultar [alcance, pruebas y límites](32_phase11_wrapper.md). No se inició fase 12.

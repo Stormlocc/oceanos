@@ -14,8 +14,8 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 - Prioridad al océano, incluyendo bahías, lagunas costeras y aguas someras; evaluar máscara terrestre nativa.
 - Una escena a la vez. Máximo 50 GB temporales.
 - Preferencia condicional por Zarr remoto; reintentos y fallback automático informado.
-- Catálogo, configuraciones, logs y resultados útiles persistentes; fuentes grandes temporales.
-- Reutilizar productos persistidos para generar nuevos productos cuando sea suficiente.
+- Conservar únicamente L1R/L2W y trazabilidad útil en SQLite; RAW, L2R y registros duplicados son temporales.
+- Reutilizar L1R para regenerar productos mediante L2R temporal; se evita descarga, pero se repite AC.
 - Código futuro pequeño, legible y directo. Validaciones simples y tests de comportamiento relevantes.
 - Documentación en español. Cada nueva fase requiere orden explícita.
 
@@ -32,7 +32,7 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 8. Benchmark de una escena analizado; concurrencia uno mantenida. Ver documento 29.
 9. Limpieza evaluada: borrado aplazado por validación no aceptada; fuentes conservadas. Ver documento 30.
 10. Repetición e incorporación Landsat completadas técnicamente: cinco Sentinel-2 y tres Landsat; validación científica pendiente. Ver documento 31.
-11. Implementar wrapper mínimo.
+11. Wrapper mínimo implementado y comprobado: SQLite, procesamiento nativo, reintentos, reutilización y 22 pruebas. Ver documento 32.
 12. Docker y Airflow.
 13. Cubo Zarr.
 14. Productos científicos propios solo donde ACOLITE no cubra la necesidad.

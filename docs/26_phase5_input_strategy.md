@@ -24,7 +24,7 @@ Para el primer ensayo se propone la adquisición más antigua, **S2B_MSIL1C_2026
 
 ## Flujo seleccionado
 
-1. Consultar primero el catálogo propio para detectar resultados reutilizables o cambios; si un L2R contiene reflectancias, TOA y datos de flags suficientes, derivar productos sin volver a adquirir RAW. No existe todavía la base SQLite implementada.
+1. Consultar primero el catálogo propio para detectar resultados reutilizables o cambios; si un L1R contiene las bandas TOA, geometría y metadata necesarias, regenerar L2W con AC y L2R temporal, sin volver a adquirir RAW. SQLite está implementado desde fase 11.
 2. Consultar Zarr mediante la API STAC nativa, con base URL explícita, bbox y extremo final del día 21. Aplicar intervalo local exclusivo y validar identificación de adquisición/tile/nivel.
 3. Si aparece un Zarr candidato, comprobar metadatos y estructura compatibles con el lector auditado antes de usarlo. No deducir compatibilidad solo de una extensión `.zarr`. Comprobar geometría y procedencia; no comparar checksum SAFE contra checksum Zarr como si fueran el mismo archivo.
 4. Ante fallo transitorio de acceso Zarr: tres intentos totales, esperas de 60 y 300 segundos; registrar causa y avisar. Respetar Retry-After cuando el servicio lo indique. Tras agotar intentos, pasar automáticamente a SAFE e informar. Una consulta exitosa sin resultados o un formato incompatible permite fallback inmediato: repetir no crearía datos ausentes. En esta fase no hubo fallo transitorio y no se simuló esta política con esperas.
@@ -45,10 +45,10 @@ La función CDSE nativa devuelve URLs/nombres/Attributes, pero descarta campos s
 
 ## Evidencia y comprobaciones
 
-- [Consulta STAC con default y error 404](evidence/phase5/stac_query.json).
-- [Consulta STAC con URL normalizada](evidence/phase5/stac_query_normalized.json) y [respuesta vacía comprobada](evidence/phase5/stac_empty_response.json).
-- [Respuesta CDSE completa y argumentos](evidence/phase5/cdse_query.json).
-- [Resumen de candidatos](evidence/phase5/candidates.json), [comprobaciones](evidence/phase5/checks.json) y [hashes de entrega](evidence/phase5/manifest.json).
+- [Consulta STAC con default y error 404 — evidencia consolidada](33_retention_and_reset.md#historial).
+- [Consulta STAC con URL normalizada — evidencia consolidada](33_retention_and_reset.md#historial) y [respuesta vacía comprobada — evidencia consolidada](33_retention_and_reset.md#historial).
+- [Respuesta CDSE completa y argumentos — evidencia consolidada](33_retention_and_reset.md#historial).
+- [Resumen de candidatos — evidencia consolidada](33_retention_and_reset.md#historial), [comprobaciones — evidencia consolidada](33_retention_and_reset.md#historial) y [hashes de entrega — evidencia consolidada](33_retention_and_reset.md#historial).
 
 Se comprobaron coherencia YAML/TXT sin OC4, política sin nubosidad, respuesta STAC vacía válida, cinco identidades CDSE únicas dentro del intervalo y cobertura del AOI según footprints. No se probaron descarga, reintentos de transferencia, valores científicos, máscaras ni rendimiento. No se añade una suite que replique los catálogos: los tests operativos del wrapper corresponden a su implementación.
 

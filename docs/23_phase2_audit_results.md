@@ -23,7 +23,7 @@ ACOLITE cubre el núcleo: consulta, descarga, extracción, lectura S2/Landsat, R
 - [Catálogo](03_acolite_catalog.md), [descarga](04_acolite_download.md), [formatos](05_acolite_input_formats.md), [Zarr remoto](06_acolite_zarr_input.md).
 - [ROI](07_acolite_roi.md), [L1R/S2/Landsat](08_acolite_l1r.md), [corrección](09_acolite_atmospheric_correction.md), [L2R](10_acolite_l2r.md), [L2W](11_acolite_l2w.md).
 - [Proyección](12_acolite_projection.md) y [81 settings con defaults/decisión/fuente](14_selected_aoi_configuration.md).
-- [Evidencias de comprobación](evidence/phase2/comprobaciones.json), [alineación reproducida](evidence/phase2/alineacion_reproducida.json) y [manifiesto](evidence/phase2/manifest.json).
+- [Evidencias de comprobación — evidencia consolidada](33_retention_and_reset.md#historial), [alineación reproducida — evidencia consolidada](33_retention_and_reset.md#historial) y [manifiesto — evidencia consolidada](33_retention_and_reset.md#historial).
 
 Las referencias de código enlazan al commit exacto, no a main mutable. La auditoría revisó código y realizó ocho aserciones aisladas relevantes, sin benchmark, consultas de adquisiciones ni descargas de escenas. No se crearon tests del pipeline inexistente ni wrappers de procesamiento.
 

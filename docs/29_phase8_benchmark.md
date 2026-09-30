@@ -1,5 +1,7 @@
 # Fase 8 — análisis del benchmark de una escena
 
+> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+
 Fecha: 29 de septiembre de 2026. **Fase 8 completada mediante análisis del ensayo existente.** El entorno local pudo procesar una escena secuencial dentro del presupuesto de recursos. Esto no cambia el dictamen de fase 7: los productos acuáticos siguen no aceptados por enmascarado total.
 
 No se repitió la descarga, no se reprocesó la escena, no se cambiaron parámetros ni se limpiaron fuentes. La evidencia procede de las dos ejecuciones de fase 6 y de una inspección de tamaños y filtros NetCDF en esta fase.
@@ -76,6 +78,6 @@ La salida rectangular observada tiene 17.897.400 píxeles. El comportamiento de 
 - Registrar en futuras ejecuciones tiempos de red separados, CPU y medición de recursos con mayor resolución solo si hace falta responder a una limitación real. No añadir instrumentación compleja ahora.
 - Antes de estimar costes operativos de productos útiles, resolver o evaluar el problema científico de máscara/glint y medir una escena aceptable cuando su fase esté autorizada.
 
-Evidencia: [análisis de tiempos, inventario y filtros](evidence/phase8/analysis.json), [métricas de ejecución](evidence/phase6/execution.json), [primer intento](evidence/phase6/attempt1_execution.json), [LUT y hashes](evidence/phase6/lut_inventory.json), [dictamen de validación](28_phase7_validation.md).
+Evidencia: [análisis de tiempos, inventario y filtros — evidencia consolidada](33_retention_and_reset.md#historial), [métricas de ejecución — evidencia consolidada](33_retention_and_reset.md#historial), [primer intento — evidencia consolidada](33_retention_and_reset.md#historial), [LUT y hashes — evidencia consolidada](33_retention_and_reset.md#historial), [dictamen de validación](28_phase7_validation.md).
 
 La fase 8 queda cerrada como análisis de esta medición, con las limitaciones indicadas. La fase 9 requiere orden del usuario; no se eliminó ningún archivo.

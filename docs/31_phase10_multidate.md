@@ -1,5 +1,7 @@
 # Fase 10 — repetición por fechas e incorporación de Landsat
 
+> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+
 Cierre técnico: 30 de septiembre de 2026. Se completaron cinco adquisiciones Sentinel-2 y tres Landsat del 1 al 20 de agosto de 2026. La aceptación científica permanece pendiente. La fase 11 no se inició.
 
 ## Ejecución y alcance
@@ -33,7 +35,7 @@ NDCI se conserva para Sentinel-2 y se excluye de Landsat por falta de soporte na
 
 El perfil [Landsat](../config/aoi/lapargera_v1/acolite_l89_candidate.txt) reproyecta L1R antes de la corrección atmosférica mediante ACOLITE, con nearest. L2W genera sus flags después: no se utiliza la reproyección final que omite l2_flags. La entrega a 10 m no aumenta el detalle óptico original de 30 m. DSF usa tiles de 600 × 600 a 10 m para mantener una escala física aproximada de 6 km; su validez científica sigue pendiente.
 
-El primer ensayo Landsat produjo una grilla incorrecta porque faltaba `output_projection_metres=True`. Se corrigió y reprocesó desde L1R, sin descargar nuevamente. Se conservaron ambos intentos. El primer SIGINT fue absorbido por una rutina nativa de LUT: hubo un solapamiento breve hasta detener el proceso anterior con SIGTERM. El registro [de corrección](evidence/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/grid_correction.json) distingue los logs y resultados finales. Los 191,8 s del 1 de agosto corresponden a esa reanudación, no a un ensayo completo aislado.
+El primer ensayo Landsat produjo una grilla incorrecta porque faltaba `output_projection_metres=True`. Se corrigió y reprocesó desde L1R, sin descargar nuevamente. Se conservaron ambos intentos. El primer SIGINT fue absorbido por una rutina nativa de LUT: hubo un solapamiento breve hasta detener el proceso anterior con SIGTERM. El registro [de corrección — evidencia consolidada](33_retention_and_reset.md#historial) distingue los logs y resultados finales. Los 191,8 s del 1 de agosto corresponden a esa reanudación, no a un ensayo completo aislado.
 
 Landsat 8 encontró una LUT específica no descargable; ACOLITE usó su alternativa nativa y remuestreó la LUT genérica. Se completó el procesamiento. El máximo RSS individual registrado fue 6,57 GB decimales. Se mantiene concurrencia configurada uno. Los tiempos de la tabla excluyen descarga; mezclan caché fría/caliente y no constituyen una comparación de rendimiento entre sensores.
 
@@ -43,4 +45,4 @@ El inventario final de ensayos, fuentes, productos y datos auxiliares ocupa 27,8
 
 La fase queda terminada en su alcance técnico de repetición e integración de Landsat. Los perfiles permanecen candidatos: falta validar máscaras y calidad del agua, disponer de datos in situ y resolver la salida exclusivamente oceánica. Esto no equivale a aprobación científica ni a un pipeline operativo.
 
-Evidencias: [Sentinel-2](evidence/phase10/technical_summary.json), [Landsat](evidence/phase10/landsat_technical_summary.json), [comprobaciones de cierre](evidence/phase10/closure_checks.json) y [procedencia final](evidence/phase10/final_provenance.json). La fase 11 requiere una nueva orden del usuario.
+Evidencias: [Sentinel-2 — evidencia consolidada](33_retention_and_reset.md#historial), [Landsat — evidencia consolidada](33_retention_and_reset.md#historial), [comprobaciones de cierre — evidencia consolidada](33_retention_and_reset.md#historial) y [procedencia final — evidencia consolidada](33_retention_and_reset.md#historial). La fase 11 requiere una nueva orden del usuario.

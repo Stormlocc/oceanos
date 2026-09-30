@@ -1,5 +1,7 @@
 # Fase 6 — ensayo real del 4 de agosto de 2026
 
+> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+
 Fecha: 29 de septiembre de 2026. **Ejecución completada; productos acuáticos no aceptados para uso científico.** Se generaron L1R, L2R y L2W, pero todos los píxeles de Rrs, turbidez, OC3 y NDCI quedaron enmascarados. FAI y NDVI contienen valores. No se cambiaron máscaras ni parámetros para forzar un resultado y no se inició la fase 7.
 
 ## Entrada y entorno
@@ -20,7 +22,7 @@ Comando del ensayo reanudado, desde la raíz del proyecto:
 /home/antho/.local/bin/micromamba run   -p /home/antho/micromamba/envs/acolite   python -u .work/phase6_trial.py
 ```
 
-La [copia del script manual](evidence/phase6/manual_trial.py) documenta la invocación. Es un ensayo de una escena con directorios fijos, no el wrapper de fase 11 ni un ejecutor idempotente. No lanzarlo de nuevo sobre esta evidencia sin aislar una nueva ejecución. Instrumenta funciones nativas, usa timeout HTTP y mide recursos cada cinco segundos; no implementa corrección atmosférica, catálogo operativo ni política general de reintentos.
+La [copia del script manual — evidencia consolidada](33_retention_and_reset.md#historial) documenta la invocación. Es un ensayo de una escena con directorios fijos, no el wrapper de fase 11 ni un ejecutor idempotente. No lanzarlo de nuevo sobre esta evidencia sin aislar una nueva ejecución. Instrumenta funciones nativas, usa timeout HTTP y mide recursos cada cinco segundos; no implementa corrección atmosférica, catálogo operativo ni política general de reintentos.
 
 ## Archivos y comprobaciones
 
@@ -65,9 +67,9 @@ El alcance de disco incluye RAW, salidas, scratch y toda la carpeta data de la c
 
 ## Evidencia y conservación
 
-- [Resultado resumido](evidence/phase6/result.json), [métricas](evidence/phase6/execution.json) y [primer intento](evidence/phase6/attempt1_execution.json).
-- [Comprobaciones y hashes NetCDF](evidence/phase6/technical_checks.json), [conteo de flags](evidence/phase6/flags_summary.json) y [comprobación técnica reproducible](evidence/phase6/technical_inspection.py).
-- [Metadata de origen](evidence/phase6/source_metadata.json), [consultas públicas](evidence/phase6/public_queries.json), [dependencias](evidence/phase6/runtime.json) e [inventario de 38 archivos LUT](evidence/phase6/lut_inventory.json).
+- [Resultado resumido — evidencia consolidada](33_retention_and_reset.md#historial), [métricas — evidencia consolidada](33_retention_and_reset.md#historial) y [primer intento — evidencia consolidada](33_retention_and_reset.md#historial).
+- [Comprobaciones y hashes NetCDF — evidencia consolidada](33_retention_and_reset.md#historial), [conteo de flags — evidencia consolidada](33_retention_and_reset.md#historial) y [comprobación técnica reproducible — evidencia consolidada](33_retention_and_reset.md#historial).
+- [Metadata de origen — evidencia consolidada](33_retention_and_reset.md#historial), [consultas públicas — evidencia consolidada](33_retention_and_reset.md#historial), [dependencias — evidencia consolidada](33_retention_and_reset.md#historial) e [inventario de 38 archivos LUT — evidencia consolidada](33_retention_and_reset.md#historial).
 - Settings nativos guardados por ACOLITE y copiados a la evidencia; perfiles originales del ensayo conservados. Los hashes de LUT y de outputs fijan los recursos realmente utilizados, sin suponer inmutabilidad de las URLs remotas.
 
 Los NetCDF permanecen retenidos en el directorio del ensayo, fuera de Git; no son productos científicos publicados. No se borró ZIP, SAFE ni L1R. El catálogo SQLite y la política automática de limpieza siguen sin implementar; estos JSON conservan la procedencia del ensayo manual.

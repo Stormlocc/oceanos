@@ -1,5 +1,7 @@
 # Fase 9 — evaluación de limpieza y conservación
 
+> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+
 Fecha: 29 de septiembre de 2026. **Política de limpieza aplicada: conservar la ejecución y aplazar el borrado.** Estado `DEFERRED_VALIDATION`. Se liberaron **0 bytes** y no se eliminó ningún archivo. No se inició la fase 10.
 
 ## Motivo
@@ -35,7 +37,7 @@ La carpeta de ensayo contiene **76 archivos y 2.789.939.291 bytes (2,79 GB)**. L
 
 No se ejecutó un borrado para probar la política. No se creó una suite de tests de un limpiador todavía inexistente. Las pruebas futuras del wrapper deberán cubrir validación fallida, exclusión de rutas externas/enlaces, recuperación tras interrupción y borrado repetible, conforme al plan ya documentado.
 
-Evidencia: [inventario, hashes y decisión](evidence/phase9/retention_audit.json). Los archivos científicos conservan sus rutas originales para mantener válidos los enlaces del ensayo; no se movieron ni sobrescribieron.
+Evidencia: [inventario, hashes y decisión — evidencia consolidada](33_retention_and_reset.md#historial). Los archivos científicos conservan sus rutas originales para mantener válidos los enlaces del ensayo; no se movieron ni sobrescribieron.
 
 ## Revisión posterior
 

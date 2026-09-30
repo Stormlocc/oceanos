@@ -34,3 +34,7 @@ El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos l
 ## Actualización de fase 10
 
 Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
+
+## Política vigente de conservación
+
+El costo persistente vigente es L1R + L2W + SQLite. L2R/RAW cuentan en el pico temporal y se eliminan tras QA técnico. Se acepta volver a calcular AC para ahorrar almacenamiento. Medir solo tiempo/RSS por etapa en el catálogo, sin logs ni JSON duplicados. Ver [decisión transversal](33_retention_and_reset.md).

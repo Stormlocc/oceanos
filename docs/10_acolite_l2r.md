@@ -1,17 +1,15 @@
-# L2R y reutilización para nuevos productos
+# L2R temporal y regeneración desde L1R
 
-Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
+La política vigente conserva **L1R y L2W**. L2R se genera como intermedio y se elimina después de verificar y registrar las salidas. Se prioriza ahorrar disco sobre ahorrar cálculo.
 
-L2R escribe reflectancia de superficie `rhos_*` y conserva por default de S2/L8/L9 `lon,lat,sza,vza,raa,rhot_*`. La presencia de rhot es importante para recalcular flags, no solo para RGB. La cobertura espectral de rhos depende también de filtros de bandas y transmisión de gases: no prometer 13 reflectancias corregidas sin revisar el output.
+ACOLITE acepta un NetCDF L1R completo: `acolite_l1r` reconoce el formato ACOLITE y reutiliza el archivo; `acolite_run` identifica `acolite_file_type=L1R`, llama a `acolite_l2r` y después a `acolite_l2w`. Por tanto, L1R es suficiente como entrada radiométrica para los productos compatibles del perfil, pero **no produce L2W directamente**: hay que repetir la corrección atmosférica.
 
-La relación en L2W es Rrs=rhos/pi; rhow copia rhos con máscara acuática. `rrs` en minúsculas significa reflectancia remota subsuperficial con transformación adicional, no un alias intercambiable de Rrs.
+Se necesitan las bandas TOA, geometría y metadata originales del L1R, además de la revisión ACOLITE, settings, tablas/RSR y auxiliares atmosféricos compatibles. L1R no contiene por sí solo todos los recursos externos ni garantiza igualdad bit a bit si estos cambian. Tampoco permite recuperar bandas descartadas, ampliar el AOI recortado o generar NDCI Landsat sin las bandas necesarias.
 
-L2R conserva atributos atmosféricos y proyección; flags L2W se calculan después, y no deben suponerse presentes como dataset L2R por defecto. `acolite_l2r` devuelve ruta y settings efectivos, y escribe archivo de settings L2R. Fuente: [acolite/acolite/acolite_l2r.py:528](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_l2r.py#L528-L530), [acolite/acolite/acolite_l2r.py:568](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_l2r.py#L568-L586), [acolite/acolite/acolite_l2w.py:232](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_l2w.py#L232-L281).
+Se conserva el L1R en la grilla final de este AOI. Para Landsat es el L1R ya proyectado antes de AC; al reutilizarlo no se repite la proyección. El wrapper verifica ejes/EPSG antes de regenerar, ejecuta la cadena nativa y comprueba L2W y flags antes de borrar L2R. L1R se referencia como padre y no se duplica cuando ya está registrado.
 
-## Reprocesamiento mínimo
+El L2R temporal conserva rhos y rhot para que ACOLITE calcule productos y flags. Su metadata científica seleccionada se guarda una vez en SQLite antes de eliminarlo. El catálogo retiene versión del procesador, ajustes, fuente, hashes, grilla y resultados de QA; no un inventario completo de todos los auxiliares disponibles por cada ejecución.
 
-Conservar inicialmente L2R útil sin recortar bandas arbitrariamente. Para una variable nueva, comparar algoritmo/configuración, revisión ACOLITE, grilla y dependencias espectrales/TOA. Si bastan, utilizar `acolite_l2w` sobre ese L2R y registrar resultado derivado con ejecución padre. Si cambia la corrección atmosférica o faltan dependencias, repetir desde fuente/L1R según necesidad.
+Fuentes verificadas localmente: `acolite/acolite/acolite_l1r.py` (rama ACOLITE), `acolite_run.py` (cadena L1R → L2R → L2W) y `acolite_l2w.py` (requiere entrada L2R). Revisión fijada: `80da0c0c681d9597fd4b7737837d6a3e61907b33`.
 
-`acolite_run` distingue un archivo L1R de uno ya procesado y puede llegar a L2W sin repetir AC, pero identify_bundle exige generated_by ACOLITE y al menos rhot/bt. No minimizar L2R hasta romper ese contrato. Rutas/nombres de salida pueden coincidir si se reutiliza directorio: usar directorio distinto por ejecución.
-
-Candidato de conservación: L2R nativo + L2W nativo y solo la salida proyectada que resulte necesaria. La decisión A/B permanece en fases de configuración y benchmark; la auditoría favorece evaluar si single-tile ya mantiene la grilla requerida y evita reproyección redundante.
+[Política transversal y comprobación de regeneración](33_retention_and_reset.md).

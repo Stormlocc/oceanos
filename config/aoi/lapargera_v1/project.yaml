@@ -1,7 +1,7 @@
 # Perfil OCEANOS. No es un archivo de settings de ACOLITE.
 # Configuración ensayada en cinco escenas; aceptación científica pendiente.
 schema_version: 1
-profile_version: 4
+profile_version: 5
 status: candidate
 
 aoi:
@@ -37,7 +37,7 @@ products:
   active: ["Rrs_*", tur_nechad2009, chl_oc3, ndci, fai, ndvi]
   # OC4 excluido por decisión del usuario el 29 de septiembre de 2026.
   required_quality_dataset: l2_flags
-  preserve_l2r_for_derivation: true
+  preserve_l1r_for_reprocessing: true
   ocean_mask:
     water_products: mascara_L2W_nativa
     fai_ndvi: conservar_sin_mascara_acuatica_por_ahora
@@ -78,10 +78,11 @@ input:
 storage:
   # GB decimales: máximo conjunto de temporales, no por archivo.
   temporary_budget_bytes: 50000000000
-  persistent_science: [L2R, L2W]
-  keep_l1r_during_benchmark: true
-  keep_catalog_logs_settings_validation_metrics: true
-  raw_cleanup_on_success: despues_de_validar_y_registrar
+  persistent_science: [L1R, L2W]
+  traceability: sqlite
+  keep_success_logs: false
+  l2r_retention: temporal_hasta_validacion_tecnica
+  raw_cleanup_on_success: despues_de_validar_L1R_L2W_y_registrar
   raw_cleanup_on_exhausted_failure: informar_y_eliminar_solo_fuentes_recuperables
 
 validation:

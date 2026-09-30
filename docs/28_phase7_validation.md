@@ -1,5 +1,7 @@
 # Fase 7 — validación del ensayo y diagnóstico del enmascarado
 
+> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+
 Fecha: 29 de septiembre de 2026. **Revisión técnica completada; escena no aceptada para productos acuáticos con el perfil actual.** La validación científica queda pendiente de datos in situ. No se cambió la configuración científica, no se reprocesó para forzar píxeles válidos y no se avanzó a fase 8.
 
 ## Resultado principal
@@ -23,7 +25,7 @@ El SAFE original declara baseline 05.12, `QUANTIFICATION_VALUE=10000` y `RADIO_A
 
 Las seis pruebas pasaron como comprobaciones de contrato y diagnóstico. **No equivalen a seis pruebas de aceptación científica:** confirman también la condición que hace inutilizables los productos acuáticos de este ensayo. Las comprobaciones previas de grilla, variables y archivos están conservadas en fase 6.
 
-Script reproducible: [validate_scene.py](evidence/phase7/validate_scene.py). Resultado: [contract_checks.json](evidence/phase7/contract_checks.json). Se ejecutó con el entorno activado mediante micromamba, sin nuevas dependencias ni cambios al código de ACOLITE.
+Script reproducible: [validate_scene.py — evidencia consolidada](33_retention_and_reset.md#historial). Resultado: [contract_checks.json — evidencia consolidada](33_retention_and_reset.md#historial). Se ejecutó con el entorno activado mediante micromamba, sin nuevas dependencias ni cambios al código de ACOLITE.
 
 ## Evidencia espacial y posible brillo solar
 

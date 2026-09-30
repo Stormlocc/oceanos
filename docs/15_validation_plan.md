@@ -17,7 +17,7 @@ Conservar reporte simple de resultado, motivos de fallo y métricas. No imponer 
 - Una salida ausente o ilegible impide marcar validación exitosa y activar limpieza por éxito.
 - Un archivo fuera del directorio temporal de la ejecución nunca se elimina.
 - Misma entrada y configuración no generan procesamiento duplicado; cambio científico sí genera nueva ejecución.
-- Nuevos productos reutilizan L2R solo si se satisfacen sus dependencias.
+- Nuevos productos reutilizan L1R solo si conserva bandas/geometría y grilla compatibles; se repite AC y se elimina L2R tras QA técnico.
 - Agotar reintentos Zarr activa fallback registrado y acotado.
 - Las fechas incluyen íntegramente el día 20 y excluyen el siguiente según el contrato de la API.
 - Productos comparables mantienen grilla y variables previstas en una pequeña prueba de integración.
@@ -36,7 +36,7 @@ Añadir a los tests futuros necesarios: detectar ausencia de cualquier producto 
 
 ## Casos de aceptación de fase 3
 
-El apartado 11 del [diseño del catálogo](16_catalog_provenance.md) define doce escenarios de comportamiento para futuras pruebas. Se revisaron como diseño, no se ejecutaron tests de una base aún no implementada. Priorizar idempotencia, cambios de contenido, reutilización L2R, completitud y separación validación/limpieza.
+El apartado 11 del [diseño del catálogo](16_catalog_provenance.md) define doce escenarios de comportamiento para futuras pruebas. Se revisaron como diseño, no se ejecutaron tests de una base aún no implementada. Priorizar idempotencia, cambios de contenido, regeneración desde L1R, completitud y separación validación/limpieza.
 
 
 ## Resultado de fase 6

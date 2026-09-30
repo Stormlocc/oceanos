@@ -7,7 +7,7 @@ Fecha: 25 de septiembre de 2026. Estado actualizado el 29 de septiembre: **fase 
 - [project.yaml](../config/aoi/lapargera_v1/project.yaml): contrato del AOI, búsqueda, productos, grilla, presupuesto y políticas. Es configuración OCEANOS, no settings que ACOLITE lea directamente.
 - [acolite_s2.txt](../config/aoi/lapargera_v1/acolite_s2.txt): cinco overrides nativos, sin input/output fijos.
 - [README del perfil](../config/aoi/lapargera_v1/README.md): modo de uso y límites.
-- [Comprobaciones del perfil](evidence/phase4/profile_checks.json) y [grilla nativa candidata](evidence/phase4/native_grid_candidate.json).
+- [Comprobaciones del perfil — evidencia consolidada](33_retention_and_reset.md#historial) y [grilla nativa candidata — evidencia consolidada](33_retention_and_reset.md#historial).
 
 No se creó CLI, wrapper ni código de procesamiento. No se creó perfil Landsat especulativo.
 
@@ -58,7 +58,7 @@ La propuesta de fase 1 (2431×7334) se calculó sobre el envolvente proyectado d
 
 La primera escena debe confirmar shape, extent, origen y centros de píxel. También debe comprobarse consistencia SAFE/Zarr antes de intercambiar fuentes o acumular fechas. Si hay diferencia, detener publicación y revisar; no aceptar automáticamente offsets ni reajustar cada escena silenciosamente. La grilla común con Landsat se resolverá al incorporar ese sensor, manteniendo versionado explícito de grilla.
 
-Retener L2R con rhos y rhot/geometry para derivaciones y flags. Retener L2W nativo. Mantener L1R durante benchmark; su eliminación posterior requiere la fase de limpieza. No se decide aún borrar originales o cambiar retención a un único L2W.
+Política vigente: retener L1R completo y L2W nativo. L2R conserva temporalmente rhos/rhot para productos y flags; se retira tras registrar el QA técnico. RAW y archivos duplicados también son temporales. Regenerar desde L1R requiere repetir AC.
 
 ## Búsqueda y operación
 

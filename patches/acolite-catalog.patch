@@ -1,0 +1,91 @@
+--- a/acolite/api/cdse/query.py
++++ b/acolite/api/cdse/query.py
+@@ -17,7 +17,7 @@
+                cloud_cover = None, tile = None, processor_version = None, ## S2
+                bright_cover = None, timeliness = None, full_resolution = True, land = False, ## S3
+                verbosity = 1,
+-               max_results = 1000, odata_url = None, attributes = False):
++               max_results = 1000, odata_url = None, attributes = False, return_metadata = False):
+ 
+     import os, requests, json
+     import dateutil.parser, datetime
+@@ -174,14 +174,17 @@
+     if verbosity > 1: print(query.replace(' ', "%20"))
+ 
+     ## find download urls and scenes
++    metadata = []
+     urls = []
+     scenes = []
+ 
+     ## query url
+-    response = requests.get(query)
++    response = requests.get(query, timeout=(30, 180))
+     print('Status code {}'.format(response.status_code))
++    response.raise_for_status()
+     results = response.json()
+ 
++    if 'value' not in results: raise ValueError('Respuesta CDSE sin value')
+     if 'value' in results:
+         if verbosity > 1: print("{} Found {} scenes".format(datetime.datetime.now().isoformat()[0:19], len(results['value'])))
+         for v in results['value']:
+@@ -189,14 +192,17 @@
+             url = f"{odata_url}/Products({v['Id']})/$value"
+             urls.append(url)
+             scenes.append(v['Name'])
++            metadata.append({k: v[k] for k in ('Id', 'Name', 'ContentDate', 'ContentLength', 'Checksum', 'GeoFootprint', 'Attributes', 'PublicationDate', 'ModificationDate') if k in v})
+             if attributes: atts.append(v['Attributes'])
+ 
+     ## paginate results
+     page = 1
+     while '@odata.nextLink' in results:
+-        response = requests.get(results['@odata.nextLink'])
++        response = requests.get(results['@odata.nextLink'], timeout=(30, 180))
+         if verbosity > 1: print('Status code {}'.format(response.status_code))
++        response.raise_for_status()
+         results = response.json()
++        if 'value' not in results: raise ValueError('Pagina CDSE sin value')
+         if 'value' in results:
+             page +=1
+             if verbosity > 1: print("{} Found {} more scenes".format(datetime.datetime.now().isoformat()[0:19], len(results['value'])))
+@@ -205,6 +211,7 @@
+                 url = f"{odata_url}/Products({v['Id']})/$value"
+                 urls.append(url)
+                 scenes.append(v['Name'])
++                metadata.append({k: v[k] for k in ('Id', 'Name', 'ContentDate', 'ContentLength', 'Checksum', 'GeoFootprint', 'Attributes', 'PublicationDate', 'ModificationDate') if k in v})
+                 if attributes: atts.append(v['Attributes'])
+         else:
+             if verbosity > 1:
+@@ -214,5 +221,6 @@
+     if verbosity > 1: print('Accessed {} page{} of results'.format(page, 's' if page != 1 else ''))
+ 
+     if verbosity > 0: print('Found {} total scenes'.format(len(urls)))
++    if return_metadata: return urls, scenes, metadata
+     if attributes: return(urls, scenes, atts)
+     return(urls, scenes)
+--- a/acolite/api/stac/query_get.py
++++ b/acolite/api/stac/query_get.py
+@@ -10,8 +10,11 @@
+ 
+     ## get response
+     print('Querying {}'.format(url))
+-    response = requests.get(url)
++    response = requests.get(url, timeout=(30, 180))
++    response.raise_for_status()
+     dict = json.loads(response.text)
++    if 'features' not in dict and 'id' not in dict:
++        raise ValueError('Respuesta STAC sin features ni id')
+ 
+     ## add features
+     if 'features' in dict:
+--- a/acolite/api/earthexplorer/query.py
++++ b/acolite/api/earthexplorer/query.py
+@@ -186,6 +186,9 @@
+         response = session.post(api_url+'/scene-search', data = json.dumps(data))
+ 
+         ## parse results metadata
++        response.raise_for_status()
++        if response.json().get('errorCode') or response.json().get('data') is None:
++            raise ValueError('Consulta USGS fallida')
+         if (response.ok):
+             for s in response.json()['data']['results']:
+                 if verbosity > 2: print(s['entityId'])

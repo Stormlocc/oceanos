@@ -19,3 +19,7 @@ Lee Collection 2 mediante MTL, exige nivel L1, obtiene tamaño reflectivo de GRI
 Tier 1 es un criterio de selección del catálogo, no una restricción automáticamente impuesta por este lector. NDCI no será trasladable a Landsat mediante simple remuestreo: falta la banda red-edge y el código no lo habilita para OLI.
 
 Fuentes: [acolite/landsat/projection.py:12](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/landsat/projection.py#L12-L25), [acolite/landsat/projection.py:72](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/landsat/projection.py#L72-L107), [acolite/landsat/l1_convert.py:87](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/landsat/l1_convert.py#L87-L101), [acolite/landsat/l1_convert.py:333](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/landsat/l1_convert.py#L333-L335).
+
+## Política vigente de conservación
+
+L1R pasa a ser el intermedio persistente para regeneración: conservar bandas TOA, geometría y metadata completas. Para Landsat retener el L1R ya proyectado y no remuestrearlo de nuevo. Regenerar L2W repite la corrección atmosférica; L2R permanece temporal. Ver [decisión transversal](33_retention_and_reset.md).

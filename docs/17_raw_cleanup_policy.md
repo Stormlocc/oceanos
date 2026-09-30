@@ -1,43 +1,21 @@
-# Temporales, estados y conservación
+# Conservación y limpieza
 
-## Organización propuesta
+Se conservan **L1R y L2W** y un único catálogo SQLite. L2R, RAW, archivos IPC, logs y settings duplicados son temporales. La política se aplica a todo el plan, incluidos futuros contenedores, Airflow y cubos Zarr.
 
-- `storage/catalog/`: consultas e historial persistente.
-- `storage/runs/<run_id>/`: configuración, logs, estado, validación y benchmark.
-- `storage/temporary/<run_id>/`: descargas, extracción y archivos de trabajo propios.
-- `storage/acolite/<aoi_id>/<product_id>/<run_id>/`: resultados seleccionados.
+## Ejecución correcta
 
-La estructura evita sobrescribir distintas versiones. No crear caché global compartida de SAFE.
+1. Verificar L1R, L2W, grilla, productos y flags; usar L2R temporal para verificar bandas Rrs y extraer metadata atmosférica relevante.
+2. Registrar artefactos, SHA y resumen científico en SQLite.
+3. Eliminar L2R y archivos auxiliares propios de la ejecución; retirar descarga/extracción cuando L1R/L2W registrados sigan disponibles e íntegros.
 
-## Estados conceptuales
+No es necesario esperar validación in situ para retirar intermediarios reproducibles: L1R permite volver a corregir y obtener L2W. Esto no cambia la aceptación científica, que sigue pendiente. No borrar ni sobrescribir un L1R padre de otra ejecución.
 
-Descubierto → adquiriendo → entrada disponible → procesando → procesado → validado → limpieza completada. Zarr puede pasar a entrada disponible sin descarga completa; no registrar descarga exitosa inexistente.
+## Fallos
 
-Registrar por separado fallos de adquisición, procesamiento, validación y limpieza. Una limpieza fallida no invalida un resultado científico ya válido, pero requiere atención al espacio ocupado.
+Tras reintentos agotados se puede eliminar el temporal de una fuente remota recuperable, conservando referencia y diagnóstico en SQLite. Ante interrupción o ausencia de L1R/L2W íntegros sin reintentos agotados se conserva lo necesario para recuperar el intento. Un fallo de limpieza queda separado del cálculo científico.
 
-## Limpieza por éxito
+Toda ruta de borrado se resuelve y se comprueba dentro del temporal de esa ejecución. Nunca borrar fuentes locales externas, AOI, credenciales, código o productos de otra ejecución. Los flags nativos de borrado NetCDF permanecen desactivados: el wrapper limpia después del registro y QA técnico.
 
-Solo tras validación aprobada y persistencia del registro de resultados. Eliminar únicamente fuentes y temporales de la ejecución. Conservar catálogo, settings, logs, reportes, métricas y productos seleccionados. Auditar y desactivar la eliminación prematura nativa cuando corresponda.
+## Reinicio solicitado de las pruebas
 
-## Limpieza por fallo
-
-El usuario prefiere liberar fuentes recuperables al agotar reintentos. Esto es una política distinta de limpieza por éxito: nunca marcar como validada una ejecución fallida. Antes de borrar, conservar diagnóstico, referencia recuperable, intentos y motivo, e informar la limpieza. Si la fuente no es recuperable o no existe diagnóstico suficiente, conservarla y registrar la excepción.
-
-## Límite de borrado
-
-Resolver la ruta absoluta y comprobar que pertenece al directorio temporal de esa ejecución; rechazar enlaces o rutas que escapen de él. No eliminar entradas externas, credenciales, instalaciones, AOI ni resultados persistentes. El borrado repetido debe ser seguro y quedar registrado.
-
-Retención persistente sin caducidad automática por ahora. Respaldo y capacidad a largo plazo quedan pendientes; permanencia no equivale a disponer de una copia de seguridad.
-
-## Resultados de auditoría de fase 2
-
-`delete_extracted_input=True` puede borrar la extracción al terminar L1R, **antes de L2R/L2W y antes de validación propia**. Mantener False. Fuente: [acolite/acolite/acolite_l1r.py:365](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_l1r.py#L365-L380).
-
-Los defaults de descarga `remove_zip=True` y `remove_tar=True` borran archivos después de extracción sin QA científica; son argumentos distintos de los settings delete. Los flags l1r/l2r/l2w_delete_netcdf se aplican al finalizar run sobre archivos existentes, sin nuestro contrato de validación. Mantenerlos False durante benchmark y manejar selección/limpieza después. Fuente: [acolite/acolite/acolite_run.py:334](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_run.py#L334-L351).
-
-No se borró ninguna escena, fuente ni instalación durante la auditoría. La copia de código upstream en .work es referencia de investigación, no una escena temporal.
-
-
-## Aplicación al ensayo inicial — fase 9
-
-Se aplicó la política a la escena del 4 de agosto: estado `DEFERRED_VALIDATION`, cero archivos eliminados y fuentes conservadas. No hay validación acuática aceptada ni reintentos agotados. Los hashes de ZIP/L1R/L2R/L2W coinciden con fase 6. Ver [evaluación e inventario](30_phase9_cleanup.md).
+Por orden del usuario se eliminan los datos de todos los ensayos previos, incluidos sus L1R/L2R/L2W, RAW y cachés descargadas para las pruebas. Es un reinicio puntual, distinto de la política futura que conserva L1R/L2W. Se preservan el catálogo con disponibilidad actualizada, el resumen científico histórico, el AOI original, los perfiles y el código. [Detalle y cantidades](33_retention_and_reset.md).
