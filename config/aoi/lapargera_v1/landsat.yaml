@@ -1,0 +1,41 @@
+# Perfil de ensayo Landsat de este AOI. No lo interpreta ACOLITE directamente.
+schema_version: 1
+profile_version: 2
+status: candidate
+aoi_id: lapargera_v1
+settings_file: acolite_l89_candidate.txt
+sensor_family: landsat
+platforms: [L8, L9]
+provider: USGS_EarthExplorer
+dataset: landsat_ot_c2_l1
+collection: 2
+level: L1TP
+tier: T1
+wrs_path: 5
+wrs_row: 48
+interval_start_utc: "2026-08-01T00:00:00Z"
+interval_end_exclusive_utc: "2026-08-21T00:00:00Z"
+cloud_cover:
+  enabled: false
+  maximum_percent: null
+selection: todas_las_adquisiciones_que_cubren_el_AOI
+products: ["Rrs_*", tur_nechad2009, chl_oc3, fai, ndvi]
+unsupported_products:
+  ndci: no_soportado_para_OLI_en_revision_auditada
+required_quality_dataset: l2_flags
+grid:
+  epsg: 32619
+  native_optical_resolution_m: 30
+  output_resolution_m: 10
+  shape_yx: [2440, 7335]
+  xrange_m: [701980, 775330]
+  yrange_m: [1997360, 1972960]
+  reproject_stage: L1R_antes_de_AC
+  resampling: nearest
+processing_concurrency: 1
+temporary_budget_shared_bytes: 50000000000
+scientific_validation: pendiente_in_situ
+technical_validation:
+  phase: 10
+  completed_scenes: 3
+  matching_grid_and_integer_flags: true

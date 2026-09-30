@@ -1,0 +1,53 @@
+{
+  "scene": "S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809.SAFE",
+  "started_at": "2026-09-29T23:49:14.662195+00:00",
+  "stages": {
+    "consulta_zarr": 0.8463531970000986,
+    "consulta_safe": 12.284495803999562,
+    "descarga": 307.4463085469997,
+    "extraccion": 0.7523107950000849,
+    "acolite_l1r": 24.962496390000524,
+    "acolite_l2r": 114.94701988700035,
+    "acolite_l2w": 38.44732258299973,
+    "procesamiento_total": 178.3658232580001
+  },
+  "peak_sampled_rss_bytes": 4581224448,
+  "peak_sampled_disk_bytes": 12929499504,
+  "sample_seconds": 5,
+  "fallback": "SAFE: consulta Zarr exitosa sin resultados",
+  "source_hashes": {
+    "md5": "0b3c54a4cfca1b6cb32c6ff4d2017ef6",
+    "sha256": "f243f3ca5d663585f5622dd6740bedf5001ec4c8d8a94059f3f335e3cf874696"
+  },
+  "native_result": {
+    "0": {
+      "input": "/home/antho/projects/oceanos/.work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/raw/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809.SAFE",
+      "l1r": [
+        "/home/antho/projects/oceanos/.work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L1R.nc"
+      ],
+      "l2r": [
+        "/home/antho/projects/oceanos/.work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L2R.nc"
+      ],
+      "l2w": [
+        "/home/antho/projects/oceanos/.work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L2W.nc"
+      ]
+    }
+  },
+  "outputs": [
+    {
+      "path": ".work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L1R.nc",
+      "bytes": 321577228
+    },
+    {
+      "path": ".work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L2W.nc",
+      "bytes": 121831482
+    },
+    {
+      "path": ".work/phase10/S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809/output/S2B_MSI_2026_08_14_15_08_01_T19QGV_lapargera_v1_L2R.nc",
+      "bytes": 780258513
+    }
+  ],
+  "status": "ejecucion_nativa_finalizada",
+  "peak_self_rss_bytes": 4717326336,
+  "finished_at": "2026-09-29T23:58:09.465753+00:00"
+}

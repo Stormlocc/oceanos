@@ -1,0 +1,335 @@
+ETAPA consulta_zarr
+Querying https://stac.core.eopf.eodc.eu/collections/sentinel-2-l1c/items?bbox=-67.09176880642183,17.83506768071816,-66.40241185767644,18.047432637275&datetime=2026-08-01T00:00:00Z/2026-08-21T00:00:00Z&limit=100
+ETAPA consulta_safe
+Status code 200
+Found 1 total scenes
+ETAPA descarga
+Downloading 1 scenes
+Downloading S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.SAFE
+Download URL: https://catalogue.dataspace.copernicus.eu/odata/v1/Products(b8111f1e-be4a-4ec2-a03b-a869791fbc05)/$value
+Writing file to /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.zip
+ETAPA extraccion
+Extracting 66 files from /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.zip to /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/
+Extraction of 66 files completed to /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/
+ETAPA procesamiento_total
+Running ACOLITE processing - Generic GitHub Clone c2026-09-25T12:50:25
+Python - linux - 3.14.7 | packaged by conda-forge | (main, Sep  2 2026, 21:08:32) [GCC 15.3.0]
+Platform - Linux 6.6.87.2-microsoft-standard-WSL2 - x86_64 - #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025
+Run ID - 20260929_194349
+ETAPA acolite_l1r
+Identified /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.SAFE as Sentinel-2 .SAFE type
+Starting conversion of 1 scenes
+Starting conversion of /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/raw/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.SAFE
+Importing metadata from L1C_T19QGV_A058166_20260811T150737
+Reading per pixel geometry
+Computing band average per detector geometry
+Detector 5
+/home/antho/projects/oceanos/.work/acolite-audit/acolite/sentinel2/l1_convert.py:398: RuntimeWarning: Mean of empty slice
+  ave_vza = np.nanmean(ave_vza, axis=2)
+/home/antho/projects/oceanos/.work/acolite-audit/acolite/sentinel2/l1_convert.py:399: RuntimeWarning: Mean of empty slice
+  ave_vaa = np.nanmean(ave_vaa, axis=2)
+Detector 6
+Detector 7
+Detector 8
+Detector 9
+Detector 10
+Wrote raa (2440, 7335)
+Wrote vza (2440, 7335)
+Wrote sza (2440, 7335)
+Writing geolocation lon/lat
+Wrote lon (2440, 7335)
+Wrote lat (2440, 7335)
+Converting bands
+Converting bands: Wrote rhot_443 ((2440, 7335))
+Converting bands: Wrote rhot_492 ((2440, 7335))
+Converting bands: Wrote rhot_560 ((2440, 7335))
+Converting bands: Wrote rhot_665 ((2440, 7335))
+Converting bands: Wrote rhot_704 ((2440, 7335))
+Converting bands: Wrote rhot_740 ((2440, 7335))
+Converting bands: Wrote rhot_783 ((2440, 7335))
+Converting bands: Wrote rhot_833 ((2440, 7335))
+Converting bands: Wrote rhot_865 ((2440, 7335))
+Converting bands: Wrote rhot_945 ((2440, 7335))
+Converting bands: Wrote rhot_1373 ((2440, 7335))
+Converting bands: Wrote rhot_1614 ((2440, 7335))
+Converting bands: Wrote rhot_2202 ((2440, 7335))
+Conversion took 29.6 seconds
+Created /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/output/S2A_MSI_2026_08_11_15_08_19_T19QGV_lapargera_v1_L1R.nc
+ETAPA acolite_l2r
+Running acolite for /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/output/S2A_MSI_2026_08_11_15_08_19_T19QGV_lapargera_v1_L1R.nc
+Getting ancillary data for 2026-08-11T15:08:19.795857+00:00 -66.747E 17.941N
+Downloading file GMAO_MERRA2.20260811T150000.MET.nc
+Finished downloading file GMAO_MERRA2.20260811T150000.MET.nc
+Downloading file GMAO_MERRA2.20260811T160000.MET.nc
+Finished downloading file GMAO_MERRA2.20260811T160000.MET.nc
+Using GMAO GEOS ancillary data:
+/home/antho/projects/oceanos/.work/acolite-audit/data/MET/2026/223/GMAO_MERRA2.20260811T150000.MET.nc
+/home/antho/projects/oceanos/.work/acolite-audit/data/MET/2026/223/GMAO_MERRA2.20260811T160000.MET.nc
+default uoz: 0.30 uwv: 1.50 pressure: 1013.25
+current uoz: 0.28 uwv: 4.82 pressure: 999.28
+Using DSF atmospheric correction
+Processing with 65 tiles (5x13 tiles of 600x600 pixels)
+Writing lon
+Wrote lon (2440, 7335)
+Writing lat
+Wrote lat (2440, 7335)
+Writing sza
+Wrote sza (2440, 7335)
+Writing vza
+Wrote vza (2440, 7335)
+Writing raa
+Wrote raa (2440, 7335)
+Loading LUTs ['ACOLITE-LUT-202110-MOD1', 'ACOLITE-LUT-202110-MOD2']
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-1.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-1.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-2.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-2.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-3.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-3.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-4.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-4.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-5.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-5.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-6.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-6.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-7.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-7.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-8.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-8.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-8A.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-8A.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-9.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-9.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-10.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-10.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-11.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-11.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-12.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD1-reverse-S2A_MSI-romix+rsky_t-12.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-1.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-1.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-2.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-2.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-3.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-3.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-4.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-4.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-5.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-5.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-6.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-6.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-7.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-7.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-8.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-8.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-8A.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-8A.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-9.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-9.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-10.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-10.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-11.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-11.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-12.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/S2A_MSI/ACOLITE-LUT-202110-MOD2-reverse-S2A_MSI-romix+rsky_t-12.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-0500mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-0500mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-0750mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-0750mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-1013mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-1013mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-1100mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD1-1100mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-0500mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-0500mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-0750mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-0750mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-1013mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-1013mb_S2A_MSI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-1100mb_S2A_MSI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/S2A_MSI/ACOLITE-LUT-202110-MOD2-1100mb_S2A_MSI.nc
+Loading LUTs took 120.5 s
+Running AOT estimation for band 1 (rhot_443)
+S2A_MSI/B1 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B1 ACOLITE-LUT-202110-MOD2 took 0.000s (RevLUT)
+Running AOT estimation for band 2 (rhot_492)
+S2A_MSI/B2 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B2 ACOLITE-LUT-202110-MOD2 took 0.000s (RevLUT)
+Running AOT estimation for band 3 (rhot_560)
+S2A_MSI/B3 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B3 ACOLITE-LUT-202110-MOD2 took 0.001s (RevLUT)
+Running AOT estimation for band 4 (rhot_665)
+S2A_MSI/B4 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B4 ACOLITE-LUT-202110-MOD2 took 0.000s (RevLUT)
+Running AOT estimation for band 5 (rhot_704)
+S2A_MSI/B5 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B5 ACOLITE-LUT-202110-MOD2 took 0.001s (RevLUT)
+Running AOT estimation for band 6 (rhot_740)
+S2A_MSI/B6 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B6 ACOLITE-LUT-202110-MOD2 took 0.001s (RevLUT)
+Running AOT estimation for band 7 (rhot_783)
+S2A_MSI/B7 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B7 ACOLITE-LUT-202110-MOD2 took 0.001s (RevLUT)
+Running AOT estimation for band 8 (rhot_833)
+S2A_MSI/B8 ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B8 ACOLITE-LUT-202110-MOD2 took 0.000s (RevLUT)
+Running AOT estimation for band 8A (rhot_865)
+S2A_MSI/B8A ACOLITE-LUT-202110-MOD1 took 0.001s (RevLUT)
+S2A_MSI/B8A ACOLITE-LUT-202110-MOD2 took 0.000s (RevLUT)
+Choosing best fitting model: min_drmsd (2 bands)
+Computing RMSD for model ACOLITE-LUT-202110-MOD1
+/home/antho/projects/oceanos/.work/acolite-audit/acolite/acolite/acolite_l2r.py:1132: RuntimeWarning: Mean of empty slice
+  cur_sel_par = np.sqrt(np.nanmean(np.square((rhod_f-rhop_f)), axis=2))
+Computing RMSD for model ACOLITE-LUT-202110-MOD2
+Selecting most common model for processing.
+ACOLITE-LUT-202110-MOD1: 91.9%: mean aot of subset = 0.19
+ACOLITE-LUT-202110-MOD2: 8.1%: mean aot of subset = 0.25
+Selected ACOLITE-LUT-202110-MOD1, mean aot = 0.20
+use_revlut True
+Wrote rhot_443 (2440, 7335)
+Computing surface reflectance 1 443 0.998
+Interpolating tiles
+Wrote rhos_443 (2440, 7335)
+S2A_MSI/B1 took 19.5s (RevLUT)
+Wrote rhot_492 (2440, 7335)
+Computing surface reflectance 2 492 0.984
+Interpolating tiles
+Wrote rhos_492 (2440, 7335)
+S2A_MSI/B2 took 6.7s (RevLUT)
+Wrote rhot_560 (2440, 7335)
+Computing surface reflectance 3 560 0.934
+Interpolating tiles
+Wrote rhos_560 (2440, 7335)
+S2A_MSI/B3 took 7.1s (RevLUT)
+Wrote rhot_665 (2440, 7335)
+Computing surface reflectance 4 665 0.951
+Interpolating tiles
+Wrote rhos_665 (2440, 7335)
+S2A_MSI/B4 took 9.1s (RevLUT)
+Wrote rhot_704 (2440, 7335)
+Computing surface reflectance 5 704 0.909
+Interpolating tiles
+Wrote rhos_704 (2440, 7335)
+S2A_MSI/B5 took 6.1s (RevLUT)
+Wrote rhot_740 (2440, 7335)
+Computing surface reflectance 6 740 0.919
+Interpolating tiles
+Wrote rhos_740 (2440, 7335)
+S2A_MSI/B6 took 6.5s (RevLUT)
+Wrote rhot_783 (2440, 7335)
+Computing surface reflectance 7 783 0.971
+Interpolating tiles
+Wrote rhos_783 (2440, 7335)
+S2A_MSI/B7 took 6.1s (RevLUT)
+Wrote rhot_833 (2440, 7335)
+Computing surface reflectance 8 833 0.892
+Interpolating tiles
+Wrote rhos_833 (2440, 7335)
+S2A_MSI/B8 took 6.8s (RevLUT)
+Wrote rhot_865 (2440, 7335)
+Computing surface reflectance 8A 865 0.995
+Interpolating tiles
+Wrote rhos_865 (2440, 7335)
+S2A_MSI/B8A took 6.3s (RevLUT)
+Wrote rhot_945 (2440, 7335)
+Band 9 at 945 nm has tgas < min_tgas_rho (0.13 < 0.70)
+Wrote rhot_1373 (2440, 7335)
+Band 10 at 1373 nm has tgas < min_tgas_rho (0.00 < 0.70)
+Wrote rhot_1614 (2440, 7335)
+Computing surface reflectance 11 1614 0.960
+Interpolating tiles
+Wrote rhos_1614 (2440, 7335)
+S2A_MSI/B11 took 7.2s (RevLUT)
+Wrote rhot_2202 (2440, 7335)
+Computing surface reflectance 12 2202 0.883
+Interpolating tiles
+Wrote rhos_2202 (2440, 7335)
+S2A_MSI/B12 took 6.6s (RevLUT)
+Wrote /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/output/S2A_MSI_2026_08_11_15_08_19_T19QGV_lapargera_v1_L2R.nc
+ETAPA acolite_l2w
+L2W keeping data in memory: False
+rhot datasets:  ['rhot_443', 'rhot_492', 'rhot_560', 'rhot_665', 'rhot_704', 'rhot_740', 'rhot_783', 'rhot_833', 'rhot_865', 'rhot_945', 'rhot_1373', 'rhot_1614', 'rhot_2202']
+rhot wavelengths:  [443, 492, 560, 665, 704, 740, 783, 833, 865, 945, 1373, 1614, 2202]
+rhos datasets:  ['rhos_443', 'rhos_492', 'rhos_560', 'rhos_665', 'rhos_704', 'rhos_740', 'rhos_783', 'rhos_833', 'rhos_865', 'rhos_1614', 'rhos_2202']
+rhos wavelengths:  [443, 492, 560, 665, 704, 740, 783, 833, 865, 1614, 2202]
+Running ACOLITE flagging function for /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/output/S2A_MSI_2026_08_11_15_08_19_T19QGV_lapargera_v1_L2R.nc.
+Computing non water threshold mask.
+Computing non water threshold mask from rhot_1614 > 0.0215.
+Computing cirrus mask.
+Computing cirrus mask from rhot_1373 > 0.005.
+Computing TOA limit mask.
+Computing TOA limit mask from rhot_443 > 0.3.
+Computing TOA limit mask from rhot_492 > 0.3.
+Computing TOA limit mask from rhot_560 > 0.3.
+Computing TOA limit mask from rhot_665 > 0.3.
+Computing TOA limit mask from rhot_704 > 0.3.
+Computing TOA limit mask from rhot_740 > 0.3.
+Computing TOA limit mask from rhot_783 > 0.3.
+Computing TOA limit mask from rhot_833 > 0.3.
+Computing TOA limit mask from rhot_865 > 0.3.
+Computing TOA limit mask from rhot_945 > 0.3.
+Computing TOA limit mask from rhot_1373 > 0.3.
+Computing TOA limit mask from rhot_1614 > 0.3.
+Computing TOA limit mask from rhot_2202 > 0.3.
+Computing negative reflectance mask.
+Computing negative reflectance mask from rhos_443.
+Computing negative reflectance mask from rhos_492.
+Computing negative reflectance mask from rhos_560.
+Computing negative reflectance mask from rhos_665.
+Computing negative reflectance mask from rhos_704.
+Computing negative reflectance mask from rhos_740.
+Computing negative reflectance mask from rhos_783.
+Computing negative reflectance mask from rhos_833.
+Computing negative reflectance mask from rhos_865.
+Copying datasets from L2R.
+Copying lon, base dataset lon
+Writing lon
+Wrote lon (2440, 7335)
+Copying lat, base dataset lat
+Writing lat
+Wrote lat (2440, 7335)
+Copying Rrs_443, base dataset rhos_443
+Writing Rrs_443
+Wrote Rrs_443 (2440, 7335)
+Copying Rrs_492, base dataset rhos_492
+Writing Rrs_492
+Wrote Rrs_492 (2440, 7335)
+Copying Rrs_560, base dataset rhos_560
+Writing Rrs_560
+Wrote Rrs_560 (2440, 7335)
+Copying Rrs_665, base dataset rhos_665
+Writing Rrs_665
+Wrote Rrs_665 (2440, 7335)
+Copying Rrs_704, base dataset rhos_704
+Writing Rrs_704
+Wrote Rrs_704 (2440, 7335)
+Copying Rrs_740, base dataset rhos_740
+Writing Rrs_740
+Wrote Rrs_740 (2440, 7335)
+Copying Rrs_783, base dataset rhos_783
+Writing Rrs_783
+Wrote Rrs_783 (2440, 7335)
+Copying Rrs_833, base dataset rhos_833
+Writing Rrs_833
+Wrote Rrs_833 (2440, 7335)
+Copying Rrs_865, base dataset rhos_865
+Writing Rrs_865
+Wrote Rrs_865 (2440, 7335)
+Copying Rrs_1614, base dataset rhos_1614
+Writing Rrs_1614
+Wrote Rrs_1614 (2440, 7335)
+Copying Rrs_2202, base dataset rhos_2202
+Writing Rrs_2202
+Wrote Rrs_2202 (2440, 7335)
+Wrote l2_flags (2440, 7335)
+Writing TUR_Nechad2009_665
+Wrote TUR_Nechad2009_665 (2440, 7335)
+Writing chl_oc3
+Wrote chl_oc3 (2440, 7335)
+Writing ndci
+Wrote ndci (2440, 7335)
+Writing fai
+Wrote fai (2440, 7335)
+Writing ndvi
+Wrote ndvi (2440, 7335)
+Wrote /home/antho/projects/oceanos/.work/phase10/S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939/output/S2A_MSI_2026_08_11_15_08_19_T19QGV_lapargera_v1_L2W.nc

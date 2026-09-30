@@ -19,9 +19,9 @@ El KMZ es la geometría original; no se alteró. El límite enviado a ACOLITE es
 
 La función nativa projection_sub aplicada al extent nominal de 19QGV predice EPSG:32619, 2440 filas × 7335 columnas, xrange 701980–775330 m y yrange 1997360–1972960 m. Es distinta del envolvente del polígono calculado en fase 1: ahora se recorta su bounding box geográfico y se usa la alineación nativa de ACOLITE.
 
-No es una grilla validada de escena. SAFE y Zarr deben producir coordenadas/extent coherentes; cualquier diferencia requiere revisión antes de publicar o acumular fechas. No tolerar silenciosamente un desplazamiento de medio píxel.
+La grilla fue confirmada con cinco SAFE y tres Landsat en fase 10. Zarr sigue pendiente de ensayo y debe producir coordenadas/extent coherentes; cualquier diferencia requiere revisión antes de publicar o acumular fechas. No tolerar silenciosamente un desplazamiento de medio píxel.
 
-No crear aún `acolite_l89.txt`: Landsat será configurado y validado antes de Docker, no por copiar settings Sentinel-2.
+Landsat dispone de `acolite_l89_candidate.txt` y `landsat.yaml`, probados técnicamente en tres adquisiciones; la aprobación científica permanece pendiente. Ver [cierre de fase 10](../../../docs/31_phase10_multidate.md).
 
 Detalles y límites: [informe de fase 4](../../../docs/25_phase4_aoi_configuration.md).
 

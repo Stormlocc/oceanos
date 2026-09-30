@@ -18,8 +18,8 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 12 | Productos finales | 11 | Soporte auditado; OC4 excluido por el usuario |
 | 13 | Estrategia L2R/L2W | 10, 11, 25 | Conservar L2R/L2W nativos; validar con escena |
 | 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
-| 15 | Temporales | 17 | Política documentada |
-| 16 | Eliminación SAFE | 17 | Política documentada |
+| 15 | Temporales | 17, 30 | Política aplicada: retención del ensayo no aceptado |
+| 16 | Eliminación SAFE | 17, 30 | Borrado aplazado; integridad de fuente conservada |
 | 17 | Estimación computacional | 13 | Una escena medida; análisis y límites en documento 29 |
 | 18 | Benchmark | 13, 29 | Medición analizada; sin comparación Zarr ni escena científicamente aceptada |
 | 19 | Validación | 15 | Plan técnico y tests; ciencia pendiente |
@@ -29,3 +29,7 @@ Esta tabla distingue documentos entregados de investigación completada. Los 23 
 | 23 | Decisiones pendientes | 21 | Registro inicial |
 
 No declarar completo el paso 54 en su sentido técnico hasta resolver la investigación requerida. Esta entrega permite revisar el alcance y el diseño sin adelantar programación ni atribuir a ACOLITE capacidades no verificadas.
+
+## Actualización de fase 10
+
+Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).

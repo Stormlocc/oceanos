@@ -1,0 +1,81 @@
+{
+  "estado": "comprobaciones_tecnicas_aprobadas",
+  "escenas": 8,
+  "grillas_y_productos": true,
+  "flags": [
+    {
+      "scene": "S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "S2C_MSIL1C_20260809T150721_N0512_R082_T19QGV_20260809T183127.SAFE",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.SAFE",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809.SAFE",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "S2C_MSIL1C_20260819T150721_N0512_R082_T19QGV_20260819T183046.SAFE",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "LC09_L1TP_005048_20260801_20260801_02_T1",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "LC08_L1TP_005048_20260809_20260816_02_T1",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    },
+    {
+      "scene": "LC09_L1TP_005048_20260817_20260817_02_T1",
+      "flags_dtype": "int32",
+      "shape_yx": [
+        2440,
+        7335
+      ]
+    }
+  ],
+  "inventario_bytes": {
+    ".work/phase6_20260804": 2789939291,
+    ".work/phase10": 22148369959,
+    ".work/acolite-audit/data": 2903230107,
+    ".work/acolite-audit/scratch": 0
+  },
+  "total_bytes": 27841539357,
+  "presupuesto_bytes": 50000000000,
+  "aceptacion_cientifica": false,
+  "fase_11_iniciada": false
+}

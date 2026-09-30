@@ -36,3 +36,8 @@ Retención persistente sin caducidad automática por ahora. Respaldo y capacidad
 Los defaults de descarga `remove_zip=True` y `remove_tar=True` borran archivos después de extracción sin QA científica; son argumentos distintos de los settings delete. Los flags l1r/l2r/l2w_delete_netcdf se aplican al finalizar run sobre archivos existentes, sin nuestro contrato de validación. Mantenerlos False durante benchmark y manejar selección/limpieza después. Fuente: [acolite/acolite/acolite_run.py:334](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/acolite/acolite_run.py#L334-L351).
 
 No se borró ninguna escena, fuente ni instalación durante la auditoría. La copia de código upstream en .work es referencia de investigación, no una escena temporal.
+
+
+## Aplicación al ensayo inicial — fase 9
+
+Se aplicó la política a la escena del 4 de agosto: estado `DEFERRED_VALIDATION`, cero archivos eliminados y fuentes conservadas. No hay validación acuática aceptada ni reintentos agotados. Los hashes de ZIP/L1R/L2R/L2W coinciden con fase 6. Ver [evaluación e inventario](30_phase9_cleanup.md).

@@ -1,0 +1,22 @@
+[
+  {
+    "scene": "S2C_MSIL1C_20260809T150721_N0512_R082_T19QGV_20260809T183127.SAFE",
+    "returncode": 0,
+    "status": "ejecucion_nativa_finalizada"
+  },
+  {
+    "scene": "S2A_MSIL1C_20260811T150741_N0512_R082_T19QGV_20260811T231939.SAFE",
+    "returncode": 0,
+    "status": "ejecucion_nativa_finalizada"
+  },
+  {
+    "scene": "S2B_MSIL1C_20260814T150719_N0512_R082_T19QGV_20260814T182809.SAFE",
+    "returncode": 0,
+    "status": "ejecucion_nativa_finalizada"
+  },
+  {
+    "scene": "S2C_MSIL1C_20260819T150721_N0512_R082_T19QGV_20260819T183046.SAFE",
+    "returncode": 0,
+    "status": "ejecucion_nativa_finalizada"
+  }
+]

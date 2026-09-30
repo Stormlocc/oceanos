@@ -1,7 +1,7 @@
 # Perfil OCEANOS. No es un archivo de settings de ACOLITE.
-# Configuración candidata para el primer ensayo; no validada con una escena.
+# Configuración ensayada en cinco escenas; aceptación científica pendiente.
 schema_version: 1
-profile_version: 3
+profile_version: 4
 status: candidate
 
 aoi:
@@ -85,7 +85,7 @@ storage:
   raw_cleanup_on_exhausted_failure: informar_y_eliminar_solo_fuentes_recuperables
 
 validation:
-  profile_state: ensayo_ejecutado_productos_acuaticos_totalmente_enmascarados
+  profile_state: multifecha_verificada_tecnicamente_pendiente_validacion_cientifica
   check_required_variables: true
   check_matching_grid: true
   report_valid_pixel_fraction: true

@@ -1,0 +1,9 @@
+{
+  "acolite_revision": "80da0c0c681d9597fd4b7737837d6a3e61907b33",
+  "profile_hashes": {
+    "docs/evidence/phase10/used_project.yaml": "86653e0174a857d52bfbb5af5a90c61954fd3c0736e047edb3704cab9b2c8f89",
+    "docs/evidence/phase10/used_acolite_s2.txt": "4a7898b621e31e8850d9f295f7fd87a1ff9034cfa757f22e015fad327b57440b",
+    "config/aoi/lapargera_v1/acolite_l89_candidate.txt": "3b8e9bef40ad25d2b22fff977aaed2618dd7d0dd72cdf6373384cd7337db1141"
+  },
+  "sentinel2_scientific_settings_unchanged_since_phase6": true
+}

@@ -1,0 +1,19 @@
+# Perfil Landsat 8/9 de ensayo: validación científica pendiente.
+region_name=lapargera_v1
+limit=17.83506768071816,-67.09176880642183,18.047432637275,-66.40241185767644
+l2w_parameters=Rrs_*,tur_nechad2009,chl_oc3,fai,ndvi
+rgb_rhot=False
+rgb_rhos=False
+# Grilla común de este AOI. Remuestrear 30 m a 10 m no añade detalle real.
+# Proyectar L1R antes de generar flags evita que el proyector descarte l2_flags.
+output_projection=True
+reproject_before_ac=True
+output_projection_metres=True
+output_projection_epsg=32619
+output_projection_resolution=10,10
+output_projection_xrange=701980,775330
+output_projection_yrange=1997360,1972960
+output_projection_resolution_align=False
+output_projection_resampling_method=nearest
+# Mantener aproximadamente 6 km por tile DSF al pasar de 30 m a 10 m.
+dsf_tile_dimensions=600,600

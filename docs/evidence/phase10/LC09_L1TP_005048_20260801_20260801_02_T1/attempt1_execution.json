@@ -1,0 +1,17 @@
+{
+  "scene": "LC09_L1TP_005048_20260801_20260801_02_T1",
+  "started_at": "2026-09-30T06:07:27.986147+00:00",
+  "stages": {
+    "descarga": 140.028591397,
+    "extraccion": 0.9615373070000146,
+    "acolite_l1r": 4.5466629409999655,
+    "project_acolite_netcdf": 34.45179768099996
+  },
+  "peak_sampled_rss_bytes": 2559803392,
+  "peak_sampled_disk_bytes": 18822564342,
+  "sample_seconds": 5,
+  "source_hashes": {
+    "sha256": "5b848ed628b97081fe03742a2edb6757dc40d4650b602371ba5290fe2f0eb3b6"
+  },
+  "tar_declared_unpacked_bytes": 1266895536
+}

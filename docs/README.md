@@ -1,12 +1,12 @@
 # Documentación del proyecto NASA OCEANOS
 
-Fecha: 25 de septiembre de 2026. AOI: `lapargera_v1`.
+Actualizado: 30 de septiembre de 2026. AOI: `lapargera_v1`.
 
 ## Estado de la entrega
 
 Fase 0 cerrada; fase 1 completada; fase 2 completada como auditoría estática; fase 3 completada como diseño de catálogo/provenance. Ver [resultado de fase 2](23_phase2_audit_results.md) y [diseño de fase 3](24_phase3_catalog_design.md). Fase 4 cerrada como configuración candidata; OC4 excluido por el usuario. Fase 5 completada como estrategia de adquisición y consulta de disponibilidad; ver [informe de fase 5](26_phase5_input_strategy.md). Fase 6 ejecutada: NetCDF generados, pero los productos acuáticos quedaron totalmente enmascarados; ver [ensayo real](27_phase6_first_scene.md). No hay pipeline ni validación científica aprobada.
 
-Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño definido; el perfil científico candidato está documentado en fase 4; la fase 5 define preferencia Zarr y fallback SAFE; el ensayo de fase 6 concluyó con una incidencia de enmascarado; la revisión técnica de fase 7 se completó con productos acuáticos no aceptados; la validación científica sigue pendiente. Fase 8 completada mediante análisis del ensayo; fase 9 pendiente de orden.
+Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño definido; el perfil científico candidato está documentado en fase 4; la fase 5 define preferencia Zarr y fallback SAFE; el ensayo de fase 6 concluyó con una incidencia de enmascarado; la revisión técnica de fase 7 se completó con productos acuáticos no aceptados; la validación científica sigue pendiente. Fase 8 completada mediante análisis del ensayo; fase 9 evaluada: borrado aplazado por validación no aceptada. Fase 10 completada técnicamente: cinco Sentinel-2 y tres Landsat en grilla común; aceptación científica pendiente. Fase 11 no iniciada.
 
 ## Índice
 
@@ -46,6 +46,10 @@ Cada nueva fase requiere orden del usuario. El catálogo de fase 3 tiene diseño
 | [28_phase7_validation.md](28_phase7_validation.md) | Validación técnica y dictamen de productos acuáticos no aceptados |
 
 | [29_phase8_benchmark.md](29_phase8_benchmark.md) | Análisis de tiempos, RAM, disco y límites del ensayo |
+
+| [30_phase9_cleanup.md](30_phase9_cleanup.md) | Decisión de conservación, inventario y limpieza aplazada |
+
+| [31_phase10_multidate.md](31_phase10_multidate.md) | Ocho adquisiciones, integración Landsat y cierre técnico |
 
 ## Fuentes y trazabilidad
 

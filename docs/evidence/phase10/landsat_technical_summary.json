@@ -1,0 +1,309 @@
+[
+  {
+    "scene": "LC09_L1TP_005048_20260801_20260801_02_T1",
+    "acquisition_utc": "20260801",
+    "cloud_cover_catalog": 71.52,
+    "source_sha256": "5b848ed628b97081fe03742a2edb6757dc40d4650b602371ba5290fe2f0eb3b6",
+    "stages_seconds": {
+      "acolite_l1r": 0.029059333999953196,
+      "project_acolite_netcdf": 39.19989524799996,
+      "acolite_l2r": 118.49880465499996,
+      "acolite_l2w": 34.029922180000085,
+      "procesamiento_total": 191.77225214199996
+    },
+    "peak_process_rss_bytes": 3923345408,
+    "finite_pixels": {
+      "Rrs_443": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_482": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_561": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_654": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_865": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_1608": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_2201": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_594": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_613": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "TUR_Nechad2009_654": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "chl_oc3": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "fai": {
+        "count": 17897400,
+        "fraction": 1.0
+      },
+      "ndvi": {
+        "count": 17897400,
+        "fraction": 1.0
+      }
+    },
+    "artifacts": [
+      {
+        "level": "L1R",
+        "path": ".work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output_grid_v2/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L1R_projected.nc",
+        "bytes": 314135778,
+        "sha256": "96c6c8ac78a95791228434b0495a39f7f4f6603ab5cff7351514574aac12732b"
+      },
+      {
+        "level": "L2R",
+        "path": ".work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output_grid_v2/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L2R_projected.nc",
+        "bytes": 644123795,
+        "sha256": "cdc3257d6b97fabb5a673ab7eeb42bff111717c8c50e65bf92a5ff89bf07a6f0"
+      },
+      {
+        "level": "L2W",
+        "path": ".work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output_grid_v2/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L2W_projected.nc",
+        "bytes": 96123849,
+        "sha256": "63ffa91589c5548da7f9292a09588f0d9de2df4f33a93cdd1e93d2fb6a03ae52"
+      }
+    ],
+    "grid_matches": true,
+    "science_accepted": false,
+    "required_present": true,
+    "flags_bit_counts": {
+      "0": 17897400,
+      "1": 16481655,
+      "2": 4823893,
+      "3": 86,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "quality_status": "sin_pixeles_acuaticos_validos"
+  },
+  {
+    "scene": "LC08_L1TP_005048_20260809_20260816_02_T1",
+    "acquisition_utc": "20260809",
+    "cloud_cover_catalog": 57.8,
+    "source_sha256": "0b1e7b531cf0deb522377500ad46fa9dcd5ad2b29e121c91c918831dae5c0f7d",
+    "stages_seconds": {
+      "descarga": 130.63330978800002,
+      "extraccion": 0.7070458590000044,
+      "acolite_l1r": 3.9593024760000617,
+      "project_acolite_netcdf": 31.84957353599998,
+      "acolite_l2r": 381.944653208,
+      "acolite_l2w": 34.600783226999965,
+      "procesamiento_total": 452.370817761
+    },
+    "peak_process_rss_bytes": 6569197568,
+    "finite_pixels": {
+      "Rrs_443": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_483": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_561": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_655": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_865": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_1609": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_2201": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_592": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "Rrs_613": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "TUR_Nechad2009_655": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "chl_oc3": {
+        "count": 0,
+        "fraction": 0.0
+      },
+      "fai": {
+        "count": 17897400,
+        "fraction": 1.0
+      },
+      "ndvi": {
+        "count": 17897400,
+        "fraction": 1.0
+      }
+    },
+    "artifacts": [
+      {
+        "level": "L1R",
+        "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R_projected.nc",
+        "bytes": 306917028,
+        "sha256": "1092b97cd9e52c75fc184d7a8e48ef2d7cb2546ac5030f85844fb18a6952ca2a"
+      },
+      {
+        "level": "L2R",
+        "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2R_projected.nc",
+        "bytes": 637007151,
+        "sha256": "d0bed010cd83e27e1603b807d03e51ff5f0a75e20568b81f7245387a580d94f2"
+      },
+      {
+        "level": "L2W",
+        "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2W_projected.nc",
+        "bytes": 94956089,
+        "sha256": "92b574104222c0694088563cc513db14a24b3fd08aa9a4394ca4699bfd7fcef8"
+      }
+    ],
+    "grid_matches": true,
+    "science_accepted": false,
+    "required_present": true,
+    "flags_bit_counts": {
+      "0": 17897400,
+      "1": 93964,
+      "2": 4154621,
+      "3": 133,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "quality_status": "sin_pixeles_acuaticos_validos"
+  },
+  {
+    "scene": "LC09_L1TP_005048_20260817_20260817_02_T1",
+    "acquisition_utc": "20260817",
+    "cloud_cover_catalog": 34.95,
+    "source_sha256": "fe3d3946330e66123b194d7dbb6637d409c2bae8d6e35dbb3d0e3306b543e470",
+    "stages_seconds": {
+      "descarga": 117.75528775899988,
+      "extraccion": 0.7241889100000662,
+      "acolite_l1r": 3.6970596799999385,
+      "project_acolite_netcdf": 27.836160298999857,
+      "acolite_l2r": 92.46391602899985,
+      "acolite_l2w": 31.830833771000016,
+      "procesamiento_total": 155.842904052
+    },
+    "peak_process_rss_bytes": 3938086912,
+    "finite_pixels": {
+      "Rrs_443": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_482": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_561": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_654": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_865": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_1608": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_2201": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_594": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "Rrs_613": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "TUR_Nechad2009_654": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "chl_oc3": {
+        "count": 58,
+        "fraction": 3.240694179042766e-06
+      },
+      "fai": {
+        "count": 17897400,
+        "fraction": 1.0
+      },
+      "ndvi": {
+        "count": 17897400,
+        "fraction": 1.0
+      }
+    },
+    "artifacts": [
+      {
+        "level": "L1R",
+        "path": ".work/phase10/LC09_L1TP_005048_20260817_20260817_02_T1/output/L9_OLI_2026_08_17_14_50_25_005048_lapargera_v1_L1R_projected.nc",
+        "bytes": 311690844,
+        "sha256": "c66a360cff5633d4feefe865b7d399d28236012c763ceb15d0c5bc4f553235ae"
+      },
+      {
+        "level": "L2R",
+        "path": ".work/phase10/LC09_L1TP_005048_20260817_20260817_02_T1/output/L9_OLI_2026_08_17_14_50_25_005048_lapargera_v1_L2R_projected.nc",
+        "bytes": 636086192,
+        "sha256": "f099938b5348ae061bb7fca57ed50596c413fbc59f3f66f3c40a54e09d3e1050"
+      },
+      {
+        "level": "L2W",
+        "path": ".work/phase10/LC09_L1TP_005048_20260817_20260817_02_T1/output/L9_OLI_2026_08_17_14_50_25_005048_lapargera_v1_L2W_projected.nc",
+        "bytes": 98708963,
+        "sha256": "24ab1dd9cc6c0525ca881891f2deed7a6aac438bf4c037ca5a196c38275ac4cf"
+      }
+    ],
+    "grid_matches": true,
+    "science_accepted": false,
+    "required_present": true,
+    "flags_bit_counts": {
+      "0": 17897342,
+      "1": 1011394,
+      "2": 3185605,
+      "3": 533,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "quality_status": "con_pixeles_acuaticos_pendiente_validacion_cientifica"
+  }
+]

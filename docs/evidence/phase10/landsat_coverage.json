@@ -1,0 +1,38 @@
+[
+  {
+    "name": "LC09_L1TP_005048_20260801_20260801_02_T1",
+    "covers_aoi": true,
+    "covers_rectangle": true,
+    "coverage_fraction_degrees_approx": 1.0
+  },
+  {
+    "name": "LC09_L1TP_005047_20260801_20260801_02_T1",
+    "covers_aoi": false,
+    "covers_rectangle": false,
+    "coverage_fraction_degrees_approx": 0.7547413458652551
+  },
+  {
+    "name": "LC09_L1TP_005047_20260817_20260817_02_T1",
+    "covers_aoi": false,
+    "covers_rectangle": false,
+    "coverage_fraction_degrees_approx": 0.7359406689558426
+  },
+  {
+    "name": "LC09_L1TP_005048_20260817_20260817_02_T1",
+    "covers_aoi": true,
+    "covers_rectangle": true,
+    "coverage_fraction_degrees_approx": 1.0
+  },
+  {
+    "name": "LC08_L1TP_005047_20260809_20260816_02_T1",
+    "covers_aoi": false,
+    "covers_rectangle": false,
+    "coverage_fraction_degrees_approx": 0.7301997372719875
+  },
+  {
+    "name": "LC08_L1TP_005048_20260809_20260816_02_T1",
+    "covers_aoi": true,
+    "covers_rectangle": true,
+    "coverage_fraction_degrees_approx": 1.0
+  }
+]

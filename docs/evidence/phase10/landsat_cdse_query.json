@@ -1,0 +1,1276 @@
+{
+  "checked_at": "2026-09-29T23:28:07.235155+00:00",
+  "calls": [
+    {
+      "url": "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=ContentDate/Start gt '2026-08-01T00:00:00' and ContentDate/Start lt '2026-08-21T00:00:00' and OData.CSC.Intersects(area=geography'SRID=4326;POLYGON ((-67.0917688064218 17.8350676807182,-66.4024118576764 17.8350676807182,-66.4024118576764 18.047432637275,-67.0917688064218 18.047432637275,-67.0917688064218 17.8350676807182))') and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'USGScollection' and att/OData.CSC.StringAttribute/Value eq 'landsat-c2l1')&$top=1000&$expand=Attributes",
+      "status": 200,
+      "response": {
+        "@odata.context": "$metadata#Products(Attributes())",
+        "value": [
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "a13ef20c-52c3-45a9-b722-39d4b5dbad10",
+            "Name": "LC09_L1TP_005048_20260801_20260801_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1266902084,
+            "OriginDate": "2026-08-01T21:04:24.846000Z",
+            "PublicationDate": "2026-09-01T11:09:37.218639Z",
+            "ModificationDate": "2026-09-01T11:09:37.218639Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-9/OLI_TIRS/L1TP/2026/08/01/LC09_L1TP_005048_20260801_20260801_02_T1",
+            "Checksum": [
+              {
+                "Value": "2430aa2992138f2e6b0327aa0864d2ed",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-01T11:09:34.459931Z"
+              },
+              {
+                "Value": "cded0d53a30c65d13e490ce726c9ba3b785c89aa3649715d0776ea38ffecfd3f",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-01T11:09:36.062304Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-01T14:50:24.645921Z",
+              "End": "2026-08-01T14:50:24.645921Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.6823455445091 18.384266459041, -68.0672085096083 16.6509583322131, -66.3626315251378 16.2935271302729, -65.9611105926333 18.0289838800009, -67.6823455445091 18.384266459041))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.6823455445091,
+                    18.384266459041
+                  ],
+                  [
+                    -68.0672085096083,
+                    16.6509583322131
+                  ],
+                  [
+                    -66.3626315251378,
+                    16.2935271302729
+                  ],
+                  [
+                    -65.9611105926333,
+                    18.0289838800009
+                  ],
+                  [
+                    -67.6823455445091,
+                    18.384266459041
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "048",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC90050482026213LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7701, 7551]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 71.52,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 7.926,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 596985, 0, -30, 2033715]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 80.66,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 5.089,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 6.077,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 84.72629069,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-9",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.22936881,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-01T14:50:24.645921Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-01T14:50:24.645921Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          },
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "dd034f23-b9da-427a-ba51-d79aeef0b7bb",
+            "Name": "LC09_L1TP_005047_20260801_20260801_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1311413558,
+            "OriginDate": "2026-08-01T20:18:37.846000Z",
+            "PublicationDate": "2026-09-01T11:09:40.803735Z",
+            "ModificationDate": "2026-09-01T11:09:40.803735Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-9/OLI_TIRS/L1TP/2026/08/01/LC09_L1TP_005047_20260801_20260801_02_T1",
+            "Checksum": [
+              {
+                "Value": "69e9c604fac34850f608104b2c6c72fd",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-01T11:09:38.121330Z"
+              },
+              {
+                "Value": "8bf0603a06aee2de6018d79acdf91bc01d8ae1e2a62e9909443bbe7cf7bbec24",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-01T11:09:39.517161Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-01T14:50:00.746434Z",
+              "End": "2026-08-01T14:50:00.746434Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.3583979032857 19.8272000277522, -67.746891546417 18.0946256020908, -66.0291275225001 17.7358819653582, -65.6219875471231 19.4705765958371, -67.3583979032857 19.8272000277522))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.3583979032857,
+                    19.8272000277522
+                  ],
+                  [
+                    -67.746891546417,
+                    18.0946256020908
+                  ],
+                  [
+                    -66.0291275225001,
+                    17.7358819653582
+                  ],
+                  [
+                    -65.6219875471231,
+                    19.4705765958371
+                  ],
+                  [
+                    -67.3583979032857,
+                    19.8272000277522
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "047",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC90050472026213LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7701, 7541]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 69.02,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 7.922,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 630285, 0, -30, 2193915]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 81.8,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 5.196,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 5.981,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 87.91001914,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-9",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.54001149,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-01T14:50:00.746434Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-01T14:50:00.746434Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          },
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "964934b6-04e6-4cc1-a162-41541d82e9a7",
+            "Name": "LC09_L1TP_005047_20260817_20260817_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1126959581,
+            "OriginDate": "2026-08-17T21:17:36.255000Z",
+            "PublicationDate": "2026-09-09T06:56:37.864884Z",
+            "ModificationDate": "2026-09-09T06:56:37.864884Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-9/OLI_TIRS/L1TP/2026/08/17/LC09_L1TP_005047_20260817_20260817_02_T1",
+            "Checksum": [
+              {
+                "Value": "ad94deeb4d7bc5f5d56224dce25ed5b2",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-09T06:56:35.067879Z"
+              },
+              {
+                "Value": "67387c938c7ec704dd740bf6353aaa4bb9c7003245835b7e0d78ec96d20d68d7",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-09T06:56:36.746865Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-17T14:50:02.010488Z",
+              "End": "2026-08-17T14:50:02.010488Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.3357725453177 19.8272614781377, -67.7242140892378 18.0944769279628, -66.0067990181058 17.7358132687037, -65.5997192496527 19.4707011641394, -67.3357725453177 19.8272614781377))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.3357725453177,
+                    19.8272614781377
+                  ],
+                  [
+                    -67.7242140892378,
+                    18.0944769279628
+                  ],
+                  [
+                    -66.0067990181058,
+                    17.7358132687037
+                  ],
+                  [
+                    -65.5997192496527,
+                    19.4707011641394
+                  ],
+                  [
+                    -67.3357725453177,
+                    19.8272614781377
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "047",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC90050472026229LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7701, 7541]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 4.82,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 7.202,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 632685, 0, -30, 2193915]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 14.56,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 4.47,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 5.647,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 99.08587901,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-9",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.20913518,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-17T14:50:02.010488Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-17T14:50:02.010488Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          },
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "6da9993c-a60b-4e71-aa17-0931a2665730",
+            "Name": "LC09_L1TP_005048_20260817_20260817_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1191757545,
+            "OriginDate": "2026-08-17T21:08:32.153000Z",
+            "PublicationDate": "2026-09-09T06:57:28.710979Z",
+            "ModificationDate": "2026-09-09T06:57:28.710979Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-9/OLI_TIRS/L1TP/2026/08/17/LC09_L1TP_005048_20260817_20260817_02_T1",
+            "Checksum": [
+              {
+                "Value": "6b7cc859d707c9b62e9a0da6d7e59aeb",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-09T06:57:25.596493Z"
+              },
+              {
+                "Value": "7c7c08f8e9f429489310958a290ba23f185104a384ceb7c242a14ec66d6d9cd6",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-09T06:57:27.334873Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-17T14:50:25.909977Z",
+              "End": "2026-08-17T14:50:25.909977Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.6596310888118 18.3841077839259, -68.0444243182497 16.6508546111212, -66.3401872575066 16.293516756141, -65.9387466578106 18.028901881237, -67.6596310888118 18.3841077839259))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.6596310888118,
+                    18.3841077839259
+                  ],
+                  [
+                    -68.0444243182497,
+                    16.6508546111212
+                  ],
+                  [
+                    -66.3401872575066,
+                    16.293516756141
+                  ],
+                  [
+                    -65.9387466578106,
+                    18.028901881237
+                  ],
+                  [
+                    -67.6596310888118,
+                    18.3841077839259
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "048",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC90050482026229LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7701, 7551]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 34.95,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 7.302,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 599385, 0, -30, 2033715]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 5.54,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 4.347,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 5.867,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 95.85737963,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-9",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.18042877,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-17T14:50:25.909977Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-17T14:50:25.909977Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          },
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "e0a9b9f3-d4d1-408c-bec8-85fa22c364b2",
+            "Name": "LC08_L1TP_005047_20260809_20260816_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1236836311,
+            "OriginDate": "2026-08-17T20:24:53.710000Z",
+            "PublicationDate": "2026-09-05T20:59:27.954940Z",
+            "ModificationDate": "2026-09-05T20:59:27.954940Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-8/OLI_TIRS/L1TP/2026/08/09/LC08_L1TP_005047_20260809_20260816_02_T1",
+            "Checksum": [
+              {
+                "Value": "a439533d63669d22634df0b2af38a7e5",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-05T20:59:24.250718Z"
+              },
+              {
+                "Value": "fce64c54d1d4f4de47719c83bceceed28afaea6a5a557381e9c73d70ea60aa86",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-05T20:59:26.069619Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-09T14:49:52.902913Z",
+              "End": "2026-08-09T14:49:52.902913Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.3334590589867 19.8294080236034, -67.7222141110942 18.0966325019281, -66.0104545761805 17.7369524910792, -65.6034117855626 19.471582719888, -67.3334590589867 19.8294080236034))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.3334590589867,
+                    19.8294080236034
+                  ],
+                  [
+                    -67.7222141110942,
+                    18.0966325019281
+                  ],
+                  [
+                    -66.0104545761805,
+                    17.7369524910792
+                  ],
+                  [
+                    -65.6034117855626,
+                    19.471582719888
+                  ],
+                  [
+                    -67.3334590589867,
+                    19.8294080236034
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "047",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC80050472026221LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7701, 7541]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 42.62,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 7.833,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 633285, 0, -30, 2193915]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 47.68,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 5.023,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 6.01,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 93.17250966,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-8",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.41236773,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-09T14:49:52.902913Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-09T14:49:52.902913Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          },
+          {
+            "@odata.mediaContentType": "application/octet-stream",
+            "Id": "b477f042-2620-483f-af55-59139c25f833",
+            "Name": "LC08_L1TP_005048_20260809_20260816_02_T1",
+            "ContentType": "application/octet-stream",
+            "ContentLength": 1201943966,
+            "OriginDate": "2026-08-17T20:22:38.667000Z",
+            "PublicationDate": "2026-09-05T20:59:29.502335Z",
+            "ModificationDate": "2026-09-05T20:59:29.502335Z",
+            "Online": true,
+            "EvictionDate": "9999-12-31T23:59:59.999999Z",
+            "S3Path": "/eodata/Landsat-8/OLI_TIRS/L1TP/2026/08/09/LC08_L1TP_005048_20260809_20260816_02_T1",
+            "Checksum": [
+              {
+                "Value": "a36e9afdfd25a3eeb9d4f537d6c20ebe",
+                "Algorithm": "MD5",
+                "ChecksumDate": "2026-09-05T20:59:26.799093Z"
+              },
+              {
+                "Value": "46781fe3c5d90d9c9cce5ecfbd96adfddbd54716daee48af4848d69b8e8db673",
+                "Algorithm": "BLAKE3",
+                "ChecksumDate": "2026-09-05T20:59:28.396927Z"
+              }
+            ],
+            "ContentDate": {
+              "Start": "2026-08-09T14:50:16.802426Z",
+              "End": "2026-08-09T14:50:16.802426Z"
+            },
+            "Footprint": "geography'SRID=4326;POLYGON ((-67.6576246983468 18.3865334324354, -68.0427244852898 16.6532872466849, -66.3438228784561 16.2943753630812, -65.9424119609303 18.0297724204451, -67.6576246983468 18.3865334324354))'",
+            "GeoFootprint": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -67.6576246983468,
+                    18.3865334324354
+                  ],
+                  [
+                    -68.0427244852898,
+                    16.6532872466849
+                  ],
+                  [
+                    -66.3438228784561,
+                    16.2943753630812
+                  ],
+                  [
+                    -65.9424119609303,
+                    18.0297724204451
+                  ],
+                  [
+                    -67.6576246983468,
+                    18.3865334324354
+                  ]
+                ]
+              ]
+            },
+            "Attributes": [
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsRow",
+                "Value": "048",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "sceneId",
+                "Value": "LC80050482026221LGN00",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsPath",
+                "Value": "005",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "wrsType",
+                "Value": "2",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "offNadir",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.IntegerAttribute",
+                "Name": "proj:epsg",
+                "Value": 32619,
+                "ValueType": "Integer"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projShape",
+                "Value": "[7711, 7551]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCover",
+                "Value": 57.8,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricRmse",
+                "Value": 8.091,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "projTransform",
+                "Value": "[30, 0, 600285, 0, -30, 2034015]",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "USGScollection",
+                "Value": "landsat-c2l1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "cloudCoverLand",
+                "Value": 42.42,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYBias",
+                "Value": 0.0,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionNumber",
+                "Value": "02",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricXStddev",
+                "Value": 5.054,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "geometricYStddev",
+                "Value": 6.319,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_azimuth",
+                "Value": 89.94881208,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "platformShortName",
+                "Value": "Landsat-8",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "collectionCategory",
+                "Value": "T1",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DoubleAttribute",
+                "Name": "view:sun_elevation",
+                "Value": 65.23323983,
+                "ValueType": "Double"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "instrumentShortName",
+                "Value": "OLI_TIRS",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.StringAttribute",
+                "Name": "productType",
+                "Value": "L1TP",
+                "ValueType": "String"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "beginningDateTime",
+                "Value": "2026-08-09T14:50:16.802426Z",
+                "ValueType": "DateTimeOffset"
+              },
+              {
+                "@odata.type": "#OData.CSC.DateTimeOffsetAttribute",
+                "Name": "endingDateTime",
+                "Value": "2026-08-09T14:50:16.802426Z",
+                "ValueType": "DateTimeOffset"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "names": [
+    "LC09_L1TP_005048_20260801_20260801_02_T1",
+    "LC09_L1TP_005047_20260801_20260801_02_T1",
+    "LC09_L1TP_005047_20260817_20260817_02_T1",
+    "LC09_L1TP_005048_20260817_20260817_02_T1",
+    "LC08_L1TP_005047_20260809_20260816_02_T1",
+    "LC08_L1TP_005048_20260809_20260816_02_T1"
+  ]
+}

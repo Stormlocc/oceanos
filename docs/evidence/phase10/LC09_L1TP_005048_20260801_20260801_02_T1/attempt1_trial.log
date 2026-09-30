@@ -1,0 +1,159 @@
+ETAPA descarga
+Downloading LC09_L1TP_005048_20260801_20260801_02_T1
+Writing file to /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1.tar
+ETAPA extraccion
+Extracting 24 files from /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1.tar to /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1
+Extraction completed to /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1
+ETAPA procesamiento_total
+Running ACOLITE processing - Generic GitHub Clone c2026-09-25T12:50:25
+Python - linux - 3.14.7 | packaged by conda-forge | (main, Sep  2 2026, 21:08:32) [GCC 15.3.0]
+Platform - Linux 6.6.87.2-microsoft-standard-WSL2 - x86_64 - #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025
+Run ID - 20260930_020957
+ETAPA acolite_l1r
+Identified /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1 as Landsat type
+Starting conversion of 1 scenes
+Starting conversion of /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1
+Importing metadata from /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/raw/LC09_L1TP_005048_20260801_20260801_02_T1
+Reading per pixel geometry
+Wrote raa
+Wrote vza
+Wrote sza
+Writing geolocation lon/lat
+Wrote lon
+Wrote lat
+Converting bands
+Converting bands: Wrote rhot_443 ((813, 2446))
+Converting bands: Wrote rhot_482 ((813, 2446))
+Converting bands: Wrote rhot_561 ((813, 2446))
+Converting bands: Wrote rhot_654 ((813, 2446))
+Converting bands: Wrote rhot_865 ((813, 2446))
+Converting bands: Wrote rhot_1608 ((813, 2446))
+Converting bands: Wrote rhot_2201 ((813, 2446))
+Converting bands: Wrote rhot_594 to separate L1R_pan
+Converting bands: Wrote rhot_594 ((813, 2446))
+Converting bands: Wrote rhot_1374 ((813, 2446))
+Converting bands: Wrote bt10
+Converting bands: Wrote bt11
+Conversion took 6.6 seconds
+Created /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L1R.nc
+ETAPA project_acolite_netcdf
+/home/antho/projects/oceanos/.work/acolite-audit/acolite/output/project_acolite_netcdf.py:27: UserWarning: XArray, dask, and/or zarr not found, XArrayBilinearResampler won't be available.
+  from pyresample.bilinear import NumpyBilinearResampler
+Setting up target projection.
+[701973.3429297798, 775320.8581827765] [1997354.5601922297, 1972970.0832949057]
+7334 2438
+Reading raa 813x2446
+Reading vza 813x2446
+Reading sza 813x2446
+Reading lon 813x2446
+Reading lat 813x2446
+Reading rhot_443 813x2446
+Reading rhot_482 813x2446
+Reading rhot_561 813x2446
+Reading rhot_654 813x2446
+Reading rhot_865 813x2446
+Reading rhot_1608 813x2446
+Reading rhot_2201 813x2446
+Reading rhot_594 813x2446
+Reading rhot_1374 813x2446
+Reading bt10 813x2446
+Reading bt11 813x2446
+Projecting datasets 813x2446x16 to EPSG:32619 7334x2438x16
+Reprojection of 16 datasets took 20.3 seconds
+Writing raa 2438x7334
+Wrote raa (2438, 7334)
+Writing vza 2438x7334
+Wrote vza (2438, 7334)
+Writing sza 2438x7334
+Wrote sza (2438, 7334)
+Writing lon 2438x7334
+Wrote lon (2438, 7334)
+Writing lat 2438x7334
+Wrote lat (2438, 7334)
+Writing rhot_443 2438x7334
+Wrote rhot_443 (2438, 7334)
+Writing rhot_482 2438x7334
+Wrote rhot_482 (2438, 7334)
+Writing rhot_561 2438x7334
+Wrote rhot_561 (2438, 7334)
+Writing rhot_654 2438x7334
+Wrote rhot_654 (2438, 7334)
+Writing rhot_865 2438x7334
+Wrote rhot_865 (2438, 7334)
+Writing rhot_1608 2438x7334
+Wrote rhot_1608 (2438, 7334)
+Writing rhot_2201 2438x7334
+Wrote rhot_2201 (2438, 7334)
+Writing rhot_594 2438x7334
+Wrote rhot_594 (2438, 7334)
+Writing rhot_1374 2438x7334
+Wrote rhot_1374 (2438, 7334)
+Writing bt10 2438x7334
+Wrote bt10 (2438, 7334)
+Writing bt11 2438x7334
+Wrote bt11 (2438, 7334)
+Wrote lon (2438, 7334)
+Wrote lat (2438, 7334)
+Wrote /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L1R_projected.nc
+ETAPA acolite_l2r
+Running acolite for /home/antho/projects/oceanos/.work/phase10/LC09_L1TP_005048_20260801_20260801_02_T1/output/L9_OLI_2026_08_01_14_50_24_005048_lapargera_v1_L1R_projected.nc
+Getting ancillary data for 2026-08-01T14:50:24.6459219Z -66.747E 17.941N
+Downloading file GMAO_MERRA2.20260801T140000.MET.nc
+Finished downloading file GMAO_MERRA2.20260801T140000.MET.nc
+Downloading file GMAO_MERRA2.20260801T150000.MET.nc
+Finished downloading file GMAO_MERRA2.20260801T150000.MET.nc
+Using GMAO GEOS ancillary data:
+/home/antho/projects/oceanos/.work/acolite-audit/data/MET/2026/213/GMAO_MERRA2.20260801T140000.MET.nc
+/home/antho/projects/oceanos/.work/acolite-audit/data/MET/2026/213/GMAO_MERRA2.20260801T150000.MET.nc
+default uoz: 0.30 uwv: 1.50 pressure: 1013.25
+current uoz: 0.28 uwv: 4.47 pressure: 998.67
+Using DSF atmospheric correction
+Processing with 65 tiles (5x13 tiles of 600x600 pixels)
+Writing lon
+Wrote lon (2438, 7334)
+Writing lat
+Wrote lat (2438, 7334)
+Writing sza
+Wrote sza (2438, 7334)
+Writing vza
+Wrote vza (2438, 7334)
+Writing raa
+Wrote raa (2438, 7334)
+Loading LUTs ['ACOLITE-LUT-202110-MOD1', 'ACOLITE-LUT-202110-MOD2']
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-1.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-1.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-2.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-2.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-3.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-3.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-4.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-4.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-5.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-5.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-6.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-6.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-7.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-7.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-8.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-8.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-9.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD1-reverse-L9_OLI-romix+rsky_t-9.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-1.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-1.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-2.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-2.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-3.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-3.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-4.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-4.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-5.nc
+Could not download remote lut https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-5.nc to /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110-Reverse/L9_OLI/ACOLITE-LUT-202110-MOD2-reverse-L9_OLI-romix+rsky_t-5.nc
+Creating reverse LUTs for L9_OLI
+Importing source LUTs
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-0500mb_L9_OLI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-0500mb_L9_OLI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-0750mb_L9_OLI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-0750mb_L9_OLI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-1013mb_L9_OLI.nc
+Testing LUT /home/antho/projects/oceanos/.work/acolite-audit/data/LUT/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-1013mb_L9_OLI.nc
+Getting remote LUT https://raw.githubusercontent.com/acolite/acolite_luts/main/ACOLITE-LUT-202110/L9_OLI/ACOLITE-LUT-202110-MOD1-1100mb_L9_OLI.nc

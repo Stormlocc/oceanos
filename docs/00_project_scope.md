@@ -30,8 +30,8 @@ Construir un sistema reproducible y económico en disco alrededor de ACOLITE par
 6. Escena procesada; productos acuáticos totalmente enmascarados. Ver documento 27.
 7. Revisión técnica completada: escala y grilla correctas en las pruebas; productos acuáticos no aceptados. Validación científica pendiente. Ver documento 28.
 8. Benchmark de una escena analizado; concurrencia uno mantenida. Ver documento 29.
-9. Limpiar fuentes temporales.
-10. Repetir manualmente en varias fechas e incorporar Landsat antes de Docker.
+9. Limpieza evaluada: borrado aplazado por validación no aceptada; fuentes conservadas. Ver documento 30.
+10. Repetición e incorporación Landsat completadas técnicamente: cinco Sentinel-2 y tres Landsat; validación científica pendiente. Ver documento 31.
 11. Implementar wrapper mínimo.
 12. Docker y Airflow.
 13. Cubo Zarr.

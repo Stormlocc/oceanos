@@ -1,0 +1,62 @@
+{
+  "scene": "LC08_L1TP_005048_20260809_20260816_02_T1",
+  "started_at": "2026-09-30T06:17:02.948961+00:00",
+  "stages": {
+    "descarga": 130.63330978800002,
+    "extraccion": 0.7070458590000044,
+    "acolite_l1r": 3.9593024760000617,
+    "project_acolite_netcdf": 31.84957353599998,
+    "acolite_l2r": 381.944653208,
+    "acolite_l2w": 34.600783226999965,
+    "procesamiento_total": 452.370817761
+  },
+  "peak_sampled_rss_bytes": 6539706368,
+  "peak_sampled_disk_bytes": 24274949327,
+  "sample_seconds": 5,
+  "source_hashes": {
+    "sha256": "0b1e7b531cf0deb522377500ad46fa9dcd5ad2b29e121c91c918831dae5c0f7d"
+  },
+  "tar_declared_unpacked_bytes": 1202043017,
+  "native_result": {
+    "0": {
+      "input": "/home/antho/projects/oceanos/.work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/raw/LC08_L1TP_005048_20260809_20260816_02_T1",
+      "l1r": [
+        "/home/antho/projects/oceanos/.work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R_projected.nc"
+      ],
+      "l1r_swath": [
+        "/home/antho/projects/oceanos/.work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R.nc"
+      ],
+      "l2r": [
+        "/home/antho/projects/oceanos/.work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2R_projected.nc"
+      ],
+      "l2w": [
+        "/home/antho/projects/oceanos/.work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2W_projected.nc"
+      ]
+    }
+  },
+  "outputs": [
+    {
+      "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2W_projected.nc",
+      "bytes": 94956089
+    },
+    {
+      "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R.nc",
+      "bytes": 60401456
+    },
+    {
+      "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R_projected.nc",
+      "bytes": 306917028
+    },
+    {
+      "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L1R_pan.nc",
+      "bytes": 22415020
+    },
+    {
+      "path": ".work/phase10/LC08_L1TP_005048_20260809_20260816_02_T1/output/L8_OLI_2026_08_09_14_50_16_005048_lapargera_v1_L2R_projected.nc",
+      "bytes": 637007151
+    }
+  ],
+  "status": "ejecucion_nativa_finalizada",
+  "peak_self_rss_bytes": 6569197568,
+  "finished_at": "2026-09-30T06:27:25.786749+00:00"
+}
