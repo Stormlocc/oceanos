@@ -18,7 +18,7 @@ search:
   level: L1C
   tile: 19QGV
   interval_start_utc: "2026-08-01T00:00:00Z"
-  interval_end_exclusive_utc: "2026-08-21T00:00:00Z"
+  interval_end_exclusive_utc: "2026-08-07T00:00:00Z"
   cloud_cover:
     enabled: false
     maximum_percent: null
@@ -26,15 +26,13 @@ search:
   changed_content: reprocesar_con_historial
 
 acolite:
-  # Referencia auditada elegida para preparar el ensayo; instalación no actualizada.
-  git_sha: 80da0c0c681d9597fd4b7737837d6a3e61907b33
-  settings_file: acolite_s2.txt
+  # Revisión fijada en oceanos/config.py (REVISION); `oceanos prepare` la verifica y aplica el parche.
   atmospheric_profile: defaults_del_sensor
   processing_concurrency: 1
 
 products:
-  # Esta lista expresa obligaciones científicas; acolite_s2.txt contiene la solicitud nativa.
-  active: ["Rrs_*", tur_nechad2009, chl_oc3, ndci, fai, ndvi]
+  # Única fuente de productos: OCEANOS la traduce a l2w_parameters de ACOLITE.
+  active: ["Rrs_*", tur_nechad2009, chl_oc3, ndci, fai, ndvi] 
   # OC4 excluido por decisión del usuario el 29 de septiembre de 2026.
   required_quality_dataset: l2_flags
   preserve_l1r_for_reprocessing: true
@@ -48,7 +46,7 @@ grid:
   epsg: 32619
   resolution_m: [10, 10]
   final_reprojection: false
-  # Convención ACOLITE: límite S,W,N,E; yrange N,S.
+  # Se envía a ACOLITE como limit (S,W,N,E); yrange N,S.
   limit_south_west_north_east:
     [17.83506768071816, -67.09176880642183, 18.047432637275, -66.40241185767644]
   candidate_native_grid:
@@ -61,17 +59,7 @@ grid:
   mismatch_action: detener_publicacion_y_revisar
 
 input:
-  # Consulta de fase 5: Zarr sin resultados; cinco productos SAFE disponibles.
-  strategy_status: definida_fase_5
-  stac_base_url: https://stac.core.eopf.eodc.eu
-  initial_expected_source: safe_temporal
-  recheck_zarr_on_execution: true
-  remove_zip: false
-  remove_tar: false
-  preferred: zarr_remoto_compatible
-  fallback: safe_temporal
-  notify_on_fallback: true
-  automatic_fallback: true
+  # Sentinel-2: SAFE L1C (ZIP) desde CDSE, extraído en temporal. No descargar sin autorización.
   transient_attempts_total: 3
   retry_wait_seconds: [60, 300]
 

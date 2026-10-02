@@ -1,5 +1,7 @@
 # Fase 5 — estrategia de adquisición
 
+> Informe histórico. Estado vigente al 30-09-2026: las escenas se procesaron en fases 6/10 y el wrapper se implementó en fase 11. Los cinco candidatos describen la consulta histórica 1–20, no el perfil Sentinel-2 actual 1–14. No repetir descargas sin autorización, incluidos auxiliares. Rige la [política L1R/L2W y reinicio](33_retention_and_reset.md); las cifras y decisiones originales no describen la disponibilidad actual de archivos. Los pasos 2–4 del flujo (Zarr) se retiraron del wrapper el 01-10-2026; ver [documento 06](06_acolite_zarr_input.md#retirada-del-wrapper-01-10-2026).
+
 Fecha: 29 de septiembre de 2026. **Fase completada como selección de entrada y consulta de metadata.** OC4 queda excluido por decisión del usuario; fase 4 cerrada como configuración candidata. No se descargaron escenas, no se ejecutó corrección atmosférica ni se implementó el pipeline.
 
 ## Resultado de disponibilidad
@@ -18,30 +20,30 @@ Se ejecutaron las funciones nativas `api.stac.query` y `api.cdse.query` de la re
 | 2026-08-14T15:07:19.024000Z | S2B | 810576889 | 1.916390456568 |
 | 2026-08-19T15:07:21.025000Z | S2C | 780896915 | 46.643046970647 |
 
-Tamaño publicado conjunto: **3,942,561,822 bytes**, aproximadamente 3.94 GB decimales. No incluye extracción, NetCDF, auxiliares ni logs. A 100 Mbps son aproximadamente 5.3 minutos de transferencia ideal; no es un benchmark. Se descargará una escena a la vez. La nubosidad se registra, sin excluir adquisiciones ni ordenar por ella.
+Tamaño publicado conjunto: **3,942,561,822 bytes**, aproximadamente 3.94 GB decimales. No incluye extracción, NetCDF, auxiliares ni logs. A 100 Mbps son aproximadamente 5.3 minutos de transferencia ideal; no es un benchmark. La ejecución posterior descargó una escena a la vez; esta tabla no autoriza nuevas descargas. La nubosidad se registra, sin excluir adquisiciones ni ordenar por ella.
 
-Para el primer ensayo se propone la adquisición más antigua, **S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE**, por criterio cronológico reproducible. La fase 6 procesa una sola escena; el resto corresponde a la ejecución repetida posterior. Antes de descargar se vuelve a consultar disponibilidad/versión, porque estos resultados son una instantánea.
+Para el primer ensayo se seleccionó la adquisición más antigua, **S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE**, por criterio cronológico reproducible. La fase 6 procesa una sola escena; el resto corresponde a la ejecución repetida posterior. Antes de descargar se vuelve a consultar disponibilidad/versión, porque estos resultados son una instantánea.
 
 ## Flujo seleccionado
 
 1. Consultar primero el catálogo propio para detectar resultados reutilizables o cambios; si un L1R contiene las bandas TOA, geometría y metadata necesarias, regenerar L2W con AC y L2R temporal, sin volver a adquirir RAW. SQLite está implementado desde fase 11.
-2. Consultar Zarr mediante la API STAC nativa, con base URL explícita, bbox y extremo final del día 21. Aplicar intervalo local exclusivo y validar identificación de adquisición/tile/nivel.
+2. Consultar Zarr mediante la API STAC nativa, con base URL explícita, bbox y extremo final exclusivo del perfil (actualmente 15 de agosto para Sentinel-2; el ensayo histórico usó 21). Aplicar intervalo local exclusivo y validar identificación de adquisición/tile/nivel.
 3. Si aparece un Zarr candidato, comprobar metadatos y estructura compatibles con el lector auditado antes de usarlo. No deducir compatibilidad solo de una extensión `.zarr`. Comprobar geometría y procedencia; no comparar checksum SAFE contra checksum Zarr como si fueran el mismo archivo.
-4. Ante fallo transitorio de acceso Zarr: tres intentos totales, esperas de 60 y 300 segundos; registrar causa y avisar. Respetar Retry-After cuando el servicio lo indique. Tras agotar intentos, pasar automáticamente a SAFE e informar. Una consulta exitosa sin resultados o un formato incompatible permite fallback inmediato: repetir no crearía datos ausentes. En esta fase no hubo fallo transitorio y no se simuló esta política con esperas.
-5. Para SAFE, usar catálogo, descarga y extracción nativos CDSE; una escena por directorio temporal. `remove_zip=False`, `remove_tar=False` y borrados de procesamiento desactivados durante el ensayo. No borrar tras L1R ni antes de validar L2R/L2W y registrar procedencia.
+4. Ante fallo transitorio de acceso Zarr: tres intentos totales, esperas de 60 y 300 segundos; registrar causa y avisar. La recomendación de respetar Retry-After sigue pendiente: el wrapper actual solo aplica las esperas fijas. Tras agotar intentos, pasar automáticamente a SAFE e informar. Una consulta exitosa sin resultados o un formato incompatible permite fallback inmediato: repetir no crearía datos ausentes. En esta fase no hubo fallo transitorio y no se simuló esta política con esperas.
+5. Para SAFE, usar catálogo, descarga y extracción nativos CDSE; una escena por directorio temporal. `remove_zip=False`, `remove_tar=False` y borrados de procesamiento desactivados durante el ensayo. Actualmente se limpia después de verificar L1R/L2W y registrar procedencia, usando L2R como intermedio temporal de QA.
 6. Verificar checksum disponible contra el archivo descargado y calcular SHA-256 propio. El catálogo observado proporciona MD5 y BLAKE3, no SHA-256: conservar algoritmo y valor originales, sin renombrarlos. Un nuevo baseline/contenido genera versión e historial; cambios administrativos por sí solos no obligan a recalcular.
 
-La ruta inicial prevista es **SAFE temporal**, por ausencia de resultados Zarr en la consulta actual. La preferencia del perfil sigue siendo Zarr; no se ha medido su ahorro ni validado equivalencia radiométrica SAFE/Zarr.
+La ruta inicial prevista es **SAFE temporal**, por ausencia de resultados Zarr en aquella consulta histórica. La preferencia por Zarr se retiró el 01-10-2026 por falta de cobertura EOPF para el AOI; no se ha medido su ahorro ni validado equivalencia radiométrica SAFE/Zarr.
 
 ## Recursos, acceso y trazabilidad
 
-El techo de temporales es conjunto: 50.000.000.000 bytes. Antes de adquirir, considerar archivo, extracción, intermedios, auxiliares y salidas en construcción, además del espacio libre real. El tamaño publicado del archivo no permite asegurar cuánto ocupará el ensayo. Registrar el máximo de disco y memoria desde fase 6; no descargar las cinco escenas juntas. Si el presupuesto no alcanza, informar y detener esa adquisición, conservando catálogo/logs; no eliminar resultados persistentes para hacer espacio.
+El techo de temporales es conjunto: 50.000.000.000 bytes. Antes de adquirir, considerar archivo, extracción, intermedios, auxiliares y salidas en construcción, además del espacio libre real. El tamaño publicado del archivo no permite asegurar cuánto ocupará el ensayo. Registrar el máximo de disco y memoria desde fase 6; no descargar las cinco escenas juntas. Si el presupuesto no alcanza, informar y detener esa adquisición, conservando el catálogo y el diagnóstico breve; no eliminar resultados persistentes para hacer espacio.
 
 La descarga nativa auditada mantiene el contenido de respuesta en memoria; con archivos publicados de aproximadamente 0,77–0,81 GB se selecciona como candidata para el ensayo secuencial, sin prometer un pico total de RAM. No se implementa ahora un descargador alternativo. Observar consumo real antes de decidir si hace falta una extensión mínima de streaming.
 
-Las consultas realizadas son públicas. No se leyeron credenciales ni se verificó autenticación de descarga. La presencia de `.netrc` no prueba autorización CDSE. En fase 6 deberá comprobarse acceso mediante la ruta nativa, sin imprimir secretos. Preparar la revisión fijada y sus rutas antes de ejecutar: la instalación habitual sigue en otra revisión.
+Las consultas realizadas son públicas. No se leyeron credenciales ni se verificó autenticación de descarga. La presencia de `.netrc` no prueba autorización CDSE. El acceso CDSE se comprobó después en fase 6 y USGS en fase 10, sin imprimir secretos. La revisión fijada ya se preparó en la copia auditada; la instalación habitual se preservó.
 
-La función CDSE nativa devuelve URLs/nombres/Attributes, pero descarta campos superiores como checksum, tamaño y footprint. La evidencia de esta fase conserva la respuesta HTTP original mediante instrumentación temporal. Para automatizar la procedencia se mantiene la extensión mínima y compatible definida en fase 3; no está implementada. Los JSON de evidencia son comprobaciones de investigación, no sustituyen al catálogo operativo SQLite.
+La función CDSE nativa devuelve URLs/nombres/Attributes, pero descarta campos superiores como checksum, tamaño y footprint. La evidencia original capturó la respuesta HTTP mediante instrumentación temporal; esos cuerpos completos no se conservan actualmente. Para automatizar la procedencia se mantiene la extensión mínima y compatible definida en fase 3; se implementó en fase 11. Los JSON de investigación se retiraron al consolidar el historial y no son archivos operativos actuales.
 
 ## Evidencia y comprobaciones
 
@@ -52,6 +54,6 @@ La función CDSE nativa devuelve URLs/nombres/Attributes, pero descarta campos s
 
 Se comprobaron coherencia YAML/TXT sin OC4, política sin nubosidad, respuesta STAC vacía válida, cinco identidades CDSE únicas dentro del intervalo y cobertura del AOI según footprints. No se probaron descarga, reintentos de transferencia, valores científicos, máscaras ni rendimiento. No se añade una suite que replique los catálogos: los tests operativos del wrapper corresponden a su implementación.
 
-## Siguiente fase
+## Continuación posterior
 
-La fase 6 requiere orden del usuario: preparar la revisión elegida, adquirir una escena y ejecutar el ensayo instrumentado. No comenzar todavía procesamiento masivo, limpieza ni Docker. Recordar la falta de datos in situ antes de la fase de validación científica.
+La fase 6 ejecutó el primer ensayo; las fases 7–10 lo analizaron y ampliaron, y la fase 11 implementó el wrapper. La validación in situ y Docker/Airflow siguen pendientes. No iniciar nuevas descargas sin autorización explícita.

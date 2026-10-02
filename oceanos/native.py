@@ -1,19 +1,17 @@
 """Adaptación estrecha a las funciones nativas de la revisión auditada."""
-import contextlib
-import io
-import json
+import hashlib
 import re
 import subprocess
 import sys
 import tarfile
 import zipfile
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
 from .config import ROOT, REVISION, file_hash, instant
 
 
 def prepare(path):
+    """Verifica la revisión de ACOLITE, aplica el parche si falta y devuelve la identidad del motor."""
     path = Path(path).resolve()
     revision = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
     if revision != REVISION:
@@ -29,6 +27,7 @@ def prepare(path):
 
 
 def identity(path):
+    """Devuelve la identidad del motor: revisión, SHA-256 del parche y SHA-256 del diff local."""
     revision = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
     if revision != REVISION:
         raise ValueError('Revisión ACOLITE inesperada')
@@ -36,17 +35,18 @@ def identity(path):
     subprocess.run(['git', '-C', str(path), 'apply', '--reverse', '--check', str(patch)], check=True, capture_output=True)
     # Registrar todos los cambios locales; no atribuirlos al commit upstream.
     diff = subprocess.check_output(['git', '-C', str(path), 'diff', '--binary'])
-    import hashlib
     return {'revision': revision, 'patch_sha256': file_hash(patch), 'working_diff_sha256': hashlib.sha256(diff).hexdigest()}
 
 
 def load(path):
+    """Importa ACOLITE desde la ruta indicada."""
     sys.path.insert(0, str(Path(path).resolve()))
     import acolite
     return acolite
 
 
 def scene_identity(name):
+    """Extrae familia, plataforma, fecha, tile o path/row y baseline del nombre de la escena."""
     if re.fullmatch(r'S2[ABC]_MSIL1C_\d{8}T\d{6}_N\d{4}_R\d{3}_T\w{5}_\d{8}T\d{6}(\.SAFE)?', name):
         fields = name.split('_')
         return {'family': 'sentinel2', 'platform': fields[0], 'date': fields[2],
@@ -61,11 +61,11 @@ def scene_identity(name):
 
 
 def eligible(source, config):
+    """Indica si una fuente cumple el sensor, el intervalo y el tile o path/row del perfil."""
     info = source['identity']
     if info['family'] != config['family']:
         return False
     raw = info['date']
-    from datetime import datetime, timezone
     date = datetime.strptime(raw, '%Y%m%dT%H%M%S' if 'T' in raw else '%Y%m%d').replace(tzinfo=timezone.utc)
     if source.get('metadata', {}).get('ContentDate', {}).get('Start'):
         date = instant(source['metadata']['ContentDate']['Start'])
@@ -79,11 +79,16 @@ def eligible(source, config):
 
 
 def query(ac, provider, config):
+    """Consulta el catálogo del proveedor (CDSE o USGS) con las funciones nativas de ACOLITE.
+
+    Devuelve las fuentes elegibles, la completitud de la consulta y los productos descartados
+    por el perfil.
+    """
     first, last = instant(config['start']), instant(config['end'])
     cloud = config['cloud']
     sources = []
     if provider == 'CDSE':
-        urls, names, metadata = ac.api.cdse.query(collection='SENTINEL-2', level=1,
+        _, names, metadata = ac.api.cdse.query(collection='SENTINEL-2', level=1,
             roi=config['limit'], tile=config['search']['tile'], cloud_cover=cloud,
             start_date=(first-timedelta(seconds=1)).replace(tzinfo=None).isoformat(),
             end_date=(last-timedelta(days=1)).replace(tzinfo=None).isoformat(),
@@ -92,7 +97,7 @@ def query(ac, provider, config):
             sources.append({'provider': 'CDSE', 'product': name, 'format': 'SAFE',
                             'id': meta['Id'], 'identity': scene_identity(name), 'metadata': meta})
         completeness = 'COMPLETE'
-    elif provider == 'USGS':
+    else:
         result = ac.api.earthexplorer.query(dataset=config['search']['dataset'],
             roi=config['limit'], start_date=first.isoformat(), end_date=last.isoformat(),
             cloud_cover=cloud, attributes=True, verbosity=0)
@@ -111,37 +116,17 @@ def query(ac, provider, config):
                             'dataset':dataset,'identity':info,'metadata':selected})
         # La función nativa no expone totalHits ni pagina: no afirmar completitud.
         completeness = 'UNKNOWN'
-    else:
-        features = ac.api.stac.query(limit=config['limit'], start_date=config['start'], end_date=config['end'],
-                                    base_url=config['input']['stac_base_url'].rstrip('/'), select_features=False)
-        if features is None:
-            raise RuntimeError('Consulta STAC sin respuesta utilizable')
-        for feature in features:
-            name = feature['id']
-            try:
-                info = scene_identity(name)
-            except ValueError:
-                continue
-            href = feature.get('assets', {}).get('product', {}).get('href', '')
-            url = urlsplit(href)
-            # No persistir ni recortar silenciosamente credenciales de acceso remoto.
-            if url.scheme != 'https' or url.query or url.username or url.fragment:
-                continue
-            props = feature.get('properties', {})
-            if cloud is not None and (props.get('eo:cloud_cover') is None or props['eo:cloud_cover'] > cloud):
-                continue
-            sources.append({'provider':'STAC','product':name,'format':'ZARR','uri':urlunsplit(url),
-                            'identity':info,'metadata':{k:props[k] for k in ['datetime','eo:cloud_cover','processing:version'] if k in props}})
-        completeness = 'UNKNOWN'
     return {'sources':[s for s in sources if eligible(s,config)], 'completeness':completeness,
-            'normalized_count':len(sources), 'excluded_by_profile':[s['product'] for s in sources if not eligible(s,config)]}
+            'excluded_by_profile':[s['product'] for s in sources if not eligible(s,config)]}
 
 
 def acquire(ac, source, raw):
+    """Descarga la escena (o toma el archivo local) y verifica tamaño y checksums.
+
+    Devuelve la ruta del archivo y la fuente con su SHA-256 calculado.
+    """
     raw = Path(raw).resolve()
     raw.mkdir(parents=True, exist_ok=True)
-    if source['format'] == 'ZARR':
-        return {'input':source['uri'], 'source':source}
     if source.get('local'):
         archive = Path(source['local']).resolve()
     elif source['provider'] == 'CDSE':
@@ -171,6 +156,7 @@ def acquire(ac, source, raw):
 
 
 def extract(ac, archive, raw, available):
+    """Comprueba el ZIP/TAR (espacio, rutas y enlaces) y lo extrae con ACOLITE."""
     root = Path(raw).resolve()
     if zipfile.is_zipfile(archive):
         with zipfile.ZipFile(archive) as file:
@@ -182,16 +168,20 @@ def extract(ac, archive, raw, available):
         types = ['tar']
     if not entries or sum(m[1] for m in entries) > available:
         raise ValueError('Archivo vacío o presupuesto de extracción insuficiente')
-    for name, size, link in entries:
+    for name, _, link in entries:
         if link or not (root/name).resolve().is_relative_to(root):
             raise ValueError('Entrada de archivo insegura')
-    bundle, extracted = ac.shared.extract_bundle(str(archive), output=str(root), types=types, verbosity=0)
+    bundle, _ = ac.shared.extract_bundle(str(archive), output=str(root), types=types, verbosity=0)
     if not bundle or not Path(bundle).is_dir():
         raise ValueError('No se obtuvo una escena extraída')
     return {'input':str(bundle)}
 
 
 def process(ac, input_path, settings, output, derive=False):
+    """Ejecuta ACOLITE y devuelve las rutas de L1R, L2R y L2W.
+
+    Con `derive=True` parte de un L1R ya alineado y no vuelve a reproyectar ni recortar.
+    """
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     if derive:

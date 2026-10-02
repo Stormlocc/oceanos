@@ -1,12 +1,14 @@
 # APIs de catálogo y metadata realmente devuelta
 
+> Estado vigente (30-09-2026): SQLite v2 y adaptadores implementados. CDSE expone metadata mediante el parche opcional; el wrapper normaliza el intervalo UTC semiabierto. USGS sigue con completitud desconocida. Las firmas y límites siguientes corresponden al upstream sin parche; véase [fase 11](32_phase11_wrapper.md).
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 ## CDSE
 
 Firma relevante: `query(scene=None, collection=None, product=None, start_date=None, end_date=None, roi=None, level=1, sensor=None, cloud_cover=None, tile=None, processor_version=None, ..., max_results=1000, odata_url=None, attributes=False)`.
 
-Devuelve `(urls, scenes)` o `(urls, scenes, atts)` con `attributes=True`. `atts` conserva únicamente `Attributes`; el JSON top-level se descarta. Id puede recuperarse de la URL, nombre se conserva, pero footprint, checksum, ContentLength y demás campos top-level no están garantizados en este retorno. No afirmar que un snapshot del retorno es copia íntegra del catálogo. En fase 3 decidir enriquecimiento mínimo o ajuste estrecho del retorno nativo, evitando un cliente propio.
+Devuelve `(urls, scenes)` o `(urls, scenes, atts)` con `attributes=True`. `atts` conserva únicamente `Attributes`; el JSON top-level se descarta. Id puede recuperarse de la URL, nombre se conserva, pero footprint, checksum, ContentLength y demás campos top-level no están garantizados en este retorno. No afirmar que un snapshot del retorno es copia íntegra del catálogo. La fase 3 definió una extensión opcional de metadata, implementada mediante parche en fase 11 sin crear otro cliente.
 
 `collection='SENTINEL-2', level=1` selecciona S2MSI1C si no se da producto. Tile admite `19QGV` o `T19QGV`. `sensor` no se traduce en filtro de plataforma S2: no asumir que pedir S2A por ese argumento limita resultados. ROI delega en `shared.roi_wkt`, con intersección OData. `processor_version` filtra `processorVersion`. `cloud_cover=None` no añade filtro; cuando se da valor usa comparación estricta menor que.
 
@@ -32,12 +34,12 @@ Por defecto retorna features completos, id/geometry/properties/assets/links seg�
 
 Limitaciones reproducidas sin red: sin limit, la construcción de datetime antepone `?` a toda la URL; con bbox y end_date 2026-08-20 termina a 00:00 del día 20, salvo el caso particular inicio=fin. Para nuestro intervalo, preparar final explícito y filtrar pertenencia temporal conforme al contrato confirmado en fase 3. No confundir fin de día con fin exclusivo 21-08 sin revisar semántica del servicio.
 
-Fuentes: [acolite/api/stac/query.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/api/stac/query.py#L7-L75), [acolite/api/stac/query_get.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/api/stac/query_get.py#L7-L41). Evidencia: `evidence/phase2/comprobaciones.json`.
+Fuentes: [acolite/api/stac/query.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/api/stac/query.py#L7-L75), [acolite/api/stac/query_get.py:7](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/api/stac/query_get.py#L7-L41). Evidencia histórica: `evidence/phase2/comprobaciones.json`, retirado al consolidar el historial.
 
 ## Identidades
 
-Mantener adquisición, producto/baseline y representación como conceptos distintos. Checksum del proveedor se almacena con algoritmo; no asumir SHA-256. Los parámetros de consulta y sus timestamps pertenecen a provenance, no al fingerprint científico. Diseñar persistencia definitiva en fase 3 con estas limitaciones ya conocidas.
+Mantener adquisición, producto/baseline y representación como conceptos distintos. Checksum del proveedor se almacena con algoritmo; no asumir SHA-256. Los parámetros de consulta y sus timestamps pertenecen a provenance, no al fingerprint científico. La persistencia se diseñó en fase 3 y se implementó en fase 11 con estas limitaciones explícitas.
 
 ## Decisión de fase 3
 
-El [diseño definitivo del catálogo](16_catalog_provenance.md) elige SQLite, snapshots inmutables de metadata seleccionada, seis tablas y extensión mínima compatible del retorno CDSE cuando se programe. Define el intervalo interno UTC semiabierto y las diferencias entre proveedores. No hubo consultas reales de adquisiciones durante esa fase.
+El [diseño definitivo del catálogo](16_catalog_provenance.md) elige SQLite, snapshots inmutables de metadata seleccionada, seis tablas y extensión mínima compatible del retorno CDSE implementada en fase 11. Define el intervalo interno UTC semiabierto y las diferencias entre proveedores. No hubo consultas reales de adquisiciones durante esa fase.

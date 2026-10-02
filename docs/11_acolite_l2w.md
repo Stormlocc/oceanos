@@ -1,6 +1,8 @@
 # Productos L2W: compatibilidad, algoritmos y máscaras
 
-Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Pendiente de validación con escena real.
+> Estado vigente (30-09-2026): productos y flags comprobados técnicamente en ocho adquisiciones; cinco sin píxeles acuáticos finitos y tres con fracciones pequeñas. La presencia de variables no aprueba ciencia. OC4 excluido y NDCI solo Sentinel-2. Véase [fase 10](31_phase10_multidate.md).
+
+Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Ensayos técnicos posteriores completados en fases 6/10; aceptación científica pendiente.
 
 ## Productos obligatorios
 

@@ -62,21 +62,6 @@
 +    if return_metadata: return urls, scenes, metadata
      if attributes: return(urls, scenes, atts)
      return(urls, scenes)
---- a/acolite/api/stac/query_get.py
-+++ b/acolite/api/stac/query_get.py
-@@ -10,8 +10,11 @@
- 
-     ## get response
-     print('Querying {}'.format(url))
--    response = requests.get(url)
-+    response = requests.get(url, timeout=(30, 180))
-+    response.raise_for_status()
-     dict = json.loads(response.text)
-+    if 'features' not in dict and 'id' not in dict:
-+        raise ValueError('Respuesta STAC sin features ni id')
- 
-     ## add features
-     if 'features' in dict:
 --- a/acolite/api/earthexplorer/query.py
 +++ b/acolite/api/earthexplorer/query.py
 @@ -186,6 +186,9 @@

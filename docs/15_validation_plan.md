@@ -2,46 +2,46 @@
 
 ## Criterio de simplicidad
 
-Validar los límites del sistema y los resultados importantes, sin replicar el algoritmo de ACOLITE. No crear código de tests hasta la fase de implementación autorizada.
+Validar los límites del sistema y los resultados importantes, sin replicar el algoritmo de ACOLITE. La implementación autorizada de fase 11 cuenta con 27 pruebas en `tests/test_wrapper.py`.
 
 ## Validación técnica mínima
 
 Antes de procesar: perfil legible, AOI presente, configuración coherente y espacio temporal suficiente. Después: NetCDF requerido existente y legible, variables obligatorias disponibles, dimensiones y grilla esperadas, metadatos esenciales y reporte de proporción de datos válidos/flags.
 
-Un archivo existente pero vacío o sin las variables requeridas no autoriza eliminación de la fuente. Un producto con todo el AOI enmascarado debe quedar registrado explícitamente; la política de aceptación científica se definirá antes de automatizar limpieza.
+Un archivo existente pero vacío o sin las variables requeridas no autoriza eliminación de la fuente. Un producto con todo el AOI enmascarado debe quedar registrado explícitamente; la aceptación científica permanece pendiente y separada de la limpieza, que exige L1R/L2W técnicamente íntegros y registrados.
 
-Conservar reporte simple de resultado, motivos de fallo y métricas. No imponer umbrales científicos arbitrarios.
+Conservar reporte simple de resultado, motivos de fallo y métricas dentro de SQLite. No imponer umbrales científicos arbitrarios.
 
-## Tests futuros prioritarios
+## Contratos de prueba y cobertura actual
 
 - Una salida ausente o ilegible impide marcar validación exitosa y activar limpieza por éxito.
 - Un archivo fuera del directorio temporal de la ejecución nunca se elimina.
 - Misma entrada y configuración no generan procesamiento duplicado; cambio científico sí genera nueva ejecución.
 - Nuevos productos reutilizan L1R solo si conserva bandas/geometría y grilla compatibles; se repite AC y se elimina L2R tras QA técnico.
-- Agotar reintentos Zarr activa fallback registrado y acotado.
-- Las fechas incluyen íntegramente el día 20 y excluyen el siguiente según el contrato de la API.
+- Agotar los reintentos de consulta queda registrado y detiene la búsqueda con error.
+- Las fechas incluyen el inicio UTC y excluyen el final configurado. Sentinel-2 termina actualmente el 15; Landsat el 21. La prueba existente cubre el inicio y fechas fuera del intervalo, sin cubrir cada frontera de cada API.
 - Productos comparables mantienen grilla y variables previstas en una pequeña prueba de integración.
 
 Usar dobles sencillos para control de estados; reservar una escena real para integración y benchmark. No descargar escenas en cada test unitario ni exigir igualdad bit a bit entre entornos sin justificación.
 
 ## Validación científica
 
-Pendiente de datos in situ. Recordar al usuario antes de fase 7: CTD, muestras, clorofila, turbidez, observaciones OCEANOS/CariCOOS y controles de calidad. La revisión de flags y plausibilidad no sustituye comparación científica independiente.
+Pendiente de datos in situ. Incorporar antes de declarar aceptación científica: CTD, muestras, clorofila, turbidez, observaciones OCEANOS/CariCOOS y controles de calidad. La revisión de flags y plausibilidad no sustituye comparación científica independiente.
 
 ## Resultados de auditoría de fase 2
 
-Se ejecutaron seis comprobaciones aisladas de funciones nativas: precedencia de defaults de sensor, precedencia de override, OC3 presente para S2A/B/C, OC4 ausente para S2A/B/C, URL STAC defectuosa sin bbox y límite final STAC a medianoche. Además dos aserciones reprodujeron la forma de grilla con alineación activada/desactivada. Resultados en evidence/phase2/comprobaciones.json y alineacion_reproducida.json. Las comprobaciones con fallo esperado demuestran una limitación; no certifican funcionamiento de producción.
+Se ejecutaron seis comprobaciones aisladas de funciones nativas: precedencia de defaults de sensor, precedencia de override, OC3 presente para S2A/B/C, OC4 ausente para S2A/B/C, URL STAC defectuosa sin bbox y límite final STAC a medianoche. Además dos aserciones reprodujeron la forma de grilla con alineación activada/desactivada. Los JSON originales de esas comprobaciones se retiraron al consolidar el historial. Las comprobaciones con fallo esperado demuestran una limitación; no certifican funcionamiento de producción.
 
-Añadir a los tests futuros necesarios: detectar ausencia de cualquier producto requerido sin aceptar éxito parcial (OC4 está excluido); conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.
+Contratos identificados en fase 2 para revisar en la cobertura actual: detectar ausencia de cualquier producto requerido sin aceptar éxito parcial (OC4 está excluido); conservar l2_flags cuando exista reproyección; no aplicar automáticamente máscara acuática a FAI/NDVI; no tratar descarga parcial como existente válida; comprobar diferencias de fechas CDSE/STAC/EarthExplorer. Mantener pocos tests de contrato, sin replicar corrección atmosférica.
 
 ## Casos de aceptación de fase 3
 
-El apartado 11 del [diseño del catálogo](16_catalog_provenance.md) define doce escenarios de comportamiento para futuras pruebas. Se revisaron como diseño, no se ejecutaron tests de una base aún no implementada. Priorizar idempotencia, cambios de contenido, regeneración desde L1R, completitud y separación validación/limpieza.
+El [informe de fase 3](24_phase3_catalog_design.md) enumera doce escenarios revisados entonces como diseño. La base y las pruebas se implementaron después en fase 11; el [catálogo vigente](16_catalog_provenance.md) describe el comportamiento actual. Priorizar idempotencia, cambios de contenido, regeneración desde L1R, completitud y separación validación/limpieza.
 
 
 ## Resultado de fase 6
 
-El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.
+El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hubo aceptación científica; el diagnóstico se completó en fase 7. La conservación se rige ahora por el QA técnico y el reinicio del documento 33.
 
 
 ## Revisión de fase 7
@@ -50,4 +50,4 @@ Se confirmó que el SWIR TOA supera el umbral en todo el recorte; las pruebas de
 
 ## Actualización de fase 10
 
-Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
+Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario histórico 27,84 GB; máximo RSS individual 6,57 GB. Los archivos de ensayo se retiraron después. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. La fase 11 posterior implementó wrapper, catálogo y pruebas. Ver [informe y evidencias](31_phase10_multidate.md).

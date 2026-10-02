@@ -1,5 +1,7 @@
 # Resultado de fase 3 — catálogo y provenance
 
+> Informe histórico. Estado vigente al 30-09-2026: diseño implementado en fase 11, SQLite v2 con seis tablas. El parche CDSE y las pruebas ya existen. La descripción de lo no implementado se refiere exclusivamente al cierre de fase 3. Rige la [política L1R/L2W y reinicio](33_retention_and_reset.md); las cifras y decisiones originales no describen la disponibilidad actual de archivos.
+
 Fecha: 25 de septiembre de 2026. Estado: **diseño documental completado**. No se creó la base de datos ni se implementaron clientes, SQL o pipeline. No se consultaron adquisiciones ni se descargaron escenas en esta fase.
 
 ## Decisiones
@@ -15,14 +17,14 @@ Fecha: 25 de septiembre de 2026. Estado: **diseño documental completado**. No s
 
 ## Límite de ACOLITE que requiere adaptación mínima
 
-La API CDSE auditada recibe metadata que no devuelve. Se define para la futura implementación una extensión opcional y compatible de su retorno que exponga campos seleccionados y evidencia de estado/completitud; no un cliente CDSE nuevo. El parche, si se aplica, tendrá revisión/hash y tests. No se modificó ACOLITE en esta fase.
+La API CDSE auditada recibe metadata que no devuelve. Se definió una extensión opcional y compatible del retorno con campos seleccionados y evidencia de estado/completitud. Se implementó después en fase 11 mediante parche con revisión/hash y tests, sin crear otro cliente CDSE. No se modificó ACOLITE durante fase 3.
 
 ## Revisión del diseño
 
-Se revisaron documentalmente doce casos de aceptación: repetición, duplicados, revisiones, URL temporal, Zarr no equivalente, regeneración desde L1R, producto no soportado, consulta fallida/vacía, fronteras temporales, interrupción, archivo ausente y limpieza fallida. No son tests ejecutados: se implementarán cuando exista código autorizado.
+Se revisaron documentalmente doce casos de aceptación: repetición, duplicados, revisiones, URL temporal, Zarr no equivalente, regeneración desde L1R, producto no soportado, consulta fallida/vacía, fronteras temporales, interrupción, archivo ausente y limpieza fallida. Durante fase 3 fueron casos de diseño, no tests ejecutados. La suite del wrapper posterior contiene 23 pruebas; ver fase 11.
 
 [Diseño completo, campos y reglas](16_catalog_provenance.md).
 
-## Siguiente fase
+## Continuación posterior
 
-**Fase 4: configuración científica del AOI**, pendiente de orden explícita. Resolverá productos finales —incluido el requisito OC4 no soportado—, máscaras, revisión ACOLITE de ejecución y grilla/proyección. La selección de fuente definitiva sigue en fase 5 y el procesamiento real en fase 6.
+La fase 4 fijó el perfil y excluyó OC4; la fase 5 consultó disponibilidad y las fases 6/10 procesaron escenas. La fase 11 implementó el catálogo y el wrapper. Siguen pendientes la aceptación científica y la fase 12, no la creación de la base.

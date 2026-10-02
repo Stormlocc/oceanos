@@ -13,7 +13,7 @@ Antes de la limpieza se comprobó con datos existentes, sin descargar escenas:
 | Sentinel-2C L1R | 19-08-2026 | 19 | Valores idénticos, incluidos flags y patrón de NaN |
 | Landsat 9 L1R ya proyectado | 17-08-2026 | 16 | Valores idénticos, incluidos flags y patrón de NaN |
 
-La grilla también pasó QA. No se compara el archivo NetCDF byte a byte: timestamps y otras metadata de generación cambian. La igualdad comprobada corresponde a las bandas y condiciones actuales. Hacen falta bandas TOA, geometría, settings, revisión ACOLITE y auxiliares compatibles; si cambia cualquiera, no se garantiza igualdad. Un L1R recortado no amplía el AOI ni recupera bandas ausentes. Para Landsat no se repite la reproyección del L1R retenido.
+La grilla también pasó QA. No se compara el archivo NetCDF byte a byte: timestamps y otras metadata de generación cambian. La igualdad comprobada corresponde a las bandas y condiciones de aquel ensayo. Hacen falta bandas TOA, geometría, settings, revisión ACOLITE y auxiliares compatibles; si cambia cualquiera, no se garantiza igualdad. Un L1R recortado no amplía el AOI ni recupera bandas ausentes. Para Landsat no se repite la reproyección del L1R retenido.
 
 ## Qué queda en una ejecución futura
 
@@ -40,10 +40,14 @@ Se retiraron **31 541 779 581 bytes (31,54 GB decimales)** de datos/registros de
 - Cachés descargadas `.work/acolite-audit/data/LUT` y `data/MET`.
 - 131 archivos sueltos de evidencia duplicada, scripts manuales de ensayo y respaldo automático anterior.
 
-Se comprobaron las rutas absolutas dentro del proyecto antes de eliminar. Se preservaron AOI original, perfiles, código, parche, tests, instalación/copias de código ACOLITE y credenciales. La copia auditada descargará o reconstruirá sus cachés cuando haga falta; no se inició otra descarga después del reinicio. No se promete que Windows recupere inmediatamente el tamaño físico del VHDX de WSL: los archivos sí se eliminaron del filesystem Linux.
+Se comprobaron las rutas absolutas dentro del proyecto antes de eliminar. Se preservaron AOI original, perfiles, código, parche, tests, instalación/copias de código ACOLITE y credenciales. La copia auditada puede necesitar reconstruir o descargar cachés para una nueva ejecución. Cualquier descarga de escenas, LUT, auxiliares o dependencias requiere autorización explícita; no ejecutar procesamiento local suponiendo que no usa red. No se promete que Windows recupere inmediatamente el tamaño físico del VHDX de WSL: los archivos sí se eliminaron del filesystem Linux.
 
 ## Continuación paso a paso
 
-El catálogo conserva historia, pero ya no hay escenas de prueba disponibles. El siguiente uso puede comenzar con `search` y después `run --version ID` para una sola escena, cuando el usuario lo indique. Para regenerar se usa `derive --l1r RUTA --scene NOMBRE`, no `--l2r`.
+La revisión local del 30-09-2026 confirma SQLite v2, 14 ejecuciones con limpieza `DELETED_BY_USER_RESET` y 33 artefactos `DELETED` (11 L1R, 10 L2R y 12 L2W). No hay archivos en los directorios de escenas revisados. El catálogo conserva historia, pero ya no hay escenas de prueba disponibles. El siguiente uso puede comenzar con `search` y después `run --version ID` para una sola escena, cuando el usuario lo indique. Para regenerar se usa `derive --l1r RUTA --scene NOMBRE`, no `--l2r`; puede necesitar descargar auxiliares y requiere autorización para ello. El CLI no incorpora un bloqueo de red.
 
-La suite actual contiene **23 pruebas** de catálogo, reintentos, regeneración, retención y QA. Docker/Airflow siguen pendientes de orden explícita. Recordar incorporar datos in situ antes de declarar aceptación científica de productos acuáticos.
+El perfil Sentinel-2 actual usa [2026-08-01,2026-08-15) UTC; Landsat conserva [2026-08-01,2026-08-21). Las fechas de las regeneraciones de la tabla anterior son históricas y no se modifican por el nuevo intervalo.
+
+Limitación conocida: el intento `SKIPPED` después de descargar deja RAW retenido y `cleanup` lo aplaza; la corrección sigue pendiente. La política de conservación describe la intención y la ruta de éxito, no resuelve ese fallo.
+
+La suite actual contiene **27 pruebas** de catálogo, reintentos, regeneración, retención y QA. Docker/Airflow siguen pendientes de orden explícita. Recordar incorporar datos in situ antes de declarar aceptación científica de productos acuáticos.

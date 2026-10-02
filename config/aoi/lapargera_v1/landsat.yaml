@@ -1,9 +1,12 @@
-# Perfil de ensayo Landsat de este AOI. No lo interpreta ACOLITE directamente.
+# Perfil Landsat de este AOI, ensayado en fase 10. No lo interpreta ACOLITE directamente.
+# Descargas de escenas y auxiliares requieren autorización explícita.
 schema_version: 1
 profile_version: 3
 status: candidate
 aoi_id: lapargera_v1
-settings_file: acolite_l89_candidate.txt
+acolite:
+  # Mantener aproximadamente 6 km por tile DSF al pasar de 30 m a 10 m.
+  dsf_tile_dimensions: [600, 600]
 sensor_family: landsat
 platforms: [L8, L9]
 provider: USGS_EarthExplorer
@@ -19,6 +22,7 @@ cloud_cover:
   enabled: false
   maximum_percent: null
 selection: todas_las_adquisiciones_que_cubren_el_AOI
+# Única fuente de productos: OCEANOS la traduce a l2w_parameters.
 products: ["Rrs_*", tur_nechad2009, chl_oc3, fai, ndvi]
 unsupported_products:
   ndci: no_soportado_para_OLI_en_revision_auditada
@@ -30,6 +34,7 @@ grid:
   shape_yx: [2440, 7335]
   xrange_m: [701980, 775330]
   yrange_m: [1997360, 1972960]
+  # Proyectar L1R antes de AC evita que el proyector final descarte l2_flags.
   reproject_stage: L1R_antes_de_AC
   resampling: nearest
 processing_concurrency: 1

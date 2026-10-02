@@ -1,39 +1,33 @@
 # Control de entrega del paso 54
 
-Esta tabla distingue documentos entregados de investigación completada. Los 23 puntos tienen ubicación documental, pero no todos cuentan aún con resultados técnicos.
+Estado sincronizado al 30 de septiembre de 2026. La tabla distingue implementación técnica, evidencia histórica y aceptación científica pendiente.
 
-| N.º | Entregable | Documento | Estado |
+| N.º | Entregable | Documento | Estado vigente |
 |---|---|---|---|
 | 1 | Análisis AOI | 01 | Completado; costa estimada a escala cartográfica |
-| 2 | Tiles y grids | 01, 12 | Tiles comprobados; grilla geométrica candidata calculada |
-| 3 | Auditoría ACOLITE | 02–12, 23 | Completada estáticamente; escena real pendiente |
-| 4 | Matriz ACOLITE/código propio | 02 | Capacidades y límites verificados en código |
-| 5 | Estrategia de catálogo | 03, 16, 24 | Diseño terminado: SQLite único, sin implementar |
-| 6 | Metadata/provenance | 16 | Seis entidades, campos, origen y ausencia definidos |
-| 7 | Detección de cambios | 03, 16 | Reglas de cambios, hashes y reutilización definidas |
-| 8 | SAFE frente a Zarr | 06 | Disponibilidad consultada en fase 5; rendimiento sin medir |
-| 9 | Fallback | 04 | Política acordada; sin implementación |
-| 10 | Configuración candidata | 14, 25 | YAML del perfil y TXT nativo preparados; OC4 excluido |
-| 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; overrides candidatos |
-| 12 | Productos finales | 11 | Soporte auditado; OC4 excluido por el usuario |
-| 13 | Conservación L1R/L2W | 10, 11, 25 | Conservar L1R/L2W; regenerar AC y eliminar L2R temporal tras QA técnico |
-| 14 | Proyección | 12, 25 | Ensayo sin warp final; grilla nativa candidata calculada |
-| 15 | Temporales | 17, 30 | Política aplicada: retención del ensayo no aceptado |
-| 16 | Eliminación SAFE | 17, 30 | Borrado aplazado; integridad de fuente conservada |
-| 17 | Estimación computacional | 13 | Una escena medida; análisis y límites en documento 29 |
-| 18 | Benchmark | 13, 29 | Medición analizada; sin comparación Zarr ni escena científicamente aceptada |
-| 19 | Validación | 15 | Plan técnico y tests; ciencia pendiente |
-| 20 | Airflow | 18 | Arquitectura futura conceptual |
-| 21 | Zarr | 19 | Arquitectura futura conceptual |
-| 22 | Riesgos | 21 | Registro inicial |
-| 23 | Decisiones pendientes | 21 | Registro inicial |
+| 2 | Tiles y grids | 01, 12, 31 | 19QGV confirmado; grilla 2440×7335, EPSG:32619, verificada en ocho adquisiciones |
+| 3 | Auditoría ACOLITE | 02–12, 23 | Completada; ensayos técnicos posteriores realizados |
+| 4 | Matriz ACOLITE/código propio | 02, 32 | Responsabilidades auditadas y wrapper implementado |
+| 5 | Estrategia de catálogo | 03, 16, 24, 32 | SQLite v2 implementado, seis tablas |
+| 6 | Metadata/provenance | 16, 32 | Snapshots, hashes y resúmenes en SQLite; sin traza exhaustiva de auxiliares consumidos |
+| 7 | Detección de cambios | 03, 16, 32 | Implementada y probada; sin checksum comparable puede requerir nueva adquisición autorizada |
+| 8 | SAFE frente a Zarr | 06, 31 | SAFE ensayado y operativo; Zarr remoto retirado el 01-10-2026 por falta de cobertura |
+| 9 | Fallback | 04, 06 | Retirado junto con Zarr; quedan reintentos de consulta y adquisición |
+| 10 | Configuración candidata | 14, 25, 31 | S2/Landsat ensayados técnicamente; ciencia pendiente |
+| 11 | Settings/defaults/razón/fuente | 14 | 81 settings auditados; decisiones sincronizadas con perfiles actuales |
+| 12 | Productos finales | 11, 31 | Variables/flags verificados; OC4 excluido, NDCI solo S2; ciencia pendiente |
+| 13 | Conservación L1R/L2W | 10, 17, 33 | Implementada; regeneración repite AC y usa L2R temporal |
+| 14 | Proyección | 12, 31 | S2 sin warp final; Landsat proyecta L1R antes de AC; grilla común verificada |
+| 15 | Temporales | 17, 32 | Limpieza tras QA técnico; fallo pendiente en intentos `SKIPPED` después de descargar |
+| 16 | Eliminación SAFE | 17, 30, 33 | Reinicio autorizado ejecutado; nuevas ejecuciones según política técnica |
+| 17 | Estimación computacional | 13, 29, 31 | Mediciones históricas; RSS individual máximo registrado 6,57 GB |
+| 18 | Benchmark | 13, 29 | Analizado; sin comparación Zarr ni escena científicamente aceptada |
+| 19 | Validación | 15, 32 | 27 pruebas del wrapper; ensayos históricos; aceptación científica pendiente |
+| 20 | Airflow | 18 | Fase 12 no iniciada; requiere orden |
+| 21 | Zarr | 19 | Cubo propio futuro, fase 13 no iniciada |
+| 22 | Riesgos | 21 | Actualizados: ciencia, red, completitud, recursos y limpieza |
+| 23 | Decisiones pendientes | 21 | Separadas de hitos ya resueltos |
 
-No declarar completo el paso 54 en su sentido técnico hasta resolver la investigación requerida. Esta entrega permite revisar el alcance y el diseño sin adelantar programación ni atribuir a ACOLITE capacidades no verificadas.
+El wrapper implementado no cierra la validación científica ni demuestra equivalencia SAFE/Zarr. Los NetCDF de ensayo se retiraron en el reinicio; las cifras de 27,84/30,65 GB son históricas. Los resultados y hashes útiles permanecen en SQLite.
 
-## Actualización de fase 10
-
-Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
-
-## Implementación en fase 11
-
-El diseño histórico se materializó en el wrapper local y seis tablas SQLite, agrupando metadata en JSON. La aceptación técnica permite reutilización, pero no implica aprobación científica ni limpieza por éxito. Consultar [alcance, pruebas y límites](32_phase11_wrapper.md). No se inició fase 12.
+No descargar escenas, LUT, auxiliares ni dependencias sin autorización explícita. La sincronización documental no inicia otra fase. Ver [estado operativo](32_phase11_wrapper.md) y [conservación](33_retention_and_reset.md).

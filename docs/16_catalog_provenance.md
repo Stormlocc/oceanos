@@ -10,7 +10,7 @@ Política vigente: [conservación L1R/L2W y reinicio de pruebas](33_retention_an
 | versiones_producto | Identidad, revisión, representación, metadata seleccionada y SHA/checksum disponible |
 | observaciones | Relación consulta/versión y contador de duplicados |
 | ejecuciones | Configuración, clave de trabajo, padre L1R, estados, resumen científico y métricas breves |
-| artefactos | Solo archivos científicos persistentes L1R/L2W: ruta, bytes, SHA, variables y grilla |
+| artefactos | Nuevos archivos persistentes L1R/L2W: ruta, bytes, SHA, variables y grilla; también conserva registros históricos L2R eliminados |
 | eventos | Fallos, reintentos, fallback, cambios de estado y eliminación de fuentes |
 
 Se mantienen snapshots de fuente inmutables. No se deduplica por fecha ni se confunden hashes de ZIP, TAR y Zarr. El SHA se compara dentro de representaciones equivalentes; cambios administrativos no implican por sí mismos nueva ciencia. Si no hay checksum remoto confiable, comprobar contenido antes de omitir trabajo.
@@ -30,3 +30,5 @@ La validación técnica y la aceptación científica son estados distintos. Tras
 Un bloqueo de escritor permite una operación a la vez. Las migraciones de esquema son locales y transaccionales; el esquema actual es v2. `recover` marca intentos abandonados como interrumpidos y no aprueba archivos huérfanos. Los backups se harán en hitos o por solicitud, no tras cada consulta/comando. Las credenciales nunca pertenecen al catálogo.
 
 Los archivos de ensayos eliminados se marcan `DELETED`, manteniendo resultados y hashes útiles en el catálogo. Los ensayos antiguos no se convierten en ciencia aprobada. Las limitaciones reales siguen explícitas: paginación USGS desconocida, ausencia de ensayo Zarr remoto compatible e igualdad numérica condicionada a recursos auxiliares compatibles.
+
+Limitación vigente: si la coincidencia de contenido se detecta después de descargar, el intento `SKIPPED` deja RAW retenido y `cleanup` lo aplaza. La omisión de cálculo funciona, pero esa limpieza sigue pendiente de corrección; véase [fase 11](32_phase11_wrapper.md).

@@ -1,6 +1,8 @@
 # Proyección: grilla, memoria y flags
 
-Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Pendiente de validación con escena real.
+> Estado vigente (30-09-2026): grilla vigente 2440×7335, EPSG:32619, x 701980–775330 e y 1997360–1972960 m. Sentinel-2 sin warp final; Landsat proyecta L1R antes de AC con nearest. Los rangos geométricos antiguos de esta auditoría no son el perfil activo. Véase [fase 10](31_phase10_multidate.md).
+
+Auditoría estática de fase 2, 25-09-2026. Revisión `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Ensayos técnicos posteriores completados en fases 6/10; aceptación científica pendiente.
 
 ## Ruta invocada por run
 
@@ -14,9 +16,9 @@ Fuente: [acolite/acolite/acolite_run.py:161](https://github.com/acolite/acolite/
 
 `output_projection_metres=True` permite rangos explícitos; xrange oeste→este y **yrange norte→sur**. Para la propuesta fase 1: xrange=701980,775320; yrange=1997350,1973040. Documentación geométrica previa mostraba ymin/ymax ascendente: eso no es el orden de entrada a esta función.
 
-Con `output_projection_resolution_align=True`, los rangos ya alineados producen xrange=701980,775330 y yrange=1997350,1973050: 2430×7335, frente al esperado 2431×7334. Se reprodujo ejecutando únicamente el bloque AST original. La suma de un píxel en xmax y el cálculo de y explican la diferencia. Para rangos fijados externamente y comprobados, candidato `output_projection_resolution_align=False`. Aún debe probarse una salida real.
+Con `output_projection_resolution_align=True`, los rangos ya alineados producen xrange=701980,775330 y yrange=1997350,1973050: 2430×7335, frente al esperado 2431×7334. Se reprodujo ejecutando únicamente el bloque AST original. La suma de un píxel en xmax y el cálculo de y explican la diferencia. Para rangos fijados externamente y comprobados, candidato `output_projection_resolution_align=False`. La prueba de ese bloque fue estática; las salidas reales y el perfil finalmente elegido se documentan en fase 10.
 
-Fuentes: [acolite/output/project_acolite_netcdf.py:87](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/project_acolite_netcdf.py#L87-L201). Evidencia: `evidence/phase2/alineacion_reproducida.json`. Alineación=True por sí sola no fija CRS, origen, extensión ni forma.
+Fuentes: [acolite/output/project_acolite_netcdf.py:87](https://github.com/acolite/acolite/blob/80da0c0c681d9597fd4b7737837d6a3e61907b33/acolite/output/project_acolite_netcdf.py#L87-L201). Evidencia histórica: `evidence/phase2/alineacion_reproducida.json`, retirado al consolidar el historial. Alineación=True por sí sola no fija CRS, origen, extensión ni forma.
 
 ## RAM y flags
 
@@ -36,4 +38,4 @@ La prioridad es comprobar grilla nativa de 19QGV en varias fechas antes de intro
 
 ## Actualización de fase 4
 
-El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como candidata del primer ensayo, no como resultado validado con una escena. Ver el informe para la diferencia de extent y método.
+El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como referencia que posteriormente se verificó con escenas reales en fases 6/10. Ver el informe para la diferencia de extent y método.

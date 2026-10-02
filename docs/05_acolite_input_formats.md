@@ -1,5 +1,7 @@
 # Entradas soportadas y reconocimiento
 
+> Estado vigente (30-09-2026): el wrapper admite ZIP/TAR local con `run --source` y regeneración con `derive --l1r`. SAFE y Landsat se ensayaron; Zarr remoto sigue sin ensayo compatible. La tabla describe soporte nativo, no todas las entradas del CLI. Procesar archivos locales puede descargar auxiliares y requiere autorización para ello.
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 | Entrada | Evidencia en código | Limitación |

@@ -1,5 +1,7 @@
 # ROI, clipping y máscara terrestre
 
+> Estado vigente (30-09-2026): recorte rectangular y grilla verificados en fases 6/10. El diagnóstico de fase 7 confirmó enmascarado SWIR total en la primera escena; la salida exclusivamente oceánica y la aceptación científica siguen pendientes. Véanse [validación](28_phase7_validation.md) y [multifecha](31_phase10_multidate.md).
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 `limit` usa **sur,oeste,norte,este** en grados. Para este AOI: 17.83506768071816, -67.09176880642183, 18.047432637275, -66.40241185767644. Reduce el extent L1R mediante `projection_sub` y el warp de lectura; no es únicamente una máscara posterior.

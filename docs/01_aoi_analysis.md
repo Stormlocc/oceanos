@@ -1,5 +1,7 @@
 # Análisis del AOI lapargera_v1 — fase 1
 
+> Estado vigente (30-09-2026): 19QGV confirmado y grilla operativa 2440×7335, EPSG:32619, verificada en fases 6/10. La propuesta 2431×7334 de este análisis es histórica. Landsat ya incorporado; aceptación científica pendiente. Evidencias sueltas retiradas salvo la figura; véase [conservación](33_retention_and_reset.md).
+
 Fecha de análisis: 25 de septiembre de 2026. Fase 1 completada con las limitaciones cartográficas indicadas. No se auditó ni ejecutó ACOLITE.
 
 ## Resultado principal
@@ -31,7 +33,7 @@ No debe confundirse el identificador elegido `lapargera_v1` con un límite admin
 
 ## Sentinel-2
 
-Intersección geométrica con el KML oficial enlazado en [Copernicus SentiWiki](https://sentiwiki.copernicus.eu/web/s2-products). El archivo de grilla publicado lleva identificador de 2015; consulta y descarga realizadas el 25-09-2026. Se conserva el ZIP original y su checksum.
+Intersección geométrica con el KML oficial enlazado en [Copernicus SentiWiki](https://sentiwiki.copernicus.eu/web/s2-products). El archivo de grilla publicado lleva identificador de 2015; consulta y descarga realizadas el 25-09-2026. El ZIP y su checksum se usaron como evidencia del análisis; los archivos sueltos se retiraron en el reinicio posterior.
 
 | Tile | Porcentaje del AOI intersectado | Contiene todo el AOI |
 |---|---:|---|
@@ -87,14 +89,14 @@ Esta es una propuesta geométrica, no una configuración ACOLITE ejecutable ni g
 
 ## Evidencias y verificaciones simples
 
-[evidence/phase1/analysis.json — evidencia consolidada](33_retention_and_reset.md#historial) conserva métricas completas; los GeoJSON preservan AOI y footprints locales, y [manifest.json — evidencia consolidada](33_retention_and_reset.md#historial) registra tamaños y SHA-256. Se comprobó validez geométrica, cobertura e intersecciones, y se inspeccionó visualmente el mapa. Herramientas: Python del entorno local `acolite`, Shapely 2.1.2 y pyproj 3.8.0. Se utilizaron cálculos de análisis puntuales, sin crear un wrapper ni software del pipeline.
+Los JSON, GeoJSON y el manifiesto originales registraron métricas, footprints y hashes; se retiraron como archivos independientes. Se conserva la figura y el [resumen histórico de la consolidación](33_retention_and_reset.md#historial). Se comprobó validez geométrica, cobertura e intersecciones, y se inspeccionó visualmente el mapa. Herramientas: Python del entorno local `acolite`, Shapely 2.1.2 y pyproj 3.8.0. Se utilizaron cálculos de análisis puntuales, sin crear un wrapper ni software del pipeline.
 
 ![Mapa de cobertura](evidence/phase1/aoi_coverage.png)
 
 ## Decisiones al cerrar fase 1
 
-Mantener el AOI recibido, candidato single-tile 19QGV, EPSG:32619, resolución final Sentinel-2 de 10 m y sin buffer adicional. La grilla propuesta y el manejo terrestre quedan sujetos a comprobación en ACOLITE. La fase 2 requiere una nueva orden del usuario.
+Mantener el AOI recibido, candidato single-tile 19QGV, EPSG:32619, resolución final Sentinel-2 de 10 m y sin buffer adicional. La grilla propuesta y el manejo terrestre quedan sujetos a comprobación en ACOLITE. Ese fue el cierre de fase 1; la auditoría se completó posteriormente en fase 2.
 
 ## Actualización de fase 4
 
-El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como candidata del primer ensayo, no como resultado validado con una escena. Ver el informe para la diferencia de extent y método.
+El [perfil candidato](25_phase4_aoi_configuration.md) adopta recorte nativo sin warp final. projection_sub sobre el bounding box y extent nominal 19QGV produce 2440×7335; esto sustituye la grilla geométrica 2431×7334 como referencia que posteriormente se verificó con escenas reales en fases 6/10. Ver el informe para la diferencia de extent y método.

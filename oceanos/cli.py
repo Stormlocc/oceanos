@@ -3,21 +3,22 @@ import argparse
 import json
 from pathlib import Path
 from .catalog import Catalog
-from .config import ROOT, canonical, exclusive, file_hash, profile
+from .config import ROOT, ACOLITE, canonical, exclusive, file_hash, profile
 from .native import prepare, scene_identity, eligible
-from .pipeline import Pipeline, cleanup
+from .pipeline import Pipeline, cleanup, recover
 
 
 def parser():
+    """Define los argumentos globales y los subcomandos del CLI."""
     result = argparse.ArgumentParser(description='Pipeline OCEANOS: catálogo local y ACOLITE nativo')
     result.add_argument('--storage',type=Path,default=ROOT/'storage')
-    result.add_argument('--acolite',type=Path,default=ROOT/'.work/acolite-audit')
+    result.add_argument('--acolite',type=Path,default=ACOLITE)
     result.add_argument('--profile',type=Path,default=ROOT/'config/aoi/lapargera_v1/project.yaml')
     result.add_argument('--start',help='Inicio UTC incluido')
     result.add_argument('--end',help='Final UTC EXCLUIDO')
     result.add_argument('--products',help='Productos separados por coma; OC4 no soportado')
     commands = result.add_subparsers(dest='command',required=True)
-    commands.add_parser('prepare',help='Aplicar el parche de metadata a la copia auditada')
+    commands.add_parser('prepare',help='Verificar la revisión de ACOLITE y aplicar el parche de catálogo')
     commands.add_parser('search',help='Consultar y guardar versiones sin descargar escenas')
     run = commands.add_parser('run',help='Consultar y procesar secuencialmente, o usar un archivo local')
     run.add_argument('--version',help='Versión ya registrada en el catálogo')
@@ -27,14 +28,18 @@ def parser():
     derive = commands.add_parser('derive',help='Regenerar L2W desde L1R sin descargar, repitiendo AC')
     derive.add_argument('--l1r',type=Path,required=True)
     derive.add_argument('--scene',required=True)
-    commands.add_parser('status',help='Mostrar estados sin cargar ACOLITE')
-    commands.add_parser('recover',help='Registrar interrupciones de ejecuciones abandonadas')
-    clean = commands.add_parser('cleanup',help='Evaluar limpieza; conservar mientras falte aceptación científica')
+    status = commands.add_parser('status',help='Mostrar ejecuciones sin cargar ACOLITE')
+    status.add_argument('run',nargs='?',help='Id o prefijo: detalle con artefactos, métricas y eventos')
+    status.add_argument('--estado',choices=['STARTED','SUCCEEDED','SKIPPED','FAILED','INTERRUPTED'])
+    status.add_argument('--ultimas',type=int,metavar='N',help='Solo las N ejecuciones más recientes')
+    commands.add_parser('recover',help='Registrar interrupciones y limpiar lo parcial de ejecuciones interrumpidas')
+    clean = commands.add_parser('cleanup',help='Evaluar limpieza tras QA técnico, reintentos agotados de fuente recuperable o interrupción')
     clean.add_argument('run')
     return result
 
 
 def main(argv=None):
+    """Ejecuta un subcomando bajo el bloqueo exclusivo del catálogo y devuelve el código de salida."""
     args = parser().parse_args(argv)
     try:
         with exclusive(args.storage):
@@ -44,18 +49,28 @@ def main(argv=None):
             catalog = Catalog(args.storage)
             try:
                 if args.command=='status':
-                    rows = catalog.db.execute('SELECT id,estado,validacion,limpieza,inicio FROM ejecuciones ORDER BY inicio').fetchall()
-                    print(json.dumps([dict(r) for r in rows],indent=2,ensure_ascii=False))
+                    try:
+                        result = catalog.run_detail(args.run) if args.run else catalog.runs(args.estado,args.ultimas)
+                    except ValueError as error:
+                        # Mensajes locales del catálogo, sin datos remotos.
+                        print(error)
+                        return 1
+                    print(json.dumps(result,indent=2,ensure_ascii=False))
                     return 0
                 if args.command=='recover':
-                    print('Ejecuciones interrumpidas registradas:',catalog.recover())
-                    return 0
+                    result = recover(catalog)
+                    print(json.dumps(result,indent=2,ensure_ascii=False))
+                    return 1 if result['limpieza_fallida'] else 0
                 if args.command=='cleanup':
                     print(cleanup(catalog,args.run))
                     return 0
-                config = profile(args.profile,args.products.split(',') if args.products else None,args.start,args.end)
-                pipeline = Pipeline(catalog,config,args.acolite)
-                catalog.recover()
+                # Carga el AOI/perfil 
+                config = profile(args.profile, args.products.split(',') if args.products else None,args.start,args.end)
+                pipeline = Pipeline(catalog, config, args.acolite)
+                recovered = recover(catalog)
+                if recovered['limpiadas'] or recovered['limpieza_fallida']:
+                    print('Recuperación:',json.dumps(recovered,ensure_ascii=False))
+                # DERIVE o RUN con fuente local requieren archivo existente.
                 if args.command=='derive' or getattr(args,'source',None):
                     path = args.l1r if args.command=='derive' else args.source
                     if not getattr(args,'scene',None) or not path.is_file():
@@ -70,6 +85,7 @@ def main(argv=None):
                     version = catalog.observe(query,source)
                     catalog.finish_query(query,'SUCCEEDED','COMPLETE')
                     pipeline.run(version,local_l1r=path if args.command=='derive' else None,force=getattr(args,'force',False))
+                # SEARCH o RUN sin fuente local.
                 elif args.command=='search':
                     print(canonical({'versions':pipeline.search()}))
                 elif args.version:
@@ -81,7 +97,7 @@ def main(argv=None):
             finally:
                 catalog.db.close()
     except KeyboardInterrupt:
-        print('Interrumpido; fuentes conservadas. Puede usar recover.')
+        print('Interrumpido; lo parcial se limpiará con recover (automático al iniciar search/run/derive).')
         return 130
     except Exception as error:
         # No imprimir respuestas remotas ni excepciones con credenciales.

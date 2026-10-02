@@ -6,7 +6,7 @@ Procesar una escena a la vez. Ya existen mediciones de una escena SAFE, analizad
 
 ## Plan de medición
 
-Instrumentar la primera escena desde adquisición para medir consulta, descarga, extracción, L1R, L2R, L2W, proyección y duración total. Obtener tiempos de etapas solo si son observables de manera fiable en logs o puntos de ejecución; indicar no disponible en otro caso.
+En una nueva medición autorizada, instrumentar desde adquisición para medir consulta, descarga, extracción, L1R, L2R, L2W, proyección y duración total. Obtener tiempos de etapas solo si son observables de manera fiable en logs o puntos de ejecución; indicar no disponible en otro caso.
 
 Medir bytes transferidos cuando sea posible, tamaño adquirido, pico de RAM incluyendo subprocesos, pico de disco temporal y tamaños L1R/L2R/L2W. Registrar espacio persistente final después de limpieza, dependencias, fuente, revisión ACOLITE y configuración.
 
@@ -29,11 +29,11 @@ La ruta project_acolite_netcdf apila datasets y hace copias; la descarga nativa 
 
 ## Resultado de fase 6
 
-El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.
+El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hubo aceptación científica; el diagnóstico se completó en fase 7. La retención inicial fue reemplazada por el reinicio autorizado y la política del documento 33.
 
 ## Actualización de fase 10
 
-Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
+Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario histórico al cierre: 27,84 GB; máximo RSS individual 6,57 GB. Esos archivos de ensayo se retiraron posteriormente. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. El wrapper se implementó después en fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
 
 ## Política vigente de conservación
 

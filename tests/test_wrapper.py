@@ -5,9 +5,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock
 from oceanos.catalog import Catalog
-from oceanos.config import ROOT, profile, file_hash, exclusive
+from oceanos.config import ROOT, ACOLITE, profile, exclusive
 from oceanos.native import scene_identity, eligible, query, extract
-from oceanos.pipeline import Pipeline, cleanup
+from oceanos.pipeline import Pipeline, cleanup, recover
 
 SCENE='S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE'
 
@@ -31,10 +31,28 @@ class CatalogTests(unittest.TestCase):
         query=self.cat.query('CDSE',{})
         return query,self.cat.observe(query,data or source())
 
+    def test_status_lists_scene_l2w_filters_and_detail(self):
+        _,v=self.version()
+        first=self.cat.start(v,self.config,'a','b');self.cat.finish(first,'FAILED',error='TimeoutError')
+        second=self.cat.start(v,self.config,'c','d')
+        path=self.cat.storage/'out_L2W.nc';path.write_bytes(b'L2W')
+        self.cat.artifact(second,'L2W',path,{});self.cat.finish(second,'SUCCEEDED','TECHNICAL_PASSED',summary={'metrics':[{'stage':'process'}]})
+        rows=self.cat.runs()
+        self.assertEqual([r['id'] for r in rows],[first,second])
+        self.assertEqual(rows[1]['escena'],SCENE);self.assertEqual(rows[1]['l2w'],'out_L2W.nc')
+        self.assertEqual([r['id'] for r in self.cat.runs('FAILED')],[first])
+        self.assertEqual(self.cat.runs('FAILED')[0]['error'],'TimeoutError')
+        self.assertEqual([r['id'] for r in self.cat.runs(last=1)],[second])
+        detail=self.cat.run_detail(second[:8])
+        self.assertEqual(detail['artefactos'][0]['tipo'],'L2W');self.assertEqual(detail['metricas'],[{'stage':'process'}])
+        self.assertEqual([e['tipo'] for e in detail['eventos']],['STARTED','SUCCEEDED'])
+        self.assertNotIn('configuracion',detail)
+        with self.assertRaises(ValueError): self.cat.run_detail('zz')
+
     def test_repeated_queries_and_duplicate_occurrences(self):
         q,v=self.version()
         self.assertEqual(v,self.cat.observe(q,source()))
-        q2,v2=self.version()
+        _,v2=self.version()
         self.assertEqual(v,v2)
         self.assertEqual(self.cat.db.execute('SELECT count(*) FROM versiones_producto').fetchone()[0],1)
         self.assertEqual(self.cat.db.execute('SELECT ocurrencias FROM observaciones WHERE consulta_id=?',(q,)).fetchone()[0],2)
@@ -70,13 +88,59 @@ class CatalogTests(unittest.TestCase):
         path.write_bytes(b'modified')
         self.assertIsNone(self.cat.reusable('work'))
 
-    def test_interruption_retains_sources(self):
+    def test_interruption_retains_sources_until_cleanup(self):
         _,v=self.version();run=self.cat.start(v,self.config,'a','b')
-        raw=self.cat.storage/'temporary'/'test';raw.mkdir(parents=True);(raw/'source').touch()
-        self.assertEqual(self.cat.recover(),1)
+        raw=self.cat.storage/'temporary'/run;raw.mkdir(parents=True);(raw/'partial.zip').touch()
+        work=self.cat.storage/'runs'/run;work.mkdir(parents=True);(work/'partial_L1R.nc').touch()
+        self.cat.event('WORK_DIRECTORY',{'path':'runs/'+run,'temporary':'temporary/'+run},run)
         self.assertEqual(cleanup(self.cat,run),'DEFERRED_VALIDATION')
-        self.assertTrue((raw/'source').exists())
+        self.assertTrue((raw/'partial.zip').exists())
+        self.assertEqual(self.cat.recover(),1)
+        self.assertTrue((raw/'partial.zip').exists())
+        self.assertEqual(cleanup(self.cat,run),'DELETED')
+        self.assertFalse(raw.exists());self.assertFalse(work.exists())
         self.assertEqual(self.cat.db.execute('SELECT estado FROM ejecuciones WHERE id=?',(run,)).fetchone()[0],'INTERRUPTED')
+
+    def test_interrupted_cleanup_keeps_registered_artifacts(self):
+        _,v=self.version();run=self.cat.start(v,self.config,'a','b')
+        work=self.cat.storage/'runs'/run;work.mkdir(parents=True)
+        l1r=work/'L1R.nc';l1r.write_bytes(b'l1r');self.cat.artifact(run,'L1R',l1r,{})
+        raw=self.cat.storage/'temporary'/run;raw.mkdir(parents=True)
+        self.cat.event('WORK_DIRECTORY',{'path':'runs/'+run,'temporary':'temporary/'+run},run)
+        self.cat.recover()
+        self.assertEqual(cleanup(self.cat,run),'DELETED')
+        self.assertFalse(raw.exists());self.assertTrue(l1r.exists())
+
+    def interrupted_run(self, state=None):
+        _,v=self.version();run=self.cat.start(v,self.config,'a','b')
+        raw=self.cat.storage/'temporary'/run;raw.mkdir(parents=True);(raw/'partial.zip').touch()
+        self.cat.event('WORK_DIRECTORY',{'path':'runs/'+run,'temporary':'temporary/'+run},run)
+        if state: self.cat.finish(run,state)
+        return run,raw
+
+    def test_recover_cleans_hard_stop_and_ctrl_c(self):
+        hard,hard_raw=self.interrupted_run()
+        ctrl_c,ctrl_raw=self.interrupted_run('INTERRUPTED')
+        _,failed_raw=self.interrupted_run('FAILED')
+        result=recover(self.cat)
+        self.assertEqual(result['interrumpidas'],1)
+        self.assertEqual(sorted(result['limpiadas']),sorted([hard,ctrl_c]))
+        self.assertFalse(hard_raw.exists());self.assertFalse(ctrl_raw.exists())
+        self.assertTrue(failed_raw.exists())
+        self.assertEqual(recover(self.cat),{'interrumpidas':0,'limpiadas':[],'limpieza_fallida':[]})
+
+    def test_recover_continues_when_cleanup_fails(self):
+        locked,locked_raw=self.interrupted_run()
+        escape,_=self.interrupted_run()
+        self.cat.event('WORK_DIRECTORY',{'temporary':'../outside'},escape)
+        with patch('oceanos.pipeline.shutil.rmtree',side_effect=OSError):
+            result=recover(self.cat)
+        self.assertEqual(sorted(result['limpieza_fallida']),sorted([locked,escape]))
+        for run in (locked,escape):
+            self.assertEqual(self.cat.db.execute('SELECT limpieza FROM ejecuciones WHERE id=?',(run,)).fetchone()[0],'FAILED')
+        self.assertTrue(locked_raw.exists())
+        self.assertEqual(recover(self.cat)['limpiadas'],[locked])
+        self.assertFalse(locked_raw.exists())
 
     def test_cleanup_rejects_escape_and_preserves_success(self):
         _,v=self.version();run=self.cat.start(v,self.config,'a','b')
@@ -111,14 +175,14 @@ class CatalogTests(unittest.TestCase):
         # Un L1R validado y checksum comparable basta: la red no debe llamarse.
         data=source(sha256='local-sha');_,v=self.version(data)
         runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config;runner.engine={}
-        runner.acolite=ROOT/'.work/acolite-audit';runner.roots=[];runner.wait=lambda _:None;runner.metrics=[]
-        work,correction=runner.keys(data)
+        runner.acolite=ACOLITE;runner.roots=[];runner.wait=lambda _:None;runner.metrics=[]
+        _,correction=runner.keys(data)
         parent_run=self.cat.start(v,self.config,'old-products',correction)
         path=self.cat.storage/'parent.nc';path.write_bytes(b'L1R')
         artifact=self.cat.artifact(parent_run,'L1R',path,{})
         self.cat.finish(parent_run,'SUCCEEDED','TECHNICAL_PASSED')
         calls=[]
-        def fake(operation,folder,**args):
+        def fake(operation,**args):
             calls.append(operation)
             self.assertTrue(args['derive'])
             out=Path(args['output']);out.mkdir();result=out/'new.nc';result.write_bytes(b'L2W')
@@ -144,11 +208,6 @@ class CatalogTests(unittest.TestCase):
         self.assertFalse(raw.exists())
         self.assertEqual(self.cat.db.execute('SELECT estado FROM ejecuciones WHERE id=?',(run,)).fetchone()[0],'FAILED')
 
-    def test_equivalence_is_not_inferred_between_safe_and_zarr(self):
-        runner=object.__new__(Pipeline);runner.config=self.config;runner.engine={}
-        a=source(sha256='same');b={**a,'format':'ZARR','provider':'STAC'}
-        self.assertNotEqual(runner.keys(a),runner.keys(b))
-
 
 
 class AdapterTests(unittest.TestCase):
@@ -167,9 +226,25 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/landsat.yaml',['ndci'])
         self.assertIsNone(self.config['cloud'])
 
-    def test_stac_signed_url_is_not_persisted(self):
-        ac=Mock();ac.api.stac.query.return_value=[{'id':SCENE,'assets':{'product':{'href':'https://example.com/x.zarr?token=secret'}}}]
-        self.assertEqual(query(ac,'STAC',self.config)['sources'],[])
+    def test_products_have_single_source(self):
+        self.assertEqual(self.config['native']['l2w_parameters'],'Rrs_*,tur_nechad2009,chl_oc3,ndci,fai,ndvi')
+        override=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',[' fai','ndvi','fai'])
+        self.assertEqual(override['native']['l2w_parameters'],'fai,ndvi')
+        self.assertEqual(override['products'],['fai','ndvi'])
+        with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/project.yaml',['fai',''])
+
+    def test_native_settings_derived_from_yaml(self):
+        native=self.config['native']
+        self.assertEqual(native['region_name'],'lapargera_v1')
+        self.assertEqual(native['limit'],'17.83506768071816,-67.09176880642183,18.047432637275,-66.40241185767644')
+        self.assertNotIn('output_projection',native)
+        landsat=profile(ROOT/'config/aoi/lapargera_v1/landsat.yaml')['native']
+        self.assertEqual(landsat['limit'],native['limit'])
+        self.assertEqual(landsat['output_projection_xrange'],'701980,775330')
+        self.assertEqual(landsat['output_projection_yrange'],'1997360,1972960')
+        self.assertEqual(landsat['output_projection_resolution'],'10,10')
+        self.assertEqual(landsat['dsf_tile_dimensions'],'600,600')
+        self.assertEqual(landsat['reproject_before_ac'],'True')
 
     def test_archive_traversal_is_rejected_before_native_extraction(self):
         import zipfile
@@ -180,25 +255,25 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaises(ValueError): extract(ac,archive,Path(tmp)/'raw',1000)
             ac.shared.extract_bundle.assert_not_called()
 
-    def test_retries_then_safe_fallback_are_recorded(self):
+    def test_query_retries_are_recorded_then_raised(self):
         with tempfile.TemporaryDirectory() as tmp:
             cat=Catalog(tmp)
             runner=object.__new__(Pipeline);runner.catalog=cat;runner.config=self.config
             waits=[];runner.wait=waits.append
-            def fake(operation,folder,**args):
-                if args['provider']=='STAC': raise TimeoutError()
-                return {'sources':[],'completeness':'COMPLETE'}
+            providers=[]
+            def fake(operation,**args):
+                providers.append(args['provider']);raise TimeoutError()
             runner.call=fake
-            self.assertEqual(runner.search(),[])
+            with self.assertRaises(TimeoutError): runner.search()
+            self.assertEqual(providers,['CDSE']*3)
             self.assertEqual(waits,[60,300])
             self.assertEqual(cat.db.execute("SELECT count(*) FROM consultas WHERE estado='FAILED'").fetchone()[0],3)
-            self.assertEqual(cat.db.execute("SELECT count(*) FROM eventos WHERE tipo='FALLBACK_SAFE'").fetchone()[0],1)
             cat.db.close()
 
     def test_native_patch_preserves_default_return_and_exposes_metadata(self):
         # Ejecutar la función auditada con red simulada, incluida su paginación.
         from oceanos.native import load
-        ac=load(ROOT/'.work/acolite-audit')
+        ac=load(ACOLITE)
         first={'value':[{'Id':'one','Name':SCENE,'Attributes':[], 'Checksum':[]}], '@odata.nextLink':'https://example.com/page2'}
         second={'value':[{'Id':'two','Name':SCENE,'Attributes':[]}]}
         def response(data):

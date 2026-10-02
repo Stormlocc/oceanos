@@ -1,47 +1,36 @@
 # Riesgos y decisiones pendientes
 
-| Riesgo o incertidumbre | Acción prevista |
+Estado sincronizado al 30 de septiembre de 2026, después de la implementación del wrapper y del reinicio autorizado de ensayos. Los resultados históricos permanecen en los informes de fases y en SQLite; no implican disponibilidad de los NetCDF eliminados.
+
+## Resuelto técnicamente
+
+- AOI single-tile Sentinel-2 19QGV confirmado. Grilla común verificada en cinco Sentinel-2 y tres Landsat: EPSG:32619, 2440×7335, 10 m, x 701980–775330 e y 1997360–1972960 m.
+- ACOLITE fijado a `80da0c0c681d9597fd4b7737837d6a3e61907b33`, con parche de catálogo. Desde el 01-10-2026 se usa la instalación `/home/antho/acolite`, restaurada y actualizada a esa revisión; identidad del motor idéntica a la de los ensayos ([documento 34](34_acolite_installation.md)).
+- Catálogo SQLite v2 y wrapper secuencial implementados, con snapshots, hashes, reintentos, supervisión y QA técnico. Suite de 27 pruebas.
+- OC4 excluido; NDCI solo Sentinel-2. Landsat reproyecta L1R antes de AC; entregar a 10 m no aumenta su detalle original.
+- Persistencia vigente: L1R/L2W y SQLite; L2R/RAW temporales tras QA técnico y registro. Regenerar desde L1R repite AC.
+- El reinicio solicitado eliminó escenas de ensayo; los artefactos históricos figuran `DELETED`. Las cifras antiguas de disco no describen el inventario actual.
+
+## Pendientes reales
+
+| Riesgo o incertidumbre | Estado y acción pendiente |
 |---|---|
-| AOI no confirma single-tile | Resolver en fase 1 antes de fijar perfil |
-| Instalación local distinta de upstream | Identificar ambas revisiones y diferencias |
-| Productos solicitados incompatibles | Presentar alternativas sin sustituir automáticamente |
-| Máscara de agua elimina señal útil | Revisar FAI/NDVI y aguas someras explícitamente |
-| RAM insuficiente | Una escena, recorte apropiado y medición de proyección |
-| Temporales superan 50 GB | Presupuesto previo y seguimiento durante ejecución |
-| Zarr no disponible o incompatible | Reintentos acotados y fallback informado |
-| Fuente cambia sin checksum fuerte | Preservar incertidumbre y metadata/versiones |
-| Outputs insuficientes para nuevas variables | Verificar dependencias antes de evitar descarga |
-| Falta validación in situ | Recordatorio obligatorio antes de fase 7 |
-| Persistencia sin respaldo | Definir destino de backup más adelante |
+| Productos acuáticos mayormente enmascarados | Validación científica abierta; investigar máscara/glint con un ensayo autorizado, sin relajar umbrales arbitrariamente |
+| Falta de datos in situ | Incorporar observaciones coincidentes y controles de calidad antes de aceptar productos científicos |
+| FAI/NDVI con tierra | La salida exclusivamente oceánica sigue pendiente; conservar la excepción de máscara documentada |
+| Zarr remoto | Retirado del wrapper el 01-10-2026: el STAC EOPF solo publica 2025-04-18 para el AOI. Reincorporarlo exige cobertura, un ensayo real y equivalencia SAFE/Zarr ([documento 06](06_acolite_zarr_input.md#retirada-del-wrapper-01-10-2026)) |
+| Completitud USGS | La API nativa no pagina explícitamente; el wrapper registra completitud desconocida |
+| Fuente sin checksum comparable | Puede requerir descargar y verificar antes de omitir cálculo; hacerlo solo con autorización |
+| RAW retenido tras `SKIPPED` | Fallo reproducido con adquisición simulada: se omite el procesamiento tras descargar, pero `cleanup` aplaza el borrado. Corrección pendiente |
+| Recursos y repetibilidad | 50 GB supervisados por muestreo, sin cuota instantánea; RAM y tiempos dependen de escena y caché. No hay traza exhaustiva de auxiliares consumidos |
+| `Retry-After` | El wrapper usa esperas fijas de 60/300 s; no implementa la recomendación histórica de interpretar ese encabezado |
+| Respaldo externo | No hay backups por comando; destino y procedimiento externo pendientes de definir |
+| Docker/Airflow y cubo Zarr | Fases 12/13 no iniciadas; requieren nueva orden |
 
-Pendientes técnicos: EPSG, MGRS/WRS, extent y origen; versión ACOLITE; firmas API; defaults efectivos; soporte de productos; origen de auxiliares; comparación de fuentes; grilla Landsat; formato definitivo de catálogo; conservación L1R/L2W con L2R temporal; límites de aceptación científica y métricas reales.
+## Condiciones de la continuación
 
-No se necesitan más preguntas de Discovery para documentar el alcance. Los pendientes técnicos deben resolverse mediante las fases autorizadas, no mediante supuestos presentados como hechos.
+No descargar escenas, LUT, auxiliares ni dependencias sin autorización explícita. `run` y `derive` pueden acceder a la red incluso con archivos locales; esta restricción es operativa y no está implementada como bloqueo en el CLI.
 
-## Actualización después de fase 1
+El perfil Sentinel-2 actual usa [2026-08-01,2026-08-15) UTC y el Landsat [2026-08-01,2026-08-21). Las cinco escenas Sentinel-2 de los informes corresponden al intervalo histórico más amplio; no son una nueva consulta del perfil actual.
 
-El análisis de `01_aoi_analysis.md` confirma cobertura completa con 19QGV y ausencia de cruce UTM. EPSG candidato: 32619. Grilla geométrica propuesta: xrange 701980–775320 m, yrange 1973040–1997350 m, 2431 filas × 7334 columnas a 10 m. Estas mediciones resuelven los pendientes espaciales anteriores; su traducción a settings ACOLITE sigue pendiente. Landsat 005/048 cubre nominalmente 99,886 %, no el AOI íntegro.
-
-## Resultados de auditoría de fase 2
-
-Pendientes resueltos: defaults y precedencia identificados; firmas/retornos API auditados; soporte L1C SAFE/EOPF confirmado en código; OC4 no configurado para MSI; EPSG/MGRS/grilla geométrica ya calculados en fase 1.
-
-Actualización del 29 de septiembre: revisión ACOLITE fijada en fase 4; OC4 excluido por el usuario; ensayo sin reproyección final; fase 5 consultó Zarr (sin resultados) y CDSE (cinco SAFE). Siguen pendientes la máscara oceánica para FAI/NDVI, preparar el entorno de la revisión elegida, comprobar autenticación de descarga, validar recursos y ejecutar el ensayo. El diseño de captura de metadata/reintentos aún no está implementado. La instalación local no se modificó.
-
-## Actualización de fase 3
-
-Resuelto el formato de persistencia: SQLite único, metadata seleccionada en JSON interno y archivos científicos externos. Definidas identidad, cambios, recuperación y reutilización. Se eligió una extensión futura opcional del retorno CDSE para evitar un cliente propio; aún no implementada. Se documenta explícitamente que UTC es la convención del intervalo y que identidad incompleta impide deduplicación científica automática.
-
-
-## Resultado de fase 6
-
-El ensayo real generó los tres NetCDF y confirmó la grilla, pero dejó todos los productos acuáticos enmascarados. Recursos y evidencia están en [el informe de fase 6](27_phase6_first_scene.md). No hay aceptación científica ni limpieza autorizada. El diagnóstico corresponde a fase 7.
-
-
-## Revisión de fase 7
-
-Se confirmó que el SWIR TOA supera el umbral en todo el recorte; las pruebas de escala SAFE/L1R, continuidad TOA y geolocalización pasaron. El brillo solar es una hipótesis compatible con la geometría, no una causa única demostrada. No se cambiaron parámetros; los productos acuáticos siguen no aceptados. Ver [dictamen y evidencia](28_phase7_validation.md).
-
-## Actualización de fase 10
-
-Ocho adquisiciones completadas (cinco Sentinel-2 y tres Landsat), con grilla común y flags comprobados. Inventario final 27,84 GB; máximo RSS individual 6,57 GB. El acceso USGS y la alineación Landsat quedaron resueltos; la aceptación científica y el ensayo Zarr siguen pendientes. No se inició fase 11. Ver [informe y evidencias](31_phase10_multidate.md).
+Referencias: [wrapper actual](32_phase11_wrapper.md), [conservación y reinicio](33_retention_and_reset.md), [validación científica](28_phase7_validation.md).

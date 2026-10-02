@@ -1,10 +1,12 @@
 # Arquitectura y matriz ACOLITE / código propio
 
+> Estado vigente (30-09-2026): wrapper y SQLite implementados en [fase 11](32_phase11_wrapper.md), con parche CDSE/USGS aplicado (el bloque STAC se quitó el 01-10-2026) a la instalación `/home/antho/acolite` desde el 01-10-2026 ([documento 34](34_acolite_installation.md)). La matriz siguiente describe las capacidades upstream auditadas; las limitaciones mitigadas por el wrapper no deben leerse como trabajo aún sin iniciar.
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 ## Revisiones y alcance
 
-Instalación local `/home/antho/acolite`: `f73cbe73887c2b114d9d3c70865effee73871525`. Tiene una modificación local en `config/config.txt`; no se mostraron sus valores ni se alteró el archivo. Código upstream actual consultado y clonado superficialmente en `.work/acolite-audit`: `80da0c0c681d9597fd4b7737837d6a3e61907b33`. No se actualizó la instalación activa.
+Instalación local `/home/antho/acolite`: `f73cbe73887c2b114d9d3c70865effee73871525`. Tiene una modificación local en `config/config.txt`; no se mostraron sus valores ni se alteró el archivo. Código upstream actual consultado y clonado superficialmente en `.work/acolite-audit`: `80da0c0c681d9597fd4b7737837d6a3e61907b33`. No se actualizó la instalación activa durante la auditoría. **Actualización 01-10-2026:** la instalación se restauró, se actualizó a `80da0c0` y recibe el parche; la copia `.work/acolite-audit` se eliminó ([documento 34](34_acolite_installation.md)).
 
 Se inspeccionaron defaults, loaders, run, identificación/extracción, APIs CDSE/EarthExplorer/STAC, lectores Sentinel SAFE/Zarr y Landsat, L1R/L2R/L2W, flags, máscaras, proyección, escritura NetCDF y auxiliares. La revisión de código queda identificada por commit y parche. Los manifiestos independientes se retiraron al consolidar evidencias; la auditoría estática no significa que cada rama haya sido ejecutada.
 
@@ -22,7 +24,7 @@ El estado `ac.settings` es global: mantener una escena/proceso y no mezclar AOI 
 
 | Necesidad | ACOLITE | Módulo/API/settings | Limitación observada | Código nuestro |
 |---|---|---|---|---|
-| Catálogo S2 y filtros | Sí | `api.cdse.query` | Retorno pierde campos top-level | Wrapper; extensión mínima de metadata a evaluar |
+| Catálogo S2 y filtros | Sí | `api.cdse.query` | Retorno pierde campos top-level | Wrapper implementado; extensión opcional de metadata mediante parche |
 | Catálogo Landsat | Sí | `api.earthexplorer.query` | Sin paginación explícita; ROI rectangular asumido | Wrapper y control de completitud |
 | Descubrimiento Zarr | Sí, EOPF candidato | `api.stac.query/query_get` | URL sin bbox defectuosa; filtro tile propio mínimo | Selección de metadata |
 | Descarga | Sí | `api.cdse.download`, `api.earthexplorer.download` | Sin streaming real en llamadas finales, ni verificación checksum | Reintentos/validación; parche mínimo si necesario |
@@ -44,4 +46,4 @@ El estado `ac.settings` es global: mantener una escena/proceso y no mezclar AOI 
 
 ## Límites
 
-No se realizaron autenticación, consulta de adquisiciones, descarga satelital, corrección atmosférica ni benchmark. La estrategia definitiva de catálogo corresponde a fase 3; configuración científica a fase 4; comparación experimental de fuentes a fases posteriores.
+En fase 2 no se realizaron autenticación, consultas de adquisiciones, descargas satelitales, corrección atmosférica ni benchmark. Las fases 3/4 definieron catálogo y configuración; las fases 6–11 incorporaron ensayos y wrapper. La comparación experimental con Zarr sigue pendiente.

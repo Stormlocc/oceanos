@@ -18,4 +18,8 @@ Toda ruta de borrado se resuelve y se comprueba dentro del temporal de esa ejecu
 
 ## Reinicio solicitado de las pruebas
 
-Por orden del usuario se eliminan los datos de todos los ensayos previos, incluidos sus L1R/L2R/L2W, RAW y cachés descargadas para las pruebas. Es un reinicio puntual, distinto de la política futura que conserva L1R/L2W. Se preservan el catálogo con disponibilidad actualizada, el resumen científico histórico, el AOI original, los perfiles y el código. [Detalle y cantidades](33_retention_and_reset.md).
+Por orden del usuario se eliminaron los datos de todos los ensayos previos, incluidos sus L1R/L2R/L2W, RAW y cachés descargadas para las pruebas. Es un reinicio puntual, distinto de la política futura que conserva L1R/L2W. Se preservan el catálogo con disponibilidad actualizada, el resumen científico histórico, el AOI original, los perfiles y el código. [Detalle y cantidades](33_retention_and_reset.md).
+
+## Limitación actual del wrapper
+
+Si después de descargar se reconoce un L2W reutilizable, el intento termina `SKIPPED` y el RAW queda retenido. `cleanup` no trata ese estado como éxito limpiable y lo aplaza. Este fallo está documentado y pendiente de corrección; no se considera resuelto por la política anterior.

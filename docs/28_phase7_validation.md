@@ -1,8 +1,8 @@
 # Fase 7 — validación del ensayo y diagnóstico del enmascarado
 
-> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+> Informe histórico. Estado vigente al 30-09-2026: diagnóstico técnico cerrado y ciencia pendiente. Fases 8–11 completadas en su alcance técnico; los archivos del ensayo se retiraron. La figura diagnóstica sigue disponible. Rige la [política L1R/L2W y reinicio](33_retention_and_reset.md); las cifras y decisiones originales no describen la disponibilidad actual de archivos.
 
-Fecha: 29 de septiembre de 2026. **Revisión técnica completada; escena no aceptada para productos acuáticos con el perfil actual.** La validación científica queda pendiente de datos in situ. No se cambió la configuración científica, no se reprocesó para forzar píxeles válidos y no se avanzó a fase 8.
+Fecha: 29 de septiembre de 2026. **Revisión técnica completada; escena no aceptada para productos acuáticos con el perfil actual.** La validación científica queda pendiente de datos in situ. No se cambió la configuración científica, no se reprocesó para forzar píxeles válidos y en esa revisión no se avanzó a fase 8, realizada posteriormente.
 
 ## Resultado principal
 
@@ -25,7 +25,7 @@ El SAFE original declara baseline 05.12, `QUANTIFICATION_VALUE=10000` y `RADIO_A
 
 Las seis pruebas pasaron como comprobaciones de contrato y diagnóstico. **No equivalen a seis pruebas de aceptación científica:** confirman también la condición que hace inutilizables los productos acuáticos de este ensayo. Las comprobaciones previas de grilla, variables y archivos están conservadas en fase 6.
 
-Script reproducible: [validate_scene.py — evidencia consolidada](33_retention_and_reset.md#historial). Resultado: [contract_checks.json — evidencia consolidada](33_retention_and_reset.md#historial). Se ejecutó con el entorno activado mediante micromamba, sin nuevas dependencias ni cambios al código de ACOLITE.
+El script `validate_scene.py` y su resultado `contract_checks.json` fueron evidencia original, retirada después. Se conserva el [resumen del historial](33_retention_and_reset.md#historial), no esos archivos para reejecución. Se ejecutó con el entorno activado mediante micromamba, sin nuevas dependencias ni cambios al código de ACOLITE.
 
 ## Evidencia espacial y posible brillo solar
 
@@ -50,15 +50,15 @@ La implementación nativa de la máscara está en [acolite_flags](https://github
 | Rrs, turbidez, OC3 y NDCI | No aceptados: cero píxeles válidos |
 | FAI y NDVI | Presentes, pero sin validación científica ni máscara exclusivamente oceánica |
 | Exactitud radiométrica y bioóptica | No demostrada por estas pruebas |
-| Limpieza de ZIP/SAFE/L1R | No autorizada por estos resultados; conservar |
+| Limpieza al cerrar esta revisión | Se aplazó entonces; reemplazada después por QA técnico y reinicio autorizado |
 | Perfil para todas las fechas | Sigue candidato; una escena no valida todo el intervalo |
 
-El estado recomendado para el catálogo futuro es `sin_pixeles_acuaticos_validos`, separado de un fallo de descarga o de ejecución. La escena no se elimina del historial ni se descarta por nubosidad del catálogo. Su falta de píxeles acuáticos útiles se registra como resultado de calidad posterior al procesamiento.
+La recomendación histórica fue `sin_pixeles_acuaticos_validos`. El catálogo implementado registra `TECHNICAL_PASSED`, fracciones finitas en el resumen y ciencia `PENDING`; no implementa aquel nombre como estado independiente. La escena no se elimina del historial ni se descarta por nubosidad del catálogo. Su falta de píxeles acuáticos útiles se registra como resultado de calidad posterior al procesamiento.
 
 ## Pendientes y límite de fase
 
 Se requiere validación científica independiente: observaciones coincidentes de turbidez/clorofila, ubicación, profundidad, hora y control de calidad, si están disponibles. No se recibieron datos in situ y no se inventan tolerancias de aceptación.
 
-Antes de promover un perfil revisado conviene realizar un ensayo separado de corrección de glint y máscara acuática nativa, con comparación espacial y espectral; eso permanece pendiente, sin adoptar parámetros nuevos aquí. La evaluación de otras fechas tampoco se ejecutó: el procesamiento repetido corresponde a su fase autorizada.
+Antes de promover un perfil revisado conviene realizar un ensayo separado de corrección de glint y máscara acuática nativa, con comparación espacial y espectral; eso permanece pendiente, sin adoptar parámetros nuevos aquí. La evaluación de otras fechas se completó posteriormente en fase 10; no resolvió la aceptación científica.
 
-La revisión técnica de fase 7 queda entregada con dictamen no aceptado para los productos acuáticos. La validación científica sigue abierta. No se inició el análisis de benchmark de fase 8 ni se limpiaron fuentes.
+La revisión técnica de fase 7 queda entregada con dictamen no aceptado para los productos acuáticos. La validación científica sigue abierta. El benchmark de fase 8 y el reinicio de fuentes se ejecutaron posteriormente, con alcances documentados por separado.

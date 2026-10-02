@@ -1,5 +1,7 @@
 # Zarr remoto: soporte real y comparación de fuentes
 
+> Estado vigente (01-10-2026): **Zarr retirado del wrapper.** OCEANOS adquiere Sentinel-2 solo como SAFE L1C desde CDSE. Este documento conserva la auditoría del lector Zarr de ACOLITE. Ver [retirada del wrapper](#retirada-del-wrapper-01-10-2026). No descargar sin autorización.
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 ## Proveedor y contrato
@@ -31,9 +33,29 @@ Fuentes: [acolite/sentinel2/zarr/l1_convert.py:127](https://github.com/acolite/a
 | Ahorro medido | No medido | No medido |
 | Producción validada | No | No para este perfil |
 
-El código demuestra viabilidad, no disponibilidad de 19QGV en agosto de 2026 ni equivalencia numérica. Mantener preferencia condicionada y fallback. No seleccionar definitivamente la fuente antes de fase 5.
+El código demuestra viabilidad, no disponibilidad de 19QGV en agosto de 2026 ni equivalencia numérica. La fase 5 seleccionó SAFE para el ensayo por ausencia de candidatos Zarr. La preferencia condicionada por Zarr quedó retirada el 01-10-2026; ver la sección siguiente.
 
 
 ## Actualización de fase 5 — 29 de septiembre de 2026
 
-La consulta de metadata encontró cinco SAFE L1C de 19QGV y ningún Zarr para el intervalo inicial. Se mantiene preferencia Zarr con comprobación al ejecutar; SAFE es la entrada prevista del primer ensayo. Ver [estrategia de adquisición y evidencia](26_phase5_input_strategy.md). No se descargaron escenas ni se midió rendimiento.
+La consulta de metadata encontró cinco SAFE L1C de 19QGV y ningún Zarr para el intervalo inicial. SAFE fue la entrada del primer ensayo; Zarr se retiró del wrapper el 01-10-2026. Ver [estrategia de adquisición y evidencia](26_phase5_input_strategy.md). En fase 5 no se descargaron escenas ni se midió rendimiento; los ensayos posteriores están en fases 6/8/10.
+
+## Retirada del wrapper — 01-10-2026
+
+**De dónde sale cada formato.** En ACOLITE, Zarr y SAFE vienen de catálogos distintos:
+
+| Función nativa | Catálogo | Formato entregado | Uso en OCEANOS |
+|---|---|---|---|
+| `api.cdse.query` / `api.cdse.download` | CDSE OData | SAFE en ZIP | Única entrada Sentinel-2 |
+| `api.stac.query` | STAC EOPF/EODC (`stac.core.eopf.eodc.eu`, `sentinel-2-l1c`) | URL Zarr remota | No usado |
+
+CDSE no entrega Zarr. ACOLITE sí puede leer Zarr remoto (`sentinel2.zarr.l1_convert`) sin descarga previa, pero solo si existe la escena en el catálogo EOPF.
+
+**Evidencia (consulta de metadata, 01-10-2026).**
+
+- STAC EOPF con bbox del AOI y sin filtro de fecha: 4 ítems, todos del 2025-04-18 (19QGV, 19QGA, 19QFV, 19QFA). Ninguno en 2026. La colección se actualiza globalmente (extent temporal hasta 2026-10-01): no está descontinuada, pero es un servicio de muestras sin cobertura continua de este AOI.
+- CDSE OData para 19QGV L1C, agosto y septiembre de 2026: 15 productos, todos `.SAFE`.
+
+**Decisión.** Zarr no aporta escenas para este AOI. Se eliminó del wrapper para que el flujo sea directo: `search` consulta CDSE (Sentinel-2) o USGS (Landsat) con 3 intentos y esperas de 60 y 300 s; `batch` ejecuta una vez cada producto; no hay consulta STAC, prioridad Zarr ni fallback entre formatos.
+
+**Si se quiere recuperar.** La última versión con soporte Zarr (consulta STAC, prioridad por escena y fallback a SAFE) está en el commit `9af82a6` (`oceanos/native.py`, `oceanos/pipeline.py`, `tests/test_wrapper.py`). Antes de reincorporarlo: comprobar que el STAC EOPF publica fechas recientes para el AOI, ensayar una escena real y validar que la grilla y la radiometría sean coherentes con SAFE (ver [documento 25](25_phase4_aoi_configuration.md)).

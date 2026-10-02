@@ -1,6 +1,6 @@
 # Fase 8 — análisis del benchmark de una escena
 
-> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+> Informe histórico. Estado vigente al 30-09-2026: benchmark histórico cerrado; fases 9–11 ya realizadas. Los tamaños y tiempos siguientes son mediciones anteriores al reinicio, no consumo actual. La persistencia futura es L1R/L2W y SQLite. Rige la [política L1R/L2W y reinicio](33_retention_and_reset.md); las cifras y decisiones originales no describen la disponibilidad actual de archivos.
 
 Fecha: 29 de septiembre de 2026. **Fase 8 completada mediante análisis del ensayo existente.** El entorno local pudo procesar una escena secuencial dentro del presupuesto de recursos. Esto no cambia el dictamen de fase 7: los productos acuáticos siguen no aceptados por enmascarado total.
 
@@ -57,7 +57,7 @@ La carpeta output completa, incluidos settings y logs, ocupa 1.210.813.821 bytes
 
 Durante el ensayo, el máximo muestreado fue 3.360.989.947 bytes y la medición final fue 3.419.458.515 bytes, equivalente al 6,84 % del techo de 50 GB. Se conserva la diferencia: **3,42 GB es ocupación final observada, no un pico continuo certificado**. El alcance comprende RAW, output, scratch y data de la copia auditada, incluyendo recursos anteriores.
 
-L2R+L2W suman 895.876.162 bytes, unos 0,896 GB. Es el tamaño actual del par retenido, no un tamaño persistente medido después de limpieza. ZIP+SAFE representan aproximadamente 1,579 GB potencialmente recuperables; ZIP+SAFE+L1R unos 1,894 GB. Son escenarios contables, **no una autorización para borrar**. La fase 9 deberá aplicar el estado de calidad no aceptado y conservar lo necesario para diagnosticar/reprocesar.
+L2R+L2W suman 895.876.162 bytes, unos 0,896 GB. Era el tamaño del par retenido al cierre del ensayo, no un tamaño persistente medido después de limpieza. ZIP+SAFE representan aproximadamente 1,579 GB potencialmente recuperables; ZIP+SAFE+L1R unos 1,894 GB. Son escenarios contables, **no una autorización para borrar**. La fase 9 aplazó entonces el borrado; la decisión posterior de reinicio retiró esos archivos. La política vigente conserva L1R/L2W, no L2R.
 
 No convertir el cociente 50/3,42 en un número de escenas seguras: cambian tamaños de origen, máscaras, LUT compartidas, compresión y etapas simultáneas. Mantener adquisición secuencial y comprobar espacio físico del host además del disco virtual WSL.
 
@@ -80,4 +80,4 @@ La salida rectangular observada tiene 17.897.400 píxeles. El comportamiento de 
 
 Evidencia: [análisis de tiempos, inventario y filtros — evidencia consolidada](33_retention_and_reset.md#historial), [métricas de ejecución — evidencia consolidada](33_retention_and_reset.md#historial), [primer intento — evidencia consolidada](33_retention_and_reset.md#historial), [LUT y hashes — evidencia consolidada](33_retention_and_reset.md#historial), [dictamen de validación](28_phase7_validation.md).
 
-La fase 8 queda cerrada como análisis de esta medición, con las limitaciones indicadas. La fase 9 requiere orden del usuario; no se eliminó ningún archivo.
+La fase 8 queda cerrada como análisis de esta medición, con las limitaciones indicadas. La fase 9 se completó después y aplazó la limpieza; el reinicio posterior sí retiró los archivos por orden del usuario.

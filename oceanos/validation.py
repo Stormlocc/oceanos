@@ -1,10 +1,11 @@
 """Comprobaciones técnicas por bloques; no aprueban calidad científica."""
-from pathlib import Path
 import netCDF4
 import numpy as np
+from pyproj import CRS
 
 
 def validate(files, config):
+    """Valida grilla, EPSG, variables y productos de L1R/L2R/L2W y cuenta píxeles finitos."""
     grid = config['grid']
     dx, dy = grid['pixel_size_xy_m']
     expected_x = np.arange(grid['xrange_m'][0]+dx/2, grid['xrange_m'][1], dx)
@@ -17,7 +18,6 @@ def validate(files, config):
                 raise ValueError('La grilla no coincide con el AOI')
             # Verificar CRS, además de ejes: coordenadas iguales no prueban igual proyección.
             crs = [v for v in ds.variables.values() if 'spatial_ref' in v.ncattrs() or 'crs_wkt' in v.ncattrs()]
-            from pyproj import CRS
             if not crs or not any(CRS.from_wkt(getattr(v, 'spatial_ref', getattr(v, 'crs_wkt', ''))).to_epsg() == config['epsg'] for v in crs):
                 raise ValueError('EPSG no coincide')
             variables[level] = list(ds.variables)

@@ -1,5 +1,7 @@
 # L1R, alineación Sentinel-2 y Landsat
 
+> Estado vigente (30-09-2026): L1R persistente y regeneración implementados; grilla común comprobada con cinco Sentinel-2 y tres Landsat. Landsat proyecta L1R antes de AC y no vuelve a proyectarlo al derivar. Véanse [multifecha](31_phase10_multidate.md) y [conservación](33_retention_and_reset.md).
+
 Auditoría estática de fase 2, 25-09-2026. Revisión upstream `80da0c0c681d9597fd4b7737837d6a3e61907b33`. Las capacidades de código no equivalen a validación científica ni prueba con una escena real.
 
 ## Sentinel-2 SAFE

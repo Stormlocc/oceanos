@@ -1,6 +1,6 @@
 # Airflow y Docker futuros
 
-No implementar antes de estabilizar el procesamiento manual, repetir fechas e incorporar Landsat. La automatización no debe cambiar decisiones científicas.
+Las repeticiones y la incorporación Landsat se completaron técnicamente; el wrapper local está implementado. Docker/Airflow siguen sin iniciar y requieren una nueva orden, con la limitación de limpieza `SKIPPED` aún pendiente. La automatización no debe cambiar decisiones científicas.
 
 Flujo conceptual: descubrir catálogo → comparar versiones → seleccionar → adquirir → ACOLITE → validar → persistir resultados → limpiar → futura ingestión Zarr.
 

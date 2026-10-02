@@ -1,16 +1,16 @@
 # Fase 9 — evaluación de limpieza y conservación
 
-> Informe histórico del ensayo. La retención y los archivos disponibles cambiaron por orden del usuario; rige la [política L1R/L2W y reinicio](33_retention_and_reset.md). Las cifras de este documento describen el ensayo previo a la limpieza.
+> Informe histórico. Estado vigente al 30-09-2026: la decisión de aplazar limpieza fue reemplazada por la política de QA técnico y el reinicio autorizado ya ejecutado. El catálogo está implementado y los archivos de este ensayo figuran eliminados. Rige la [política L1R/L2W y reinicio](33_retention_and_reset.md); las cifras y decisiones originales no describen la disponibilidad actual de archivos.
 
-Fecha: 29 de septiembre de 2026. **Política de limpieza aplicada: conservar la ejecución y aplazar el borrado.** Estado `DEFERRED_VALIDATION`. Se liberaron **0 bytes** y no se eliminó ningún archivo. No se inició la fase 10.
+Fecha: 29 de septiembre de 2026. **Decisión histórica: conservar la ejecución y aplazar el borrado.** Estado `DEFERRED_VALIDATION`. Se liberaron **0 bytes** y no se eliminó ningún archivo. La fase 10 se ejecutó posteriormente.
 
 ## Motivo
 
-La [política acordada](17_raw_cleanup_policy.md) habilita limpieza por éxito solo después de validación aprobada y registro persistente. También contempla limpieza por fallo recuperable tras agotar reintentos, conservando diagnóstico y procedencia.
+La política aplicada entonces condicionaba la limpieza a la validación aceptada y al registro persistente. Fue reemplazada por la [política vigente](17_raw_cleanup_policy.md), que permite retirar intermediarios tras QA técnico de L1R/L2W y registro, sin esperar aprobación científica. También contempla limpieza por fallo recuperable tras agotar reintentos, conservando diagnóstico y procedencia.
 
 Esta ejecución terminó y produjo NetCDF, pero Rrs, turbidez, OC3 y NDCI contienen cero píxeles válidos. La fase 7 descartó errores concretos de escala y geolocalización y formuló la hipótesis de glint; todavía no hay una solución científica validada. No se agotaron reintentos de adquisición o procesamiento. Repetir el mismo cálculo no convierte este estado de calidad en un fallo transitorio ni habilita su borrado.
 
-El catálogo operativo SQLite tampoco está implementado. Los JSON de evidencia conservan el historial del ensayo manual, pero no se presentan como el registro transaccional del wrapper futuro. No se implementó un limpiador genérico antes de su fase.
+Al cerrar fase 9 aún no existía SQLite. La fase 11 lo implementó y el reinicio consolidó la trazabilidad útil, retirando los JSON independientes. No se implementó un limpiador genérico antes de su fase.
 
 ## Inventario y decisión
 
@@ -25,7 +25,7 @@ El catálogo operativo SQLite tampoco está implementado. Los JSON de evidencia 
 | LUT y copia auditada de ACOLITE | Fuera del borrado de RAW | Recursos reutilizables y referencia del procesador |
 | AOI, credenciales e instalación original | Fuera del alcance | No pertenecen al temporal de la escena |
 
-La carpeta de ensayo contiene **76 archivos y 2.789.939.291 bytes (2,79 GB)**. La medición de fase 8 que también incluye data/LUT fue 3,42 GB; los alcances son diferentes y no deben sumarse. No hay presión de presupuesto demostrada que justifique cambiar la decisión: ambos valores están por debajo del techo de 50 GB.
+La carpeta de ensayo contenía **76 archivos y 2.789.939.291 bytes (2,79 GB)**. La medición de fase 8 que también incluye data/LUT fue 3,42 GB; los alcances son diferentes y no deben sumarse. No hay presión de presupuesto demostrada que justifique cambiar la decisión: ambos valores están por debajo del techo de 50 GB.
 
 ## Comprobaciones realizadas
 
@@ -35,12 +35,12 @@ La carpeta de ensayo contiene **76 archivos y 2.789.939.291 bytes (2,79 GB)**. L
 - Se comprobó que no se cumplen las condiciones de limpieza por éxito ni de reintentos agotados.
 - El registro final contiene lista de borrados vacía y cero bytes liberados.
 
-No se ejecutó un borrado para probar la política. No se creó una suite de tests de un limpiador todavía inexistente. Las pruebas futuras del wrapper deberán cubrir validación fallida, exclusión de rutas externas/enlaces, recuperación tras interrupción y borrado repetible, conforme al plan ya documentado.
+No se ejecutó un borrado para probar la política. No se creó una suite de tests de un limpiador todavía inexistente. El wrapper posterior incorpora pruebas de limpieza, exclusión de rutas externas, recuperación y fallo de borrado; la limpieza de `SKIPPED` permanece pendiente.
 
-Evidencia: [inventario, hashes y decisión — evidencia consolidada](33_retention_and_reset.md#historial). Los archivos científicos conservan sus rutas originales para mantener válidos los enlaces del ensayo; no se movieron ni sobrescribieron.
+Evidencia: [inventario, hashes y decisión — evidencia consolidada](33_retention_and_reset.md#historial). Los archivos conservaron sus rutas hasta el reinicio posterior; actualmente están retirados y registrados como eliminados.
 
 ## Revisión posterior
 
-La evaluación de fase 9 queda entregada; **la eliminación física permanece aplazada**, no marcada como completada. Revisar esta decisión cuando exista una validación aceptable o una decisión explícita de cerrar el caso científico como no recuperable para el objetivo, conservando su diagnóstico y referencias. No establecer caducidad automática mientras esos criterios estén pendientes.
+La evaluación de fase 9 quedó entregada con eliminación aplazada. **Esa decisión ya fue reemplazada:** el usuario autorizó reiniciar los ensayos y la eliminación física se ejecutó según el documento 33. La falta de aceptación científica no impide actualmente limpiar intermediarios tras QA técnico.
 
-La retención local no equivale a una copia de seguridad externa. Tampoco convierte los NetCDF no aceptados en productos finales. La siguiente fase requiere orden del usuario; no se descargaron ni procesaron otras fechas.
+La retención local no equivale a una copia de seguridad externa. Tampoco convierte los NetCDF no aceptados en productos finales. Durante fase 9 no se descargaron ni procesaron otras fechas; eso se realizó después en fase 10. La próxima fase no iniciada es la 12 y requiere orden explícita.
