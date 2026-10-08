@@ -17,8 +17,8 @@ search:
   platforms: [S2A, S2B, S2C]
   level: L1C
   tile: 19QGV
-  interval_start_utc: "2026-08-01T00:00:00Z"
-  interval_end_exclusive_utc: "2026-08-07T00:00:00Z"
+  interval_start_utc: "2026-01-01T00:00:00Z"
+  interval_end_exclusive_utc: "2026-02-28T00:00:00Z"
   cloud_cover:
     enabled: false
     maximum_percent: null

@@ -94,10 +94,11 @@ def requested_products(selected, landsat, override=None):
     return requested
 
 
-def profile(path, products=None, start=None, end=None):
+def profile(path, products=None, start=None, end=None, satellites=None):
     """Carga un perfil YAML junto con project.yaml y devuelve la configuración normalizada.
 
-    `products`, `start` y `end` sustituyen a los valores del YAML si se indican.
+    `products`, `start` y `end` sustituyen a los valores del YAML si se indican; `satellites`
+    (S2A/S2B/S2C o L8/L9) restringe las plataformas del perfil.
     """
     path = Path(path).resolve()
     # Abre el AOI/perfil de project.yaml por defecto
@@ -107,6 +108,13 @@ def profile(path, products=None, start=None, end=None):
     # Satelite y familia de sensores
     landsat = selected.get('sensor_family') == 'landsat'
     search = selected if landsat else selected['search']
+    if satellites:
+        family = 'landsat' if landsat else 'sentinel2'
+        foreign = [s for s in satellites if s not in search['platforms']]
+        if foreign:
+            raise ValueError(f"Satélite {', '.join(foreign)} no disponible en el perfil {family}; "
+                             f"opciones: {', '.join(search['platforms'])}")
+        search = {**search, 'platforms': [p for p in search['platforms'] if p in satellites]}
     requested = requested_products(selected, landsat, products)
     # Fechas de inicio y fin del intervalo de búsqueda
     first = instant(start or search['interval_start_utc'])
@@ -144,6 +152,18 @@ def exclusive(storage):
         except BlockingIOError:
             raise RuntimeError('Ya hay un proceso OCEANOS usando este catálogo') from None
         yield
+
+
+def received_bytes(pid='self'):
+    """Bytes leídos por un proceso (archivos y red) según /proc/<pid>/io; None si no se puede leer."""
+    try:
+        with open(f'/proc/{pid}/io') as stream:
+            for line in stream:
+                if line.startswith('rchar:'):
+                    return int(line.split()[1])
+    except (OSError, ValueError):
+        return None
+    return None
 
 
 def disk_bytes(roots):

@@ -6,29 +6,73 @@ import signal
 import subprocess
 import sys
 import time
-import uuid
 import tempfile
 from pathlib import Path
-from .config import ROOT, canonical, digest, disk_bytes, file_hash
-from .native import identity, eligible
+from .config import ROOT, canonical, digest, disk_bytes, file_hash, received_bytes
+from .native import identity, eligible, l1_bytes
 from .validation import validate
+
+STAGES = {'query':'consulta', 'extract':'extracción', 'process':'ACOLITE'}
 
 
 class Pipeline:
     """Orquesta búsqueda, adquisición, procesamiento y registro de una escena a la vez."""
-    def __init__(self, catalog, config, acolite, wait=time.sleep):
+    # Barra de progreso opcional (oceanos.progress.Progress) y último proceso creado por run().
+    progress = None
+    current_run = None
+    # Informe de la última consulta al proveedor (sin fuentes), para que el CLI lo explique.
+    last_query = None
+
+    def __init__(self, catalog, config, acolite, wait=time.sleep, progress=None):
         """Guarda catálogo y perfil y calcula la identidad del motor ACOLITE."""
         self.catalog, self.config = catalog, config
         self.acolite = Path(acolite).resolve()
         self.engine = identity(self.acolite)
         self.wait = wait
+        self.progress = progress
         self.roots = [catalog.storage, self.acolite/'data', self.acolite/'scratch']
         self.metrics = []
 
-    def notify(self, kind, details, run=None, query=None):
-        """Imprime un evento y lo registra en el catálogo."""
-        print(kind+': '+canonical(details), flush=True)
-        self.catalog.event(kind,details,run,query)
+    def notify(self, kind, message, process=None, scene=None, echo=True):
+        """Registra un evento legible en el catálogo y, con `echo`, lo imprime."""
+        if echo:
+            if self.progress:
+                self.progress.clear()
+            print(f'{kind}: {message}', flush=True)
+        self.catalog.event(kind, message, process, scene)
+
+    def watch(self, operation, pid, stage, started, arguments, state):
+        """Actualiza la barra de progreso de la etapa en curso del proceso aislado.
+
+        La descarga nativa guarda el archivo solo al terminar, así que se miden los bytes que
+        recibe el proceso desde que cargó ACOLITE. Las demás etapas se comparan con su
+        duración habitual en el catálogo.
+        """
+        if not self.progress:
+            return
+        elapsed = time.monotonic()-started
+        if operation != 'acquire':
+            if operation not in state:
+                state[operation] = self.catalog.stage_seconds(operation)
+            self.progress.stage(STAGES.get(operation,operation),elapsed,state[operation])
+            return
+        baseline, current = Path(stage)/'baseline', received_bytes(pid)
+        if current is None or not baseline.exists():
+            self.progress.stage('descarga: conectando',elapsed)
+            return
+        done = max(current-int(baseline.read_text() or 0),0)
+        total = l1_bytes(arguments['source'])
+        if total and done > total:
+            # Lecturas posteriores a la descarga: hashes SHA-256/MD5 del archivo.
+            self.progress.stage('descarga completa, verificando checksum',elapsed)
+            return
+        # Velocidad promedio desde el primer byte recibido.
+        instant = time.monotonic()
+        if done and 'first' not in state:
+            state['first'] = (instant,done)
+        first = state.get('first')
+        rate = (done-first[1])/(instant-first[0]) if first and instant-first[0] >= 1 else None
+        self.progress.download(done,total,rate,elapsed)
 
     def call(self, operation, timeout=3600, **arguments):
         """Ejecuta una operación de ACOLITE en un proceso aislado (oceanos.worker).
@@ -50,6 +94,7 @@ class Pipeline:
             process = subprocess.Popen([sys.executable,'-m','oceanos.worker',str(request),str(result)],
                                        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                        start_new_session=True)
+            state = {}
             try:
                 # Revisa el estado del proceso aislado anterior cada 2 segundos.
                 while process.poll() is None:
@@ -57,6 +102,7 @@ class Pipeline:
                         raise TimeoutError('Tiempo máximo de etapa agotado')
                     if disk_bytes(self.roots) >= self.config['budget']:
                         raise RuntimeError('Presupuesto temporal agotado')
+                    self.watch(operation,process.pid,stage,started,arguments,state)
                     self.wait(2)
             except BaseException:
                 os.killpg(process.pid, signal.SIGTERM)
@@ -74,7 +120,7 @@ class Pipeline:
                 raise RuntimeError('Etapa '+operation+' falló: '+response.get('error','WorkerExit'))
             return response['result']
 
-    def retry(self, function, run=None):
+    def retry(self, function, process=None, scene=None):
         """Ejecuta `function` con los reintentos y esperas del perfil; relanza el último error."""
         attempts = self.config['input']['transient_attempts_total']
         delays = self.config['input']['retry_wait_seconds']
@@ -82,48 +128,36 @@ class Pipeline:
             try:
                 return function()
             except Exception as error:
-                self.notify('ATTEMPT_FAILED',{'attempt':attempt+1,'error':type(error).__name__},run)
+                self.notify('INTENTO_FALLIDO', f'Descarga, intento {attempt+1} de {attempts}: {type(error).__name__}',
+                            process, scene)
                 if attempt+1 == attempts:
                     raise
                 self.wait(delays[attempt])
 
     def search(self):
-        """Consulta el proveedor del perfil, registra las versiones observadas y devuelve sus ids."""
+        """Consulta el proveedor del perfil, registra las escenas observadas y devuelve sus nombres."""
         # Sentinel-2: SAFE desde CDSE. Landsat: TAR desde USGS.
         provider = 'CDSE' if self.config['family']=='sentinel2' else 'USGS'
-        versions = []
-        batch = uuid.uuid4().hex
-        parent = None
-        # Intentos de consulta.
-        for attempt in range(self.config['input']['transient_attempts_total']):
-            # Registramos intento en la tabla Consultas para no repetir futuro trabajo paralelo
-            query = self.catalog.query(provider
-                                        ,{k:self.config[k] for k in ('aoi','family','start','end','cloud')}
-                                        ,batch
-                                        ,parent)
+        attempts = self.config['input']['transient_attempts_total']
+        for attempt in range(attempts):
+            search = self.catalog.search_start(provider, self.config, attempt+1)
             try:
-                # Instancia aislada de ACOLITE for search.
+                # Proceso aislado de ACOLITE para la consulta.
                 response = self.call('query', timeout=900, provider=provider, config=self.config)
-                # Registro de versiones observadas.
-                for source in response['sources']:
-                    versions.append(self.catalog.observe(query,source))
-                # Actualizar estados de la consulta(tConsulta) y notificar(tEventos).
-                self.catalog.finish_query(query,'SUCCEEDED',response['completeness'])
-                self.notify('QUERY_FINISHED',{'provider':provider,'count':len(response['sources']),
-                                             'completeness':response['completeness'],
-                                             'excluded_by_profile':response.get('excluded_by_profile',[])},query=query)
-                break
+                scenes = [self.catalog.upsert_scene(source) for source in response['sources']]
+                self.last_query = {'provider':provider,'count':len(response['sources']),
+                                   **{k:v for k,v in response.items() if k!='sources'}}
+                self.catalog.search_finish(search, 'OK', self.last_query)
+                return list(dict.fromkeys(scenes))
             except Exception as error:
-                self.catalog.finish_query(query,'FAILED',error=type(error).__name__)
-                self.notify('QUERY_FAILED',{'provider':provider,'attempt':attempt+1,'error':type(error).__name__},query=query)
-                parent = query
-                if attempt+1 == self.config['input']['transient_attempts_total']:
+                self.catalog.search_finish(search, 'FALLIDA', error=type(error).__name__)
+                self.notify('BUSQUEDA_FALLIDA', f'{provider}, intento {attempt+1} de {attempts}: {type(error).__name__}')
+                if attempt+1 == attempts:
                     raise
                 self.wait(self.config['input']['retry_wait_seconds'][attempt])
-        return list(dict.fromkeys(versions))
 
     def keys(self, source):
-        """Calcula processing_key (resultado final) y correction_key (corrección atmosférica)."""
+        """Calcula la clave de resultado (L2W) y la de corrección atmosférica (L1R)."""
         # Metadata administrativa, fechas de consulta y rutas de salida no cambian ciencia.
         scientific = {k:v for k,v in self.config['native'].items() if k not in ['l2w_parameters','rgb_rhot','rgb_rhos']}
         content = {'provider':source['provider'],'product':source['product'],
@@ -134,59 +168,61 @@ class Pipeline:
         processing = digest({'correction':correction,'products':self.config['products']})
         return processing, correction
 
-    def run(self, version, local_l1r=None, force=False):
-        """Procesa una versión de principio a fin y devuelve el id de la ejecución.
+    def skip(self, process, scene, existing):
+        """Cierra un proceso como OMITIDO porque ya existe un L2W verificado equivalente."""
+        self.catalog.finish(process, 'OMITIDO', 'TECNICA_OK')
+        self.catalog.update(process, limpieza='NO_APLICA')
+        self.notify('OMITIDO', f'Ya existe un L2W equivalente en el proceso {existing["proceso"]}', process, scene)
+        return process
 
+    def run(self, scene, source=None, local_l1r=None, force=False):
+        """Procesa una escena de principio a fin y devuelve el id del proceso.
+
+        `source` sustituye la fuente del catálogo (archivo local de `run --source`/`derive`).
         Reutiliza L2W o L1R verificados si existen; si no, adquiere, extrae y procesa. Al
         terminar valida, registra L1R/L2W y limpia los temporales.
         """
-        source = self.catalog.verified_source(self.catalog.source(version))
+        remote = source is None
+        source = source or self.catalog.source(scene)
         if not eligible(source,self.config):
-            raise ValueError('Versión fuera del perfil solicitado')
-        # Persistir el intento antes de adquirir; archivos aislados por run_id.
-        processing, correction = self.keys(source)
-        run = self.catalog.start(version,self.config,processing,correction)
-        folder = self.catalog.storage/'runs'/run
-        raw = self.catalog.storage/'temporary'/run
+            raise ValueError('Escena fuera del perfil solicitado')
+        result_key, correction_key = self.keys(source)
+        kind = 'DERIVADO' if local_l1r else ('LOCAL' if source.get('local') else 'DESCARGA')
+        process = self.catalog.start(scene, kind, self.config, result_key, correction_key)
+        self.current_run = process
+        folder = self.catalog.storage/self.catalog.process(process)['carpeta']
+        raw = self.catalog.storage/'temporary'/str(process)
         folder.mkdir(parents=True)
         self.metrics = []
-        self.catalog.event('WORK_DIRECTORY',{'path':str(folder.relative_to(self.catalog.storage)),
-                                            'temporary':str(raw.relative_to(self.catalog.storage))},run)
         try:
-            cached_output = self.catalog.reusable(processing) if source.get('sha256') and not force else None
-            if cached_output:
-                self.catalog.finish(run,'SKIPPED',validation='TECHNICAL_PASSED')
-                self.notify('SKIPPED',{'existing_run':cached_output['run_id'],'scientific':'PENDING'},run)
-                return run
-            cached_parent = self.catalog.reusable(correction,correction=True) if source.get('sha256') and not force else None
-            if cached_parent:
+            cached = self.catalog.reusable(result_key) if source.get('sha256') and not force else None
+            if cached:
+                return self.skip(process, scene, cached)
+            parent = self.catalog.reusable(correction_key,correction=True) if source.get('sha256') and not force else None
+            if parent:
                 acquired = {'source':source}
             elif local_l1r:
                 source = {**source,'sha256':file_hash(local_l1r)}
                 acquired = {'input':str(Path(local_l1r).resolve()),'source':source}
             else:
-                acquired = self.retry(lambda:self.call('acquire',source=source,raw=str(raw)),run)
+                acquired = self.retry(lambda:self.call('acquire',source=source,raw=str(raw)),process,scene)
                 source = acquired['source']
-            query = self.catalog.query(source['provider'],{'action':'fuente_verificada','run':run})
-            verified_version = self.catalog.observe(query,source)
-            self.catalog.finish_query(query,'SUCCEEDED')
-            processing,correction = self.keys(source)
-            with self.catalog.db:
-                self.catalog.db.execute('UPDATE ejecuciones SET version_id=?,processing_key=?,correction_key=? WHERE id=?',
-                                        (verified_version,processing,correction,run))
+                self.record_download(process,acquired.get('archive'),source)
+                if remote:
+                    # Guarda el SHA-256 comprobado para reconocer la misma fuente en el futuro.
+                    self.catalog.upsert_scene(source, seen=False)
+            result_key, correction_key = self.keys(source)
+            self.catalog.update(process, clave_resultado=result_key, clave_correccion=correction_key)
             # Sin SHA verificado no se omite ni se deriva automáticamente.
-            reusable = self.catalog.reusable(processing) if source.get('sha256') and not force else None
-            if reusable:
-                self.catalog.finish(run,'SKIPPED',validation='TECHNICAL_PASSED')
-                self.notify('SKIPPED',{'existing_run':reusable['run_id'],'scientific':'PENDING'},run)
-                return run
-            parent = self.catalog.reusable(correction,correction=True) if source.get('sha256') and not force else None
+            cached = self.catalog.reusable(result_key) if source.get('sha256') and not force else None
+            if cached:
+                return self.skip(process, scene, cached)
+            parent = parent or (self.catalog.reusable(correction_key,correction=True) if source.get('sha256') and not force else None)
             derive = local_l1r is not None or parent is not None
             if parent:
                 input_path = self.catalog.storage/parent['ruta']
-                with self.catalog.db:
-                    self.catalog.db.execute('UPDATE ejecuciones SET parent_artifact_id=? WHERE id=?',(parent['id'],run))
-                self.notify('REUSE_L1R',{'parent_artifact_id':parent['id']},run)
+                self.catalog.update(process, l1r_padre=parent['proceso'], tipo='DERIVADO')
+                self.notify('REUTILIZA_L1R', f'Se regenera desde el L1R del proceso {parent["proceso"]}', process, scene)
             elif local_l1r:
                 # Copia propia: resultados externos nunca se borran ni se sobrescriben.
                 input_path = folder/'source_L1R.nc'
@@ -204,139 +240,161 @@ class Pipeline:
             settings = folder/'settings.txt'
             settings.write_text('\n'.join(k+'='+str(v) for k,v in sorted(self.config['native'].items()))+'\n')
             result = self.call('process',input=str(input_path),settings=str(settings),
-                               output=str(folder/'output'),derive=derive)
+                               output=str(folder),derive=derive)
             files = result['files']
             report = validate(files,self.config)
             # Solo L1R y L2W persisten; L2R se usa para QA y metadata, luego se elimina.
             for level in ('l1r','l2w'):
                 if parent and level=='l1r':
                     continue
-                self.catalog.artifact(run,level.upper(),files[level],
-                                      {'variables':report['variables'][level],'grid':report['grid']})
-            summary = {'validation':report, 'engine':self.engine,
-                       'science':result['science_metadata'], 'settings':result['settings'],
-                       'environment':result['environment'], 'metrics':self.metrics}
-            self.catalog.finish(run,'SUCCEEDED','TECHNICAL_PASSED',provenance=digest(summary),summary=summary)
+                self.catalog.artifact(process,level.upper(),files[level])
+            self.catalog.finish(process,'OK','TECNICA_OK',qa=report,engine=self.engine,
+                                science=result['science_metadata'],settings=result['settings'],
+                                environment=result['environment'],metrics=self.metrics)
             # Publicación registrada antes de retirar intermediarios propios.
             retained = {Path(files[k]).resolve() for k in ('l1r','l2w')}
-            for path in folder.rglob('*'):
+            for path in sorted(folder.rglob('*'), reverse=True):
                 if path.is_file() and path.resolve() not in retained:
                     path.unlink()
-            disposition = cleanup(self.catalog,run)
-            self.notify('TECHNICAL_PASSED',{'run':run,'scientific':'PENDING','cleanup':disposition},run)
-            return run
+                elif path.is_dir() and not any(path.iterdir()):
+                    path.rmdir()
+            disposition = cleanup(self.catalog,process)
+            self.notify('TECNICA_OK', f'L1R y L2W registrados en {self.catalog.process(process)["carpeta"]}; '
+                        f'limpieza {disposition}; validación científica pendiente', process, scene)
+            return process
         except BaseException as error:
-            completed = self.catalog.db.execute('SELECT estado FROM ejecuciones WHERE id=?',(run,)).fetchone()[0]
-            if completed=='SUCCEEDED':
-                with self.catalog.db:
-                    self.catalog.db.execute("UPDATE ejecuciones SET limpieza='FAILED' WHERE id=?",(run,))
-                self.notify('CLEANUP_FAILED',{'error':type(error).__name__},run)
-                return run
-            state = 'INTERRUPTED' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'FAILED'
-            self.catalog.finish(run,state,error=type(error).__name__,summary={'metrics':self.metrics})
-            self.notify(state,{'error':type(error).__name__,'raw':'RETAINED'},run)
-            if state=='FAILED':
+            if self.catalog.process(process)['estado']=='OK':
+                self.catalog.update(process, limpieza='FALLIDA')
+                self.notify('LIMPIEZA_FALLIDA', type(error).__name__, process, scene)
+                return process
+            state = 'INTERRUMPIDO' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'FALLIDO'
+            self.record_download(process)
+            self.catalog.finish(process,state,error=type(error).__name__,metrics=self.metrics)
+            print(f'{state}: {type(error).__name__} (temporales conservados)', flush=True)
+            if state=='FALLIDO':
                 try:
-                    disposition = cleanup(self.catalog,run)
-                    self.notify('CLEANUP_POLICY',{'result':disposition},run)
+                    cleanup(self.catalog,process)
                 except OSError:
-                    self.notify('CLEANUP_FAILED',{'raw':'RETAINED'},run)
+                    self.notify('LIMPIEZA_FALLIDA', 'Temporales conservados', process, scene)
             raise
 
-    def batch(self, versions, force=False):
-        """Procesa cada producto una vez y devuelve las versiones que fallaron."""
-        groups = {}
-        for version in versions:
-            source = self.catalog.source(version)
-            # Identidad/baseline exactas; nunca deduplicar únicamente por fecha.
-            key = (source['identity']['acquisition_key'],source['identity']['baseline'],source['product'])
-            # Una ejecución por producto: la primera versión observada.
-            groups.setdefault(key,version)
-        failed = []
-        for version in groups.values():
+    def record_download(self, process, archive=None, source=None):
+        """Guarda en el proceso los minutos de la descarga exitosa, sus MB y los intentos.
+
+        Los intentos cuentan los fallidos (eventos INTENTO_FALLIDO, incluidos los cortados por
+        tiempo) más el exitoso; sin intentos de descarga no se escribe nada.
+        """
+        failed = self.catalog.failed_attempts(process)
+        succeeded = [m for m in self.metrics if m['stage']=='acquire' and m['ok']]
+        if not failed and not succeeded:
+            return
+        size = None
+        if succeeded:
+            size = Path(archive).stat().st_size if archive and Path(archive).is_file() else None
+            size = size or l1_bytes(source or {})
+        row = self.catalog.process(process)
+        previous = None if row['descarga_mb'] is None else row['descarga_mb']*1e6
+        self.catalog.downloaded(process,succeeded[-1]['seconds'] if succeeded else None,size or previous,
+                                failed+len(succeeded))
+
+    def batch(self, scenes, force=False):
+        """Procesa las escenas una a una y devuelve el resumen del lote.
+
+        Cada escena queda PROCESADA (procesada u omitida por existir) o FALLIDA (se reintenta
+        en el próximo run). Devuelve {'runs': procesos creados, 'failed': escenas fallidas,
+        'seconds': duración}.
+        """
+        started = time.monotonic()
+        scenes = list(dict.fromkeys(scenes))
+        runs, failed = [], []
+        for index, scene in enumerate(scenes, 1):
+            if self.progress:
+                row = self.catalog.db.execute('SELECT satelite, fecha_utc, tile FROM escenas WHERE escena=?',(scene,)).fetchone()
+                self.progress.scene(index,len(scenes),f"{row['satelite']} {row['fecha_utc']} {row['tile']}")
+            self.current_run = None
             try:
-                self.run(version,force=force)
+                self.run(scene,force=force)
+                self.catalog.scene_state(scene,'PROCESADA')
             except Exception:
-                failed.append(version)
-        return failed
+                failed.append(scene)
+                self.catalog.scene_state(scene,'FALLIDA')
+            if self.current_run:
+                runs.append(self.current_run)
+        if self.progress:
+            self.progress.clear()
+        return {'runs':runs,'failed':failed,'seconds':round(time.monotonic()-started,3)}
 
 
-def cleanup(catalog, run):
-    """Borra los temporales de una ejecución si la política lo permite y devuelve el resultado.
+def cleanup(catalog, process):
+    """Borra los temporales de un proceso si la política lo permite y devuelve el resultado.
 
     Se borra si L1R y L2W están verificados, si se agotaron los reintentos de una fuente
-    recuperable o si la ejecución fue interrumpida; en otro caso se aplaza.
+    recuperable o si el proceso fue interrumpido; en otro caso se aplaza.
     """
-    row = catalog.db.execute('SELECT * FROM ejecuciones WHERE id=?',(run,)).fetchone()
-    if not row:
-        raise ValueError('Ejecución inexistente')
-    source = catalog.source(row['version_id'])
-    attempts = catalog.db.execute("SELECT count(*) FROM eventos WHERE run_id=? AND tipo='ATTEMPT_FAILED'",(run,)).fetchone()[0]
-    required = json.loads(row['configuracion'])['input']['transient_attempts_total']
+    row = catalog.process(int(process))
+    process = row['id']
+    if row['tipo']=='IMPORTADO':
+        # Archivos copiados a mano: no hay temporales propios y nunca se borran.
+        return 'NO_APLICA'
+    source = catalog.source(row['escena'])
+    required = json.loads(row['detalle'] or '{}').get('perfil',{}).get('input',{}).get('transient_attempts_total',3)
     recoverable = source['provider'] in ('CDSE','USGS') and bool(source.get('id'))
-    exhausted = row['estado']=='FAILED' and attempts >= required and recoverable
-    artifacts = catalog.db.execute("SELECT * FROM artefactos WHERE run_id=? AND tipo IN ('L1R','L2W')",(run,)).fetchall()
-    kinds = {a['tipo'] for a in artifacts if catalog.available(a)}
-    if row['parent_artifact_id']:
-        parent = catalog.db.execute('SELECT * FROM artefactos WHERE id=?',(row['parent_artifact_id'],)).fetchone()
-        if parent and parent['tipo']=='L1R' and catalog.available(parent): kinds.add('L1R')
-    complete = row['estado']=='SUCCEEDED' and row['validacion']=='TECHNICAL_PASSED' and kinds=={'L1R','L2W'}
-    # Interrumpida (marcada por recover): sus descargas/salidas parciales nunca se reutilizan;
+    exhausted = row['estado']=='FALLIDO' and catalog.failed_attempts(process) >= required and recoverable
+    kinds = {kind for kind in ('L1R','L2W') if catalog.available(row,kind)}
+    if row['l1r_padre']:
+        parent = catalog.process(row['l1r_padre'])
+        if catalog.available(parent,'L1R'):
+            kinds.add('L1R')
+    complete = row['estado']=='OK' and row['validacion']=='TECNICA_OK' and kinds=={'L1R','L2W'}
+    # Interrumpido (marcado por recover): sus descargas/salidas parciales nunca se reutilizan;
     # un nuevo run vuelve a adquirir la fuente, así que solo ocupan presupuesto.
-    interrupted = row['estado']=='INTERRUPTED'
+    interrupted = row['estado']=='INTERRUMPIDO'
     if not complete and not exhausted and not interrupted:
-        with catalog.db:
-            catalog.db.execute("UPDATE ejecuciones SET limpieza='DEFERRED_VALIDATION' WHERE id=?",(run,))
-        catalog.event('CLEANUP_DEFERRED',{'reason':'No se cumplen los criterios técnicos, de reintentos agotados ni de interrupción para limpiar'},run)
-        return 'DEFERRED_VALIDATION'
-    reason = 'L1R_y_L2W_verificados' if complete else ('reintentos_agotados_fuente_recuperable' if exhausted else 'ejecucion_interrumpida')
-    catalog.event('CLEANUP_AUTHORIZED',{'reason':reason},run)
-    # Carpeta de trabajo de un run interrumpido solo si no registró artefactos (corte entre registro y cierre).
-    registered = catalog.db.execute('SELECT count(*) FROM artefactos WHERE run_id=?',(run,)).fetchone()[0]
-    keys = [('temporary','temporary')] + ([('path','runs')] if interrupted and not registered else [])
-    events = catalog.db.execute("SELECT detalles FROM eventos WHERE run_id=? AND tipo='WORK_DIRECTORY'",(run,)).fetchall()
-    for event, (key, root) in ((e, k) for e in events for k in keys):
-        relative = json.loads(event['detalles']).get(key)
-        if not relative:
-            continue
+        catalog.update(process, limpieza='APLAZADA')
+        catalog.event('LIMPIEZA_APLAZADA','No se cumplen los criterios técnicos, de reintentos agotados ni de interrupción',
+                      process,row['escena'])
+        return 'APLAZADA'
+    targets = [('temporary/'+str(process),'temporary')]
+    # Carpeta de un proceso interrumpido solo si no registró archivos (corte entre registro y cierre).
+    if interrupted and not row['l1r'] and not row['l2w'] and row['carpeta']:
+        targets.append((row['carpeta'],'runs'))
+    for relative, root in targets:
         target = catalog.storage/relative
         allowed = (catalog.storage/root).resolve()
         if target.is_symlink() or not target.resolve().is_relative_to(allowed) or target.resolve()==allowed:
-            raise ValueError('Ruta de limpieza fuera de la carpeta de ejecución')
+            raise ValueError('Ruta de limpieza fuera de la carpeta del proceso')
         try:
             if target.exists():
                 shutil.rmtree(target)
         except OSError:
-            with catalog.db:
-                catalog.db.execute("UPDATE ejecuciones SET limpieza='FAILED' WHERE id=?",(run,))
-            catalog.event('CLEANUP_FAILED',{},run)
+            catalog.update(process, limpieza='FALLIDA')
+            catalog.event('LIMPIEZA_FALLIDA','No se pudo borrar '+relative,process,row['escena'])
             raise
-    with catalog.db:
-        catalog.db.execute("UPDATE ejecuciones SET limpieza='DELETED' WHERE id=?",(run,))
-    catalog.event('CLEANUP_FINISHED',{},run)
-    return 'DELETED'
+    catalog.update(process, limpieza='HECHA')
+    reason = 'L1R y L2W verificados' if complete else ('reintentos agotados' if exhausted else 'proceso interrumpido')
+    catalog.event('LIMPIEZA_HECHA','Temporales borrados: '+reason,process,row['escena'])
+    return 'HECHA'
 
 
 def recover(catalog):
-    """Registra interrupciones y limpia lo parcial de toda ejecución INTERRUPTED pendiente.
+    """Registra interrupciones y limpia lo parcial de todo proceso INTERRUMPIDO pendiente.
 
-    Bajo el bloqueo exclusivo ningún run está vivo: lo que queda en STARTED está abandonado.
-    También cubre Ctrl+C, que marca INTERRUPTED sin pasar por aquí. Un fallo de borrado no
-    detiene el arranque: queda limpieza='FAILED' y se reintenta en el próximo recover.
+    Bajo el bloqueo exclusivo ningún proceso está vivo: lo que queda EN_CURSO está abandonado.
+    También cubre Ctrl+C, que marca INTERRUMPIDO sin pasar por aquí. Un fallo de borrado no
+    detiene el arranque: queda limpieza FALLIDA y se reintenta en el próximo recover.
     """
     marked = catalog.recover()
-    pending = catalog.db.execute("SELECT id FROM ejecuciones WHERE estado='INTERRUPTED' "
-                                 "AND limpieza!='DELETED' ORDER BY inicio").fetchall()
+    pending = catalog.db.execute("SELECT id FROM procesos WHERE estado='INTERRUMPIDO' "
+                                 "AND limpieza!='HECHA' ORDER BY id").fetchall()
     cleaned, failed = [], []
-    for (run,) in pending:
+    for (process,) in pending:
         try:
-            cleanup(catalog,run)
-            cleaned.append(run)
+            cleanup(catalog,process)
+            cleaned.append(process)
         except Exception as error:
             # cleanup ya registra los OSError de borrado; el resto (p. ej. ruta fuera de storage) se registra aquí.
             if not isinstance(error,OSError):
-                with catalog.db:
-                    catalog.db.execute("UPDATE ejecuciones SET limpieza='FAILED' WHERE id=?",(run,))
-                catalog.event('CLEANUP_FAILED',{'error':type(error).__name__},run)
-            failed.append(run)
-    return {'interrumpidas':marked,'limpiadas':cleaned,'limpieza_fallida':failed}
+                catalog.update(process, limpieza='FALLIDA')
+                catalog.event('LIMPIEZA_FALLIDA',type(error).__name__,process)
+            failed.append(process)
+    return {'interrumpidos':marked,'limpiados':cleaned,'limpieza_fallida':failed}

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 import netCDF4
 from . import native
-from .config import canonical
+from .config import canonical, received_bytes
 
 
 def main():
@@ -17,6 +17,10 @@ def main():
     try:
         operation = request['operation']
         ac = native.load(request['acolite'])
+        # Línea base para que el proceso principal mida los bytes descargados (barra de progreso).
+        baseline = received_bytes()
+        if baseline is not None:
+            (request_path.parent/'baseline').write_text(str(baseline))
         # Las APIs de autenticación nativas pueden imprimir datos: no persistir stdout de red.
         with open(os.devnull, 'w') as sink:
             target = contextlib.nullcontext() if operation == 'process' else contextlib.redirect_stdout(sink)
