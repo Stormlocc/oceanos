@@ -9,14 +9,14 @@ Actualizado: 8 de octubre de 2026 (versión 0.3.0). AOI: `lapargera_v1`.
 | [03_configuracion.md](03_configuracion.md) | Perfiles YAML, settings que se envían a ACOLITE y grilla |
 | [04_operacion.md](04_operacion.md) | Comandos, cola search→run, `sync`, progreso, retención, catálogo SQLite y pruebas |
 | [05_resultados.md](05_resultados.md) | Ensayos: diagnóstico del enmascarado, recursos, multifecha, regeneración y estado de los datos |
-| [06_pendientes.md](06_pendientes.md) | Pendientes científicos, riesgos, preparación para paralelizar y trabajo futuro |
+| [06_pendientes.md](06_pendientes.md) | Pendientes científicos, riesgos, pendientes del paralelo y trabajo futuro |
 
 ## Estado
 
-- Wrapper local secuencial operativo para Sentinel-2 (CDSE) y Landsat 8/9 (USGS), con catálogo SQLite v4 legible (escenas, procesos, búsquedas, eventos y vistas) y 53 pruebas.
+- Wrapper local operativo, en paralelo con el 70 % de CPU y RAM, para Sentinel-2 (CDSE) y Landsat 8/9 (USGS), con catálogo SQLite v4 legible (escenas, procesos, búsquedas, eventos y vistas) y 59 pruebas.
 - 14 adquisiciones Sentinel-2 con L1R y L2W en `storage/runs/0001_…` a `0014_…`, registradas como importadas en el catálogo nuevo.
 - **Ciencia pendiente:** los productos acuáticos quedan casi totalmente enmascarados por el umbral SWIR nativo y faltan datos in situ.
-- Próximo paso previsto: paralelizar ([06](06_pendientes.md#antes-de-paralelizar)). Docker/Airflow y el cubo temporal no están iniciados.
+- Paralelo implementado sin ensayo real con descargas ([06](06_pendientes.md#paralelo-resuelto-y-pendiente)). Docker/Airflow y el cubo temporal no están iniciados.
 
 **No descargar escenas, LUT, auxiliares ni dependencias sin autorización explícita.** Credenciales en `~/.netrc`, nunca en el repositorio ni en el catálogo.
 

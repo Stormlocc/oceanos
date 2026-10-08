@@ -17,6 +17,10 @@ def main():
     try:
         operation = request['operation']
         ac = native.load(request['acolite'])
+        if request.get('scratch'):
+            # En paralelo cada etapa usa su scratch: ACOLITE descarga auxiliares ahí con el nombre final.
+            Path(request['scratch']).mkdir(parents=True, exist_ok=True)
+            ac.config['scratch_dir'] = request['scratch']
         # Línea base para que el proceso principal mida los bytes descargados (barra de progreso).
         baseline = received_bytes()
         if baseline is not None:

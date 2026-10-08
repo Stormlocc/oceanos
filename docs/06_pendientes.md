@@ -25,14 +25,15 @@ Estado al 08-10-2026. Ninguna fase nueva se inicia sin orden explícita del usua
 | Respaldo externo | No hay backups automáticos del catálogo ni de `storage/runs`; definir destino y procedimiento |
 | Cambio de ACOLITE | Cambiar revisión o parche invalida la reutilización de todas las salidas previas (ver [ACOLITE](02_acolite.md#instalación-y-prepare)) |
 
-## Antes de paralelizar
+## Paralelo: resuelto y pendiente
 
-- **Un escritor.** `exclusive()` bloquea `storage/.writer.lock` durante todo el comando; cada `Catalog` usa una única conexión SQLite sin WAL. Paralelizar exige separar la sesión de catálogo por tarea, o un escritor central, y definir el bloqueo por adquisición (hoy implícito).
-- **Cola sin reserva.** La cola es `escenas.estado`: `pending()` la lee y el lote la actualiza al terminar cada escena, sin un estado "en proceso" ni dueño. Varios trabajadores necesitan reservar la escena en una transacción (p. ej. `estado='EN_PROCESO'` con el id del proceso).
-- **Estado en `Pipeline`.** `current_run`, `metrics` y `last_query` son atributos de instancia por escena; cada trabajador necesita su propia instancia.
-- **Presupuesto de disco.** `disk_bytes()` recorre `storage`, `acolite/data` y `acolite/scratch` cada 2 s por proceso y no reserva espacio: N procesos en paralelo pueden superar los 50 GB entre muestreos.
-- **Progreso.** `Progress` reescribe una sola línea; varios trabajadores requieren un panel por tarea. La medición `rchar` es por proceso y ya está aislada por `stage/baseline`.
-- **Directorios compartidos de ACOLITE.** `scratch` y las descargas de auxiliares/LUT son comunes a todos los procesos; la concurrencia nativa no está auditada.
+Resuelto (08-10-2026, [operación](04_operacion.md#paralelo)): una conexión SQLite (WAL) y una copia de `Pipeline` por hilo dentro del mismo comando (`exclusive()` sigue impidiendo dos comandos); el lote reparte la lista de escenas en memoria, sin estado "en proceso" en la cola; reservas de RAM por etapa con el 70 % del equipo; hilos numéricos limitados; barra con un espacio por escena; `scratch` propio por etapa y primer ACOLITE en solitario.
+
+Pendiente:
+- **Sin ensayo real.** Probado con dobles y con un proceso aislado real sin red; falta un lote real con descargas para medir la ganancia y confirmar que CDSE/USGS aceptan descargas simultáneas.
+- **Descarga en memoria.** La descarga nativa reserva ≈2,6 GB por escena; con streaming propio bajaría a pocos cientos de MB y en 8 GB podría solaparse con ACOLITE. Implica reemplazar la descarga nativa.
+- **Presupuesto de disco.** `disk_bytes()` se muestrea cada 2 s por proceso y no reserva espacio; el número de escenas a la vez se limita al inicio con 3,5 GB por escena.
+- **Auxiliares del mismo día.** Dos escenas de la misma fecha (varios tiles) descargarían el mismo auxiliar a la vez a `acolite/data`; con un único tile no ocurre.
 - **Proveedores.** CDSE/USGS tienen límites de sesión y descarga; los reintentos usan esperas fijas (60 y 300 s) sin `Retry-After`.
 - **Identidad compuesta.** `clave_resultado`/`clave_correccion` dependen de la identidad del motor; cualquier cambio del parche ACOLITE invalida la reutilización de todas las salidas previas.
 - **Importados sin verificar.** Los 14 L1R/L2W actuales son procesos `IMPORTADO`: evitan descargas repetidas, pero no se reutilizan como padre para regenerar productos. Para eso hay que reprocesar la escena (o validar los archivos y marcarlos `TECNICA_OK`).

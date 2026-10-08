@@ -24,7 +24,7 @@ Lección operativa: ejecutar siempre con `micromamba run -p /home/antho/micromam
 | RSS máximo del proceso | 4,74 GB (máximo en los 8 ensayos: 6,57 GB) |
 | Disco ocupado al terminar (RAW, salidas, scratch y data) | 3,42 GB |
 
-Con ≈7,6 GiB de RAM disponibles en WSL, dos procesos con ese pico no caben: se mantiene **concurrencia uno**. NetCDF comprimido zlib nivel 4, variables Float32 y flags enteros; no se introdujo compresión con pérdida. Con productos casi totalmente enmascarados el L2W comprime mucho: su tamaño no representa escenas con agua válida.
+Con ≈7,6 GiB de RAM disponibles en WSL, dos procesos ACOLITE con ese pico no caben: el paralelo reserva RAM por etapa y en este equipo solo solapa descargas ([paralelo](04_operacion.md#paralelo)). NetCDF comprimido zlib nivel 4, variables Float32 y flags enteros; no se introdujo compresión con pérdida. Con productos casi totalmente enmascarados el L2W comprime mucho: su tamaño no representa escenas con agua válida.
 
 ## Multifecha y Landsat (agosto de 2026)
 

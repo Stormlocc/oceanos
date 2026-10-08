@@ -1,4 +1,5 @@
-"""Orquestación secuencial, reintentos y conservación de historial."""
+"""Orquestación por escena (secuencial o en paralelo), reintentos y conservación de historial."""
+import contextlib
 import json
 import os
 import shutil
@@ -7,7 +8,9 @@ import subprocess
 import sys
 import time
 import tempfile
+import threading
 from pathlib import Path
+from .catalog import Catalog
 from .config import ROOT, canonical, digest, disk_bytes, file_hash, received_bytes
 from .native import identity, eligible, l1_bytes
 from .validation import validate
@@ -15,30 +18,62 @@ from .validation import validate
 STAGES = {'query':'consulta', 'extract':'extracción', 'process':'ACOLITE'}
 
 
+def roots(storage, acolite):
+    """Carpetas que cuentan en el presupuesto de disco: storage, LUT/auxiliares y scratch de ACOLITE."""
+    return [Path(storage), Path(acolite).resolve()/'data', Path(acolite).resolve()/'scratch']
+
+
 class Pipeline:
-    """Orquesta búsqueda, adquisición, procesamiento y registro de una escena a la vez."""
+    """Orquesta búsqueda, adquisición, procesamiento y registro de escenas.
+
+    Una instancia atiende una escena a la vez; en paralelo, cada hilo usa su copia (`clone`).
+    """
     # Barra de progreso opcional (oceanos.progress.Progress) y último proceso creado por run().
     progress = None
     current_run = None
+    # Reparto de CPU/RAM (oceanos.resources.Resources); sin él, el lote es secuencial.
+    resources = None
     # Informe de la última consulta al proveedor (sin fuentes), para que el CLI lo explique.
     last_query = None
 
-    def __init__(self, catalog, config, acolite, wait=time.sleep, progress=None):
+    def __init__(self, catalog, config, acolite, wait=time.sleep, progress=None, resources=None):
         """Guarda catálogo y perfil y calcula la identidad del motor ACOLITE."""
         self.catalog, self.config = catalog, config
         self.acolite = Path(acolite).resolve()
         self.engine = identity(self.acolite)
         self.wait = wait
         self.progress = progress
-        self.roots = [catalog.storage, self.acolite/'data', self.acolite/'scratch']
+        self.resources = resources
+        self.roots = roots(catalog.storage, self.acolite)
         self.metrics = []
+
+    def clone(self):
+        """Copia para otro hilo: comparte perfil, progreso y recursos; abre su propia conexión SQLite."""
+        twin = object.__new__(Pipeline)
+        twin.__dict__.update(self.__dict__)
+        twin.catalog = Catalog(self.catalog.storage)
+        twin.metrics, twin.current_run = [], None
+        return twin
+
+    def say(self, text):
+        """Imprime una línea sin pisar la barra de progreso."""
+        if self.progress:
+            self.progress.message(text)
+        else:
+            print(text, flush=True)
+
+    def pause(self, seconds):
+        """Espera entre reintentos; en paralelo se corta si se pidió detener el lote."""
+        if self.resources:
+            if self.resources.stop.wait(seconds):
+                raise KeyboardInterrupt
+        else:
+            self.wait(seconds)
 
     def notify(self, kind, message, process=None, scene=None, echo=True):
         """Registra un evento legible en el catálogo y, con `echo`, lo imprime."""
         if echo:
-            if self.progress:
-                self.progress.clear()
-            print(f'{kind}: {message}', flush=True)
+            self.say(f'{kind}: {message}')
         self.catalog.event(kind, message, process, scene)
 
     def watch(self, operation, pid, stage, started, arguments, state):
@@ -78,22 +113,30 @@ class Pipeline:
         """Ejecuta una operación de ACOLITE en un proceso aislado (oceanos.worker).
 
         Los argumentos y el resultado viajan como JSON en una carpeta temporal. El proceso se
-        corta si supera `timeout` segundos o el presupuesto de disco.
+        corta si supera `timeout` segundos o el presupuesto de disco. Con `resources` espera a
+        que su pico de RAM quepa, limita sus hilos numéricos y usa un scratch propio de ACOLITE.
         """
         # JSON únicamente como transporte efímero entre procesos actual y el de ACOLITE; no es otro registro.
         temporary = self.catalog.storage/'temporary'
         temporary.mkdir(parents=True, exist_ok=True)
-        started = time.monotonic()
-        with tempfile.TemporaryDirectory(prefix='stage_', dir=temporary) as stage:
+        queued = time.monotonic()
+        waiting = lambda: self.progress and self.progress.stage(STAGES.get(operation,'descarga')+': en espera de RAM',
+                                                                time.monotonic()-queued)
+        reservation = self.resources.reserve(operation,waiting) if self.resources else contextlib.nullcontext()
+        with tempfile.TemporaryDirectory(prefix='stage_', dir=temporary) as stage, reservation:
+            # El tiempo en espera de RAM no cuenta para el límite ni para las métricas de la etapa.
+            started = time.monotonic()
             # Se crea la peticion y se crea el archivo de resultado; el worker lo escribe al terminar.
             request, result = Path(stage)/'request.json', Path(stage)/'result.json'
-            request.write_text(canonical({'operation':operation,'acolite':str(self.acolite),**arguments}))
+            extra = {'scratch':str(Path(stage)/'scratch')} if self.resources else {}
+            request.write_text(canonical({'operation':operation,'acolite':str(self.acolite),**extra,**arguments}))
             if disk_bytes(self.roots) >= self.config['budget']:
                 raise RuntimeError('Presupuesto temporal agotado')
             # Ejecuta un proceso aislado de ACOLITE. usa (oceanos.worker.py)
             process = subprocess.Popen([sys.executable,'-m','oceanos.worker',str(request),str(result)],
                                        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                       start_new_session=True)
+                                       start_new_session=True,
+                                       env=self.resources.environment() if self.resources else None)
             state = {}
             try:
                 # Revisa el estado del proceso aislado anterior cada 2 segundos.
@@ -104,6 +147,8 @@ class Pipeline:
                         raise RuntimeError('Presupuesto temporal agotado')
                     self.watch(operation,process.pid,stage,started,arguments,state)
                     self.wait(2)
+                    if self.resources and self.resources.stop.is_set():
+                        raise KeyboardInterrupt
             except BaseException:
                 os.killpg(process.pid, signal.SIGTERM)
                 try:
@@ -118,6 +163,9 @@ class Pipeline:
                                  'rss_bytes':response.get('peak_rss_bytes'), 'ok':response['ok']})
             if process.returncode or not response['ok']:
                 raise RuntimeError('Etapa '+operation+' falló: '+response.get('error','WorkerExit'))
+            if self.resources and operation=='process':
+                # LUT ya preparadas: los siguientes ACOLITE pueden correr a la vez si caben en RAM.
+                self.resources.warm = True
             return response['result']
 
     def retry(self, function, process=None, scene=None):
@@ -132,7 +180,7 @@ class Pipeline:
                             process, scene)
                 if attempt+1 == attempts:
                     raise
-                self.wait(delays[attempt])
+                self.pause(delays[attempt])
 
     def search(self):
         """Consulta el proveedor del perfil, registra las escenas observadas y devuelve sus nombres."""
@@ -270,7 +318,7 @@ class Pipeline:
             state = 'INTERRUMPIDO' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'FALLIDO'
             self.record_download(process)
             self.catalog.finish(process,state,error=type(error).__name__,metrics=self.metrics)
-            print(f'{state}: {type(error).__name__} (temporales conservados)', flush=True)
+            self.say(f'{state}: {type(error).__name__} (temporales conservados)')
             if state=='FALLIDO':
                 try:
                     cleanup(self.catalog,process)
@@ -298,31 +346,86 @@ class Pipeline:
                                 failed+len(succeeded))
 
     def batch(self, scenes, force=False):
-        """Procesa las escenas una a una y devuelve el resumen del lote.
+        """Procesa las escenas y devuelve el resumen del lote.
 
+        Con `resources` y más de una escena las reparte entre varios hilos; si no, una a una.
         Cada escena queda PROCESADA (procesada u omitida por existir) o FALLIDA (se reintenta
         en el próximo run). Devuelve {'runs': procesos creados, 'failed': escenas fallidas,
         'seconds': duración}.
         """
         started = time.monotonic()
         scenes = list(dict.fromkeys(scenes))
-        runs, failed = [], []
-        for index, scene in enumerate(scenes, 1):
-            if self.progress:
-                row = self.catalog.db.execute('SELECT satelite, fecha_utc, tile FROM escenas WHERE escena=?',(scene,)).fetchone()
-                self.progress.scene(index,len(scenes),f"{row['satelite']} {row['fecha_utc']} {row['tile']}")
-            self.current_run = None
-            try:
-                self.run(scene,force=force)
-                self.catalog.scene_state(scene,'PROCESADA')
-            except Exception:
-                failed.append(scene)
-                self.catalog.scene_state(scene,'FALLIDA')
-            if self.current_run:
-                runs.append(self.current_run)
+        workers = min(self.resources.workers,len(scenes)) if self.resources else 1
+        if workers > 1:
+            outcomes = self.parallel(scenes,force,workers)
+        else:
+            outcomes = [self.attempt(index,len(scenes),scene,force) for index, scene in enumerate(scenes,1)]
         if self.progress:
             self.progress.clear()
-        return {'runs':runs,'failed':failed,'seconds':round(time.monotonic()-started,3)}
+        return {'runs':[run for run, _, _ in outcomes if run],
+                'failed':[scene for _, scene, failed in outcomes if failed],
+                'seconds':round(time.monotonic()-started,3)}
+
+    def attempt(self, index, total, scene, force=False):
+        """Procesa una escena del lote, actualiza su estado en la cola y devuelve (proceso, escena, falló)."""
+        if self.progress:
+            row = self.catalog.db.execute('SELECT satelite, fecha_utc, tile FROM escenas WHERE escena=?',(scene,)).fetchone()
+            self.progress.scene(index,total,f"{row['satelite']} {row['fecha_utc']} {row['tile']}")
+        self.current_run = None
+        failed = False
+        try:
+            self.run(scene,force=force)
+            self.catalog.scene_state(scene,'PROCESADA')
+        except Exception:
+            failed = True
+            self.catalog.scene_state(scene,'FALLIDA')
+        finally:
+            if self.progress:
+                self.progress.release()
+        return self.current_run, scene, failed
+
+    def parallel(self, scenes, force, workers):
+        """Reparte las escenas entre `workers` hilos, cada uno con su copia del pipeline.
+
+        Ctrl+C llega al hilo principal: se pide detener, cada hilo corta su proceso aislado
+        (queda INTERRUMPIDO, como en secuencial) y se relanza la interrupción.
+        """
+        pending = list(enumerate(scenes,1))
+        outcomes, lock = {}, threading.Lock()
+
+        def lane():
+            twin = self.clone()
+            try:
+                while not self.resources.stop.is_set():
+                    with lock:
+                        if not pending:
+                            return
+                        index, scene = pending.pop(0)
+                    try:
+                        outcomes[index] = twin.attempt(index,len(scenes),scene,force)
+                    except KeyboardInterrupt:
+                        return
+                    except Exception:
+                        # Fallo fuera de run() (p. ej. catálogo ocupado): la escena se reintenta en otro run.
+                        outcomes[index] = (twin.current_run,scene,True)
+            finally:
+                twin.catalog.db.close()
+
+        threads = [threading.Thread(target=lane,name=f'escena-{n}',daemon=True) for n in range(workers)]
+        for thread in threads:
+            thread.start()
+        try:
+            for thread in threads:
+                while thread.is_alive():
+                    thread.join(0.5)
+        except KeyboardInterrupt:
+            self.resources.stop.set()
+            for thread in threads:
+                thread.join()
+            raise
+        if self.resources.stop.is_set():
+            raise KeyboardInterrupt
+        return [outcomes[index] for index in sorted(outcomes)]
 
 
 def cleanup(catalog, process):

@@ -690,4 +690,123 @@ class UsgsQueryTests(unittest.TestCase):
             self.assertIn(expected,text)
 
 
+class ParallelTests(unittest.TestCase):
+    """Reparto del 70 % de CPU/RAM, reservas por etapa y lote con varias escenas a la vez."""
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory()
+        self.cat=Catalog(self.temp.name)
+        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+
+    def tearDown(self):
+        self.cat.db.close()
+        self.temp.cleanup()
+
+    def named(self, date):
+        name=SCENE.replace('20260804T150719',date)
+        return self.cat.upsert_scene({**source(),'product':name,'identity':scene_identity(name)})
+
+    def test_plan_uses_seventy_percent_and_measured_peaks(self):
+        from oceanos.resources import plan, GB
+        resources=plan(self.cat,self.config,40*GB,cpus=20,memory=7.94*GB)
+        self.assertEqual((resources.cpu_budget,round(resources.memory_budget/GB,2)),(14,5.56))
+        # Dos descargas de 2,6 GB caben en 5,56 GB, más una escena lista para ACOLITE.
+        self.assertEqual((resources.workers,resources.threads()),(3,4))
+        self.assertEqual(resources.environment()['OPENBLAS_NUM_THREADS'],'4')
+        self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB).workers,18)
+        self.assertEqual(plan(self.cat,self.config,4*GB,cpus=32,memory=64*GB).workers,1)
+        self.assertEqual(plan(self.cat,self.config,40*GB,workers=5,cpus=20,memory=7.94*GB).workers,5)
+        process=self.cat.start(self.named('20260804T150719'),'DESCARGA',self.config)
+        self.cat.finish(process,'OK','TECNICA_OK',metrics=[{'stage':'acquire','seconds':9,'rss_bytes':3*GB,'ok':True}])
+        self.assertAlmostEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=7.94*GB).peaks['acquire']/GB,3.3)
+
+    def test_stages_start_only_if_their_ram_fits(self):
+        from oceanos.resources import Resources, PEAKS, GB
+        small=Resources(PEAKS['sentinel2'],cpus=20,memory=7.94*GB)
+        with small.condition:
+            self.assertTrue(small.admit('acquire'));self.assertTrue(small.admit('acquire'))
+            self.assertFalse(small.admit('acquire'))
+            small.free('acquire');small.free('acquire')
+            # Primer ACOLITE: solo, mientras prepara LUT; luego ACOLITE (4,8) + descarga (2,6) no caben en 5,56.
+            self.assertTrue(small.admit('process'));self.assertFalse(small.admit('extract'))
+            small.free('process');small.warm=True
+            self.assertTrue(small.admit('process'));self.assertFalse(small.admit('acquire'))
+            small.free('process')
+            # Con ACOLITE esperando no arranca otra descarga, aunque no haya nada en curso.
+            small.waiting={'process':1}
+            self.assertFalse(small.admit('acquire'));self.assertTrue(small.admit('process'))
+        large=Resources(PEAKS['sentinel2'],cpus=32,memory=64*GB);large.warm=True
+        with large.condition:
+            self.assertTrue(all(large.admit('process') for _ in range(9)));self.assertFalse(large.admit('process'))
+        # Una etapa sola entra aunque supere la fracción asignada.
+        tiny=Resources(PEAKS['landsat'],cpus=2,memory=4*GB)
+        with tiny.condition:
+            self.assertTrue(tiny.admit('process'))
+
+    def test_stop_ends_wait_for_ram(self):
+        from oceanos.resources import Resources, PEAKS, GB
+        resources=Resources(PEAKS['sentinel2'],cpus=4,memory=8*GB)
+        with resources.condition:
+            resources.admit('process')
+        resources.stop.set()
+        with self.assertRaises(KeyboardInterrupt):
+            with resources.reserve('acquire'):
+                pass
+        self.assertEqual(resources.waiting['acquire'],0)
+
+    def test_parallel_batch_processes_scenes_at_once(self):
+        import threading
+        from oceanos.resources import Resources, PEAKS, GB
+        ok,bad,third=(self.named(d) for d in ('20260804T150719','20260809T150719','20260811T150719'))
+        self.cat.enqueue([ok,bad,third])
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config
+        runner.engine={};runner.metrics=[];runner.wait=lambda _:None
+        runner.resources=Resources(PEAKS['sentinel2'],cpus=4,memory=16*GB,workers=2)
+        together=threading.Barrier(2,timeout=10);threads=set()
+        def fake(self,scene,force=False):
+            threads.add(threading.get_ident())
+            self.current_run=self.catalog.start(scene,'DESCARGA',self.config)
+            if scene!=third:
+                together.wait()
+            if scene==bad:
+                self.catalog.finish(self.current_run,'FALLIDO',error='RuntimeError');raise RuntimeError('fallo')
+            self.catalog.finish(self.current_run,'OK','TECNICA_OK')
+        with patch.object(Pipeline,'run',fake):
+            result=runner.batch([ok,bad,third])
+        self.assertEqual(len(threads),2)
+        self.assertEqual((result['failed'],sorted(result['runs'])),([bad],[1,2,3]))
+        self.assertEqual({i['escena']:i['estado'] for i in self.cat.queue()},{ok:'PROCESADA',bad:'FALLIDA',third:'PROCESADA'})
+
+    def test_progress_keeps_one_slot_per_scene(self):
+        import io, threading
+        from oceanos.progress import Progress
+        stream=io.StringIO();bar=Progress(stream,interactive=False,every=0)
+        started,finish=threading.Event(),threading.Event()
+        def first():
+            bar.scene(1,2,'S2B 2026-08-04');bar.download(250_000_000,500_000_000,5_000_000,50)
+            started.set();finish.wait(5)
+        thread=threading.Thread(target=first);thread.start();started.wait(5)
+        bar.scene(2,2,'S2C 2026-08-09');bar.stage('ACOLITE',90,180);bar.message('TECNICA_OK: listo')
+        finish.set();thread.join()
+        text=stream.getvalue()
+        self.assertIn('[1/2] S2B 2026-08-04  descarga',text)
+        self.assertIn('[2/2] S2C 2026-08-09  ACOLITE ~50%',text)
+        self.assertIn('[2/2] TECNICA_OK: listo',text)
+
+    def test_run_plans_workers_from_option(self):
+        import io, contextlib
+        from oceanos import cli
+        names=[self.named('20260804T150719'),self.named('20260809T150719')];self.cat.enqueue(names)
+        pipeline=Mock();pipeline.batch.return_value={'runs':[],'failed':[],'seconds':1}
+        out=io.StringIO()
+        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.profile',return_value=self.config):
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cli.main(['--storage',self.temp.name,'run','--trabajadores','2']),0)
+        self.assertEqual(pipeline.resources.workers,2)
+        self.assertIn('Paralelo: 2 escena(s) a la vez',out.getvalue())
+        err=io.StringIO()
+        with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+            cli.parser().parse_args(['run','--trabajadores','0'])
+        self.assertIn('entero ≥ 1',err.getvalue())
+
+
 if __name__=='__main__': unittest.main()

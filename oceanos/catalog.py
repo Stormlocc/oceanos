@@ -179,9 +179,14 @@ class Catalog:
 
     @staticmethod
     def connect(path):
-        """Conexión con filas tipo diccionario y claves foráneas activas."""
-        db = sqlite3.connect(path)
+        """Conexión con filas tipo diccionario y claves foráneas activas.
+
+        WAL y espera de hasta 60 s permiten una conexión por escena en paralelo: los lectores
+        no bloquean al escritor y las escrituras breves se turnan.
+        """
+        db = sqlite3.connect(path, timeout=60)
         db.row_factory = sqlite3.Row
+        db.execute('PRAGMA journal_mode=WAL')
         db.execute('PRAGMA foreign_keys=ON')
         return db
 
@@ -471,3 +476,10 @@ class Catalog:
         values = sorted(m['seconds'] for (detail,) in self.db.execute("SELECT detalle FROM procesos WHERE estado='OK'")
                         for m in json.loads(detail or '{}').get('metrics', []) if m.get('stage') == stage and m.get('ok'))
         return values[len(values)//2] if values else None
+
+    def stage_peak(self, stage, family):
+        """Mayor RSS (bytes) medido en una etapa exitosa de la familia de sensor; None sin historial."""
+        values = [m['rss_bytes'] for (detail,) in self.db.execute("SELECT detalle FROM procesos WHERE estado='OK'")
+                  for data in [json.loads(detail or '{}')] if data.get('perfil', {}).get('family') == family
+                  for m in data.get('metrics', []) if m.get('stage') == stage and m.get('ok') and m.get('rss_bytes')]
+        return max(values) if values else None

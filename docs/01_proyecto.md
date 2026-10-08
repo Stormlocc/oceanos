@@ -9,7 +9,7 @@ Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github
 - Todas las adquisiciones válidas, sin filtro de nubosidad (configurable en el YAML).
 - Salida rectangular a 10 m en EPSG:32619. Remuestrear Landsat de 30 a 10 m no agrega detalle.
 - Prioridad al océano, bahías, lagunas costeras y aguas someras; FAI/NDVI conservan tierra y se filtran después.
-- Una escena a la vez, con un máximo de 50 GB temporales.
+- Varias escenas a la vez hasta su L2W, usando como máximo el 70 % de la CPU y de la RAM del equipo, con un máximo de 50 GB temporales ([operación](04_operacion.md#paralelo)).
 - Persisten **L1R, L2W y el catálogo SQLite**; RAW, L2R y registros duplicados son temporales. Regenerar productos desde L1R repite la corrección atmosférica (AC).
 - Productos: `Rrs_*`, `tur_nechad2009`, `chl_oc3`, `ndci` (solo Sentinel-2), `fai`, `ndvi`. OC4 excluido por decisión del usuario (29-09-2026).
 - Código pequeño y legible, pruebas de comportamiento, documentación en español.

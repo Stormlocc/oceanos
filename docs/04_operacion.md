@@ -76,9 +76,26 @@ La tabla muestra fecha y hora UTC, satélite, tile o path/row, tamaño L1, nubos
 
 ## Progreso y tiempos
 
-Durante `run` una línea por escena muestra `[i/n]`, la etapa, el porcentaje, los MB, la velocidad y el tiempo restante; sin terminal interactiva se imprime una línea cada 30 s. La descarga nativa CDSE acumula el ZIP en memoria y lo escribe al final, por lo que se miden los bytes leídos por el proceso aislado (`/proc/<pid>/io`, `rchar`) desde una línea base que el worker escribe tras cargar ACOLITE; al superar el tamaño esperado la etapa pasa a verificación de checksum. Extracción y ACOLITE se comparan con la mediana histórica de esa etapa (máximo 99 %).
+Durante `run` una línea por escena muestra (en paralelo, una línea compacta con todas las escenas en curso y los mensajes con su `[i/n]`) `[i/n]`, la etapa, el porcentaje, los MB, la velocidad y el tiempo restante; sin terminal interactiva se imprime una línea cada 30 s. La descarga nativa CDSE acumula el ZIP en memoria y lo escribe al final, por lo que se miden los bytes leídos por el proceso aislado (`/proc/<pid>/io`, `rchar`) desde una línea base que el worker escribe tras cargar ACOLITE; al superar el tamaño esperado la etapa pasa a verificación de checksum. Extracción y ACOLITE se comparan con la mediana histórica de esa etapa (máximo 99 %).
 
 Cada proceso guarda `descarga_min` (intento exitoso), `descarga_mb` e `intentos` (fallidos + exitoso; cada fallo queda como evento `INTENTO_FALLIDO`). Al terminar, `run` imprime escenas por estado y con reintentos, tiempo total del lote, tiempo, volumen y velocidad de descarga, disco de L1R/L2W generado en ese run y total, y una línea por proceso.
+
+## Paralelo
+
+`run` con dos o más escenas las reparte entre varios hilos; cada escena recorre su cadena completa (descarga → extracción → ACOLITE → validación → registro de L1R/L2W → limpieza) con su propia conexión SQLite (WAL, espera de hasta 60 s). Al iniciar se imprime el reparto calculado para el equipo:
+
+```
+Paralelo: 3 escena(s) a la vez · equipo 20 CPU y 8.1 GB RAM, se usa el 70 %: 14 CPU y 5.7 GB · 4 hilos por proceso · pico RAM descarga 2.6 GB, extracción 1.2 GB, ACOLITE 4.8 GB
+```
+
+- **RAM (70 % de `MemTotal`; en WSL, la de la VM).** Antes de lanzar cada proceso aislado se reserva su pico de RAM esperado y solo arranca si cabe junto con lo ya reservado; si no, espera ("en espera de RAM" en la barra). El pico es el mayor `rss_bytes` medido en el catálogo para esa etapa y sensor (+10 %); sin historial: descarga 2,6 GB (la descarga nativa acumula el ZIP en memoria), extracción 1,2 GB, ACOLITE 4,8 GB (Sentinel-2) o 6,6 GB (Landsat). Una etapa sola siempre arranca aunque supere el 70 %, para no bloquear equipos pequeños.
+- **Prioridad.** Primero lo más avanzado (ACOLITE, luego extracción, luego descarga): una descarga nueva no arranca mientras otra escena espera su ACOLITE, así se libera RAM y disco antes de traer más.
+- **CPU (70 % de los núcleos).** Cada proceso aislado recibe `OMP/OPENBLAS/MKL/NUMEXPR_NUM_THREADS` = núcleos asignados ÷ escenas a la vez.
+- **Escenas a la vez.** Descargas que caben en la RAM asignada + 1, sin superar los núcleos asignados ni el disco libre del presupuesto de 50 GB (3,5 GB por escena). `--trabajadores N` fija el número (las reservas de RAM se respetan igual); `--trabajadores 1` o una sola escena procesan en secuencia como antes.
+- **Directorios compartidos de ACOLITE.** Cada etapa usa su propio `scratch` dentro de su temporal. El primer ACOLITE del lote corre solo, porque prepara LUT en `acolite/data`; desde el primero exitoso pueden correr varios si caben en RAM.
+- **Ctrl+C.** Se pide detener a todos los hilos: cada uno corta su proceso aislado y su proceso queda `INTERRUMPIDO`, igual que en secuencia; `recover` lo limpia al iniciar el siguiente comando.
+
+Con 8 GB en WSL el 70 % (5,7 GB) admite dos descargas a la vez o un ACOLITE solo (4,8 + 2,6 GB no caben): la ganancia viene de solapar descargas. Más RAM en la VM (`memory=` en `%UserProfile%\.wslconfig`) o un equipo mayor aumentan las escenas a la vez sin cambiar nada.
 
 ## Ejecución de una escena
 
@@ -116,4 +133,4 @@ Vistas: `v_resumen` (cantidades por estado), `v_cola`, `v_descargas` (procesos O
 /home/antho/.local/bin/micromamba run -p /home/antho/micromamba/envs/acolite python -m unittest discover -s tests -v
 ```
 
-53 pruebas en `tests/test_wrapper.py`, con dobles para red y ACOLITE y un intervalo fijo propio (agosto de 2026). Cubren: catálogo legible y respaldo del anterior, estados y detalle, contenido cambiado, idempotencia y reutilización L1R, regeneración sin reproyección, fechas, productos, integridad y grilla, exclusión mutua, interrupción y limpieza, reintentos, cola, `sync` (importados, adopción de `runs`, unificación de escenas), tiempos de descarga, progreso, selección por sensor/satélite, validación de argumentos y consulta USGS. No replican algoritmos científicos.
+59 pruebas en `tests/test_wrapper.py`, con dobles para red y ACOLITE y un intervalo fijo propio (agosto de 2026). Cubren: catálogo legible y respaldo del anterior, estados y detalle, contenido cambiado, idempotencia y reutilización L1R, regeneración sin reproyección, fechas, productos, integridad y grilla, exclusión mutua, interrupción y limpieza, reintentos, cola, `sync` (importados, adopción de `runs`, unificación de escenas), tiempos de descarga, progreso, selección por sensor/satélite, validación de argumentos y consulta USGS, reparto de CPU/RAM, reservas por etapa y lote en paralelo. No replican algoritmos científicos.

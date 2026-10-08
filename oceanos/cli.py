@@ -4,10 +4,11 @@ import json
 import sys
 from pathlib import Path
 from .catalog import Catalog
-from .config import ROOT, ACOLITE, PRODUCTS, canonical, exclusive, file_hash, instant, profile
+from .config import ROOT, ACOLITE, PRODUCTS, canonical, disk_bytes, exclusive, file_hash, instant, profile
 from .native import prepare, scene_identity, eligible
-from .pipeline import Pipeline, cleanup, recover
+from .pipeline import Pipeline, cleanup, recover, roots
 from .progress import Progress, size, duration
+from .resources import plan
 from .sync import sync
 
 
@@ -44,6 +45,17 @@ def satellite_list(value):
         raise argparse.ArgumentTypeError(f"satélite desconocido {', '.join(unknown)}; opciones: "
                                          "S2A, S2B, S2C (sentinel2) o L8, L9 (landsat)")
     return list(dict.fromkeys(items))
+
+
+def workers_count(value):
+    """Valida --trabajadores: entero mayor o igual a 1."""
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"valor inválido '{value}': use un entero ≥ 1 (1 = una escena a la vez)")
+    return number
 
 
 class Formatter(argparse.RawDescriptionHelpFormatter):
@@ -144,8 +156,13 @@ def parser():
     run = command('run', 'Descargar y procesar con ACOLITE las escenas de la cola (no repite search)',
         'Sin opciones procesa las escenas PENDIENTE o FALLIDA de la cola que caen en el\n'
         'sensor/satélite/intervalo elegidos; las demás quedan pendientes. Muestra barra de\n'
-        'progreso y, al final, tiempos y disco ocupado por L1R/L2W.',
+        'progreso y, al final, tiempos y disco ocupado por L1R/L2W.\n\n'
+        'Paralelo: varias escenas avanzan a la vez hasta su L2W usando como máximo el 70 % de\n'
+        'la CPU y de la RAM del equipo. Cada etapa (descarga, extracción, ACOLITE) arranca solo\n'
+        'si su pico de RAM medido cabe en ese 70 %; el resto espera. El número de escenas a la\n'
+        'vez se calcula al iniciar según CPU, RAM, historial del catálogo y disco libre.',
         '  oceanos run\n'
+        '  oceanos run --trabajadores 1               # una escena a la vez (como antes)\n'
         '  oceanos run --satelite S2B\n'
         '  oceanos run --sensor landsat\n'
         '  oceanos run --escena 20260215\n'
@@ -159,6 +176,9 @@ def parser():
                        help='nombre nativo de la escena, p. ej. S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE '
                             'o LC09_L1TP_005048_20260805_20260806_02_T1')
     run.add_argument('--force', action='store_true', help='reprocesar aunque ya exista un L2W verificado')
+    run.add_argument('--trabajadores', type=workers_count, metavar='N',
+                     help='escenas a la vez (1 = secuencial). Por defecto se calcula con el 70 %% de CPU y RAM; '
+                          'la RAM de cada etapa se respeta igual')
     derive = command('derive', 'Regenerar L2W desde un L1R sin descargar (repite la corrección atmosférica)',
         examples="  oceanos --products 'Rrs_*,chl_oc3,fai,ndvi' derive --l1r storage/runs/0007_S2B_2026-02-15/X_L1R.nc --scene NOMBRE.SAFE")
     selection(derive)
@@ -452,6 +472,10 @@ def main(argv=None):
                             print("No hay escenas pendientes. Use 'oceanos search --registrar' para registrarlas.")
                             return 0
                         print(f'Escenas por procesar: {len(scenes)}')
+                    if len(scenes) > 1 and args.trabajadores != 1:
+                        free = config['budget']-disk_bytes(roots(catalog.storage,args.acolite))
+                        pipeline.resources = plan(catalog,config,free,args.trabajadores)
+                        print(pipeline.resources.describe())
                     result = pipeline.batch(scenes,force=args.force)
                     show_summary(catalog,result)
                     return 1 if result['failed'] else 0

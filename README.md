@@ -18,6 +18,7 @@ oceanos status --ultimas 5               # revisar resultados
 ```
 
 - `--sensor landsat` usa el perfil Landsat; `--satelite S2B,S2C`, `--start AAAA-MM-DD` y `--end AAAA-MM-DD` (fin excluido) cambian la selección sin editar el YAML. Usa la misma selección en `search` y en `run`.
+- `run` procesa varias escenas a la vez hasta su L2W con el 70 % de CPU y RAM del equipo (calculado al iniciar); `--trabajadores 1` vuelve a una escena a la vez. Detalle en [operación](docs/04_operacion.md#paralelo).
 - Una sola escena: `oceanos run --escena 20260215` (nombre o fragmento único). Archivo local: `oceanos run --source escena.zip --scene NOMBRE.SAFE`. Regenerar desde L1R: `oceanos derive --l1r ARCHIVO_L1R.nc --scene NOMBRE.SAFE`.
 - Ayuda con valores válidos y ejemplos: `oceanos -h` y `oceanos <comando> -h`.
 - Catálogo legible en `storage/catalog/catalog.sqlite` (tablas `escenas`, `procesos`, `busquedas`, `eventos`; vistas `v_resumen`, `v_cola`, `v_descargas`, `v_fallidas`, `v_disco`). Consultas en [`sql/consultas.sql`](sql/consultas.sql); abrir con `python -m sqlite3 storage/catalog/catalog.sqlite` o DB Browser for SQLite.
