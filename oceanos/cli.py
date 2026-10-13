@@ -162,7 +162,9 @@ def parser():
         '1,5 GB), respetando límites de WSL, contenedores y cgroup. Cada etapa (descarga, extracción,\n'
         'ACOLITE) arranca solo si su pico de RAM medido cabe en ese presupuesto y en la RAM libre del\n'
         'momento; el resto espera. El número de escenas a la vez se calcula al iniciar según CPU,\n'
-        'RAM, historial del catálogo y disco libre. OCEANOS_CPUS y OCEANOS_RAM_GB lo fijan a mano.',
+        'RAM, historial del catálogo y disco libre. OCEANOS_CPUS y OCEANOS_RAM_GB lo fijan a mano.\n'
+        'Descargas Sentinel-2: como máximo 4 a la vez (cuota de una cuenta CDSE gratuita); las demás\n'
+        'escenas esperan turno o avanzan en extracción/ACOLITE. OCEANOS_DESCARGAS lo cambia.',
         '  oceanos run\n'
         '  oceanos run --trabajadores 1               # una escena a la vez (como antes)\n'
         '  oceanos run --satelite S2B\n'

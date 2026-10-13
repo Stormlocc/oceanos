@@ -776,6 +776,26 @@ class ParallelTests(unittest.TestCase):
         with tiny.condition:
             self.assertTrue(tiny.admit('process'))
 
+    def test_downloads_respect_provider_quota(self):
+        import os
+        from oceanos.resources import Resources, plan, PEAKS, GB
+        resources=Resources(PEAKS['sentinel2'],cpus=20,memory=64*GB,free=60*GB,limits={'acquire':4});resources.warm=True
+        with resources.condition:
+            # CDSE gratuito: 4 descargas a la vez aunque la RAM alcance para más.
+            self.assertTrue(all(resources.admit('acquire') for _ in range(4)));self.assertFalse(resources.admit('acquire'))
+            # Las demás etapas siguen entrando mientras las descargas esperan turno.
+            self.assertTrue(resources.admit('process'))
+            resources.free('acquire');self.assertTrue(resources.admit('acquire'))
+        with patch.dict(os.environ,{'OCEANOS_CPUS':'','OCEANOS_RAM_GB':'','OCEANOS_DESCARGAS':''}):
+            sentinel=plan(self.cat,self.config,40*GB,cpus=20,memory=32*GB,free=28*GB)
+            self.assertEqual(sentinel.limits,{'acquire':4})
+            self.assertIn('descargas a la vez 4',sentinel.describe())
+            self.assertEqual(plan(self.cat,{**self.config,'family':'landsat'},40*GB,cpus=20,memory=32*GB,free=28*GB).limits,{})
+        with patch.dict(os.environ,{'OCEANOS_DESCARGAS':'2'}):
+            self.assertEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=32*GB,free=28*GB).limits,{'acquire':2})
+        with patch.dict(os.environ,{'OCEANOS_DESCARGAS':'0'}), self.assertRaises(ValueError):
+            plan(self.cat,self.config,40*GB,cpus=20,memory=32*GB,free=28*GB)
+
     def test_live_free_ram_holds_extra_stages(self):
         from oceanos.resources import Resources, PEAKS, GB
         now={'free':40*GB}

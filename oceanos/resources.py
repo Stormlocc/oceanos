@@ -25,6 +25,11 @@ PEAKS = {'sentinel2': {'query': 1.0*GB, 'acquire': 2.6*GB, 'extract': 1.2*GB, 'p
          'landsat': {'query': 1.0*GB, 'acquire': 2.6*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
 # Disco por escena en curso: RAW, extraído, salidas y auxiliares (3,42 GB medidos).
 SCENE_DISK = 3.5*GB
+# Descargas simultáneas por familia: una cuenta gratuita de CDSE admite 4 conexiones a la vez
+# (documentation.dataspace.copernicus.eu/Quotas.html; con más, CDSE rechaza la descarga). USGS sin
+# límite documentado. OCEANOS_DESCARGAS lo cambia (p. ej. una cuenta CDSE con más cuota).
+DOWNLOADS = {'sentinel2': 4, 'landsat': None}
+DOWNLOADS_VARIABLE = 'OCEANOS_DESCARGAS'
 # Prioridad al admitir: lo más avanzado primero, para liberar RAM y disco antes de descargar más.
 PRIORITY = {'process': 0, 'extract': 1, 'acquire': 2, 'query': 3}
 THREADS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS')
@@ -119,6 +124,20 @@ def overrides(environ=os.environ):
     return number(CPUS_VARIABLE, int), ram*GB if ram else None
 
 
+def download_limit(family, environ=os.environ):
+    """Descargas a la vez para la familia: OCEANOS_DESCARGAS si se indicó; si no, la cuota del proveedor."""
+    value = environ.get(DOWNLOADS_VARIABLE, '').strip()
+    if not value:
+        return DOWNLOADS.get(family)
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if number < 1:
+        raise ValueError(f'{DOWNLOADS_VARIABLE}={value!r} inválido: use un entero mayor que 0')
+    return number
+
+
 def peaks(catalog, family):
     """Pico de RAM esperado por etapa: el mayor medido en el catálogo (+10 %) o el valor por defecto."""
     result = {}
@@ -141,7 +160,8 @@ def plan(catalog, config, free_disk, workers=None, cpus=None, memory=None, free=
     free = detected[2] if free is None else free
     fixed_cpus, fixed_ram = overrides()
     resources = Resources(peaks(catalog, config['family']), cpus, memory, free, live=live,
-                          cpu_budget=fixed_cpus, memory_budget=fixed_ram)
+                          cpu_budget=fixed_cpus, memory_budget=fixed_ram,
+                          limits={'acquire': download_limit(config['family'])})
     if workers is None:
         by_memory = int(resources.memory_budget//resources.peaks['acquire'])+1
         workers = min(resources.cpu_budget, by_memory, int(free_disk//SCENE_DISK))
@@ -156,7 +176,8 @@ class Resources:
     `cpu_budget`/`memory_budget` los fijan a mano. `live()` devuelve la RAM libre del momento
     (None la ignora) para no arrancar una etapa más si otras aplicaciones ocuparon la memoria.
     """
-    def __init__(self, peaks, cpus, memory, free=None, workers=1, live=None, cpu_budget=None, memory_budget=None):
+    def __init__(self, peaks, cpus, memory, free=None, workers=1, live=None, cpu_budget=None, memory_budget=None,
+                 limits=None):
         self.peaks, self.cpus, self.memory = peaks, cpus, memory
         self.available = memory if free is None else free
         self.spare = reserve(memory)
@@ -166,6 +187,9 @@ class Resources:
         self.live = live
         self.workers = workers
         self.used, self.active, self.alone = 0.0, 0, False
+        # Máximo de procesos a la vez por etapa (p. ej. descargas según la cuota del proveedor).
+        self.limits = {stage: limit for stage, limit in (limits or {}).items() if limit}
+        self.running = {}
         # Hasta que un ACOLITE termine bien, nada corre a la vez que él: la primera ejecución
         # prepara LUT en acolite/data, un directorio compartido sin auditoría de concurrencia.
         self.warm = False
@@ -200,9 +224,12 @@ class Resources:
         ahead = any(count for other, count in self.waiting.items() if PRIORITY.get(other, len(PRIORITY)) < rank)
         if self.alone or ahead:
             return False
+        if self.running.get(stage, 0) >= self.limits.get(stage, float('inf')):
+            return False
         if self.active and (exclusive or self.used+need > self.memory_budget or not self.fits_now(need)):
             return False
         self.used += need
+        self.running[stage] = self.running.get(stage, 0)+1
         self.active += 1
         self.alone = exclusive
         return True
@@ -210,6 +237,7 @@ class Resources:
     def free(self, stage):
         """Libera la reserva de la etapa (con `condition` tomada) y despierta a los que esperan."""
         self.used -= self.peaks.get(stage, 0)
+        self.running[stage] -= 1
         self.active -= 1
         self.alone = False
         self.condition.notify_all()
@@ -245,5 +273,7 @@ class Resources:
                   f'se dejan {self.cpus-self.cpu_budget} CPU y {size(self.spare)} al sistema')
         return (f'Paralelo: {self.workers} escena(s) a la vez · equipo {self.cpus} CPU, '
                 f'{size(self.memory)} RAM ({size(self.available)} libre) · se usan {self.cpu_budget} CPU y '
-                f'{size(self.memory_budget)} ({origin}) · {self.threads()} hilos por proceso · pico RAM '
+                f'{size(self.memory_budget)} ({origin}) · {self.threads()} hilos por proceso · '
+                + (f"descargas a la vez {self.limits['acquire']} · " if 'acquire' in self.limits else '')
+                + 'pico RAM '
                 + ', '.join(f'{name} {size(self.peaks[stage])}' for stage, name in NAMES.items()))
