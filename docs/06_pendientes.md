@@ -27,7 +27,7 @@ Estado al 08-10-2026. Ninguna fase nueva se inicia sin orden explícita del usua
 
 ## Paralelo: resuelto y pendiente
 
-Resuelto (08-10-2026, [operación](04_operacion.md#paralelo)): una conexión SQLite (WAL) y una copia de `Pipeline` por hilo dentro del mismo comando (`exclusive()` sigue impidiendo dos comandos); el lote reparte la lista de escenas en memoria, sin estado "en proceso" en la cola; reservas de RAM por etapa con el 70 % del equipo; hilos numéricos limitados; barra con un espacio por escena; `scratch` propio por etapa y primer ACOLITE en solitario.
+Resuelto (08-10-2026, [operación](04_operacion.md#paralelo)): una conexión SQLite (WAL) y una copia de `Pipeline` por hilo dentro del mismo comando (`exclusive()` sigue impidiendo dos comandos); el lote reparte la lista de escenas en memoria, sin estado "en proceso" en la cola; reservas de RAM por etapa con la RAM libre del equipo menos una reserva (13-10-2026: antes 70 % fijo); hilos numéricos limitados; barra con un espacio por escena; `scratch` propio por etapa y primer ACOLITE en solitario.
 
 Pendiente:
 - **Sin ensayo real.** Probado con dobles y con un proceso aislado real sin red; falta un lote real con descargas para medir la ganancia y confirmar que CDSE/USGS aceptan descargas simultáneas.

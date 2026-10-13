@@ -691,7 +691,7 @@ class UsgsQueryTests(unittest.TestCase):
 
 
 class ParallelTests(unittest.TestCase):
-    """Reparto del 70 % de CPU/RAM, reservas por etapa y lote con varias escenas a la vez."""
+    """Reparto dinámico de CPU/RAM según el equipo, reservas por etapa y lote con varias escenas a la vez."""
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(self.temp.name)
@@ -705,28 +705,62 @@ class ParallelTests(unittest.TestCase):
         name=SCENE.replace('20260804T150719',date)
         return self.cat.upsert_scene({**source(),'product':name,'identity':scene_identity(name)})
 
-    def test_plan_uses_seventy_percent_and_measured_peaks(self):
+    def test_plan_adapts_to_free_hardware_and_measured_peaks(self):
+        import os
         from oceanos.resources import plan, GB
-        resources=plan(self.cat,self.config,40*GB,cpus=20,memory=7.94*GB)
-        self.assertEqual((resources.cpu_budget,round(resources.memory_budget/GB,2)),(14,5.56))
-        # Dos descargas de 2,6 GB caben en 5,56 GB, más una escena lista para ACOLITE.
-        self.assertEqual((resources.workers,resources.threads()),(3,4))
-        self.assertEqual(resources.environment()['OPENBLAS_NUM_THREADS'],'4')
-        self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB).workers,18)
-        self.assertEqual(plan(self.cat,self.config,4*GB,cpus=32,memory=64*GB).workers,1)
-        self.assertEqual(plan(self.cat,self.config,40*GB,workers=5,cpus=20,memory=7.94*GB).workers,5)
-        process=self.cat.start(self.named('20260804T150719'),'DESCARGA',self.config)
-        self.cat.finish(process,'OK','TECNICA_OK',metrics=[{'stage':'acquire','seconds':9,'rss_bytes':3*GB,'ok':True}])
-        self.assertAlmostEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=7.94*GB).peaks['acquire']/GB,3.3)
+        with patch.dict(os.environ,{'OCEANOS_CPUS':'','OCEANOS_RAM_GB':''}):
+            # 20 CPU: se dejan 2 al sistema; 7,5 GB libres menos 1,5 GB de reserva = 6 GB.
+            resources=plan(self.cat,self.config,40*GB,cpus=20,memory=8*GB,free=7.5*GB)
+            self.assertEqual((resources.cpu_budget,round(resources.memory_budget/GB,2)),(18,6.0))
+            # Dos descargas de 2,6 GB caben en 6 GB, más una escena lista para ACOLITE.
+            self.assertEqual((resources.workers,resources.threads()),(3,6))
+            self.assertEqual(resources.environment()['OPENBLAS_NUM_THREADS'],'6')
+            # Equipo grande: 32 CPU (29 usables) y 60 GB libres de 64 (reserva 6,4 GB).
+            big=plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=60*GB)
+            self.assertEqual((big.cpu_budget,round(big.memory_budget/GB,1),big.workers),(29,53.6,21))
+            # La misma máquina con la RAM ocupada por otras aplicaciones lanza menos escenas.
+            self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=10*GB).workers,2)
+            self.assertEqual(plan(self.cat,self.config,4*GB,cpus=32,memory=64*GB,free=60*GB).workers,1)
+            self.assertEqual(plan(self.cat,self.config,40*GB,workers=5,cpus=20,memory=8*GB,free=7.5*GB).workers,5)
+            # Equipo mínimo: 2 CPU sin reserva, al menos una escena.
+            small=plan(self.cat,self.config,40*GB,cpus=2,memory=4*GB,free=1*GB)
+            self.assertEqual((small.cpu_budget,small.memory_budget,small.workers),(2,0.0,1))
+            process=self.cat.start(self.named('20260804T150719'),'DESCARGA',self.config)
+            self.cat.finish(process,'OK','TECNICA_OK',metrics=[{'stage':'acquire','seconds':9,'rss_bytes':3*GB,'ok':True}])
+            self.assertAlmostEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=8*GB,free=7.5*GB).peaks['acquire']/GB,3.3)
+
+    def test_environment_variables_fix_cpu_and_ram(self):
+        import os
+        from oceanos.resources import plan, GB
+        with patch.dict(os.environ,{'OCEANOS_CPUS':'4','OCEANOS_RAM_GB':'10'}):
+            resources=plan(self.cat,self.config,40*GB,cpus=20,memory=64*GB,free=60*GB)
+        self.assertEqual((resources.cpu_budget,resources.memory_budget,resources.workers),(4,10*GB,4))
+        self.assertIn('fijado con OCEANOS_CPUS/OCEANOS_RAM_GB',resources.describe())
+        with patch.dict(os.environ,{'OCEANOS_CPUS':'cero','OCEANOS_RAM_GB':''}), self.assertRaises(ValueError):
+            plan(self.cat,self.config,40*GB,cpus=20,memory=64*GB,free=60*GB)
+
+    def test_hardware_reads_cgroup_limits_and_meminfo(self):
+        from oceanos.resources import cgroup_limits, meminfo
+        root=Path(self.temp.name)/'cgroup';leaf=root/'docker'/'oceanos';leaf.mkdir(parents=True)
+        membership=Path(self.temp.name)/'membership';membership.write_text('0::/docker/oceanos\n')
+        self.assertEqual(cgroup_limits(root,membership),(None,None))
+        (root/'docker'/'cpu.max').write_text('400000 100000\n')
+        (root/'docker'/'memory.max').write_text('12000000000\n');(root/'docker'/'memory.current').write_text('1000000000\n')
+        (leaf/'memory.max').write_text('8000000000\n');(leaf/'memory.current').write_text('2000000000\n')
+        (leaf/'cpu.max').write_text('max 100000\n')
+        # El límite más estricto de la jerarquía: 4 CPU del padre y 6 GB libres del propio.
+        self.assertEqual(cgroup_limits(root,membership),(4,6_000_000_000))
+        info=Path(self.temp.name)/'meminfo';info.write_text('MemTotal: 20000000 kB\nMemFree: 1000 kB\nMemAvailable: 15000000 kB\n')
+        self.assertEqual(meminfo(info),(20000000*1024,15000000*1024))
 
     def test_stages_start_only_if_their_ram_fits(self):
         from oceanos.resources import Resources, PEAKS, GB
-        small=Resources(PEAKS['sentinel2'],cpus=20,memory=7.94*GB)
+        small=Resources(PEAKS['sentinel2'],cpus=20,memory=8*GB,free=7.5*GB)
         with small.condition:
             self.assertTrue(small.admit('acquire'));self.assertTrue(small.admit('acquire'))
             self.assertFalse(small.admit('acquire'))
             small.free('acquire');small.free('acquire')
-            # Primer ACOLITE: solo, mientras prepara LUT; luego ACOLITE (4,8) + descarga (2,6) no caben en 5,56.
+            # Primer ACOLITE: solo, mientras prepara LUT; luego ACOLITE (4,8) + descarga (2,6) no caben en 6.
             self.assertTrue(small.admit('process'));self.assertFalse(small.admit('extract'))
             small.free('process');small.warm=True
             self.assertTrue(small.admit('process'));self.assertFalse(small.admit('acquire'))
@@ -734,13 +768,25 @@ class ParallelTests(unittest.TestCase):
             # Con ACOLITE esperando no arranca otra descarga, aunque no haya nada en curso.
             small.waiting={'process':1}
             self.assertFalse(small.admit('acquire'));self.assertTrue(small.admit('process'))
-        large=Resources(PEAKS['sentinel2'],cpus=32,memory=64*GB);large.warm=True
+        large=Resources(PEAKS['sentinel2'],cpus=32,memory=64*GB,free=50*GB);large.warm=True
         with large.condition:
             self.assertTrue(all(large.admit('process') for _ in range(9)));self.assertFalse(large.admit('process'))
-        # Una etapa sola entra aunque supere la fracción asignada.
+        # Una etapa sola entra aunque supere la RAM asignada.
         tiny=Resources(PEAKS['landsat'],cpus=2,memory=4*GB)
         with tiny.condition:
             self.assertTrue(tiny.admit('process'))
+
+    def test_live_free_ram_holds_extra_stages(self):
+        from oceanos.resources import Resources, PEAKS, GB
+        now={'free':40*GB}
+        resources=Resources(PEAKS['sentinel2'],cpus=32,memory=64*GB,free=60*GB,live=lambda:now['free']);resources.warm=True
+        with resources.condition:
+            self.assertTrue(resources.admit('process'))
+            # Otra aplicación ocupó la RAM: 5 GB libres no dan para 4,8 GB más la reserva de 6,4 GB.
+            now['free']=5*GB
+            self.assertFalse(resources.admit('process'))
+            now['free']=20*GB
+            self.assertTrue(resources.admit('process'))
 
     def test_stop_ends_wait_for_ram(self):
         from oceanos.resources import Resources, PEAKS, GB

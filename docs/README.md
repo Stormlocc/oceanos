@@ -13,7 +13,7 @@ Actualizado: 8 de octubre de 2026 (versión 0.3.0). AOI: `lapargera_v1`.
 
 ## Estado
 
-- Wrapper local operativo, en paralelo con el 70 % de CPU y RAM, para Sentinel-2 (CDSE) y Landsat 8/9 (USGS), con catálogo SQLite v4 legible (escenas, procesos, búsquedas, eventos y vistas) y 59 pruebas.
+- Wrapper local operativo, en paralelo con la CPU y RAM libres del equipo, para Sentinel-2 (CDSE) y Landsat 8/9 (USGS), con catálogo SQLite v4 legible (escenas, procesos, búsquedas, eventos y vistas) y 62 pruebas.
 - 14 adquisiciones Sentinel-2 con L1R y L2W en `storage/runs/0001_…` a `0014_…`, registradas como importadas en el catálogo nuevo.
 - **Ciencia pendiente:** los productos acuáticos quedan casi totalmente enmascarados por el umbral SWIR nativo y faltan datos in situ.
 - Paralelo implementado sin ensayo real con descargas ([06](06_pendientes.md#paralelo-resuelto-y-pendiente)). Docker/Airflow y el cubo temporal no están iniciados.

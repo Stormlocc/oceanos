@@ -157,10 +157,12 @@ def parser():
         'Sin opciones procesa las escenas PENDIENTE o FALLIDA de la cola que caen en el\n'
         'sensor/satélite/intervalo elegidos; las demás quedan pendientes. Muestra barra de\n'
         'progreso y, al final, tiempos y disco ocupado por L1R/L2W.\n\n'
-        'Paralelo: varias escenas avanzan a la vez hasta su L2W usando como máximo el 70 % de\n'
-        'la CPU y de la RAM del equipo. Cada etapa (descarga, extracción, ACOLITE) arranca solo\n'
-        'si su pico de RAM medido cabe en ese 70 %; el resto espera. El número de escenas a la\n'
-        'vez se calcula al iniciar según CPU, RAM, historial del catálogo y disco libre.',
+        'Paralelo: varias escenas avanzan a la vez hasta su L2W aprovechando el equipo donde se\n'
+        'ejecuta: los núcleos utilizables (menos ~10 %) y la RAM libre al iniciar (menos 10 %, mín.\n'
+        '1,5 GB), respetando límites de WSL, contenedores y cgroup. Cada etapa (descarga, extracción,\n'
+        'ACOLITE) arranca solo si su pico de RAM medido cabe en ese presupuesto y en la RAM libre del\n'
+        'momento; el resto espera. El número de escenas a la vez se calcula al iniciar según CPU,\n'
+        'RAM, historial del catálogo y disco libre. OCEANOS_CPUS y OCEANOS_RAM_GB lo fijan a mano.',
         '  oceanos run\n'
         '  oceanos run --trabajadores 1               # una escena a la vez (como antes)\n'
         '  oceanos run --satelite S2B\n'
@@ -177,7 +179,7 @@ def parser():
                             'o LC09_L1TP_005048_20260805_20260806_02_T1')
     run.add_argument('--force', action='store_true', help='reprocesar aunque ya exista un L2W verificado')
     run.add_argument('--trabajadores', type=workers_count, metavar='N',
-                     help='escenas a la vez (1 = secuencial). Por defecto se calcula con el 70 %% de CPU y RAM; '
+                     help='escenas a la vez (1 = secuencial). Por defecto se calcula con la CPU y RAM libres del equipo; '
                           'la RAM de cada etapa se respeta igual')
     derive = command('derive', 'Regenerar L2W desde un L1R sin descargar (repite la corrección atmosférica)',
         examples="  oceanos --products 'Rrs_*,chl_oc3,fai,ndvi' derive --l1r storage/runs/0007_S2B_2026-02-15/X_L1R.nc --scene NOMBRE.SAFE")
