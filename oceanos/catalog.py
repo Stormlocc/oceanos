@@ -424,6 +424,11 @@ class Catalog:
                 return {'proceso': row['id'], 'ruta': row[kind.lower()]}
         return None
 
+    def persistent_bytes(self):
+        """Bytes de los L1R/L2W presentes que se conservan (propios e importados)."""
+        return self.db.execute("SELECT coalesce(sum(coalesce(l1r_bytes,0)+coalesce(l2w_bytes,0)),0) FROM procesos "
+                               "WHERE archivos='PRESENTES'").fetchone()[0]
+
     def failed_attempts(self, process):
         """Intentos de descarga fallidos registrados para un proceso."""
         return self.db.execute("SELECT count(*) FROM eventos WHERE proceso=? AND tipo='INTENTO_FALLIDO'",
@@ -477,9 +482,15 @@ class Catalog:
                         for m in json.loads(detail or '{}').get('metrics', []) if m.get('stage') == stage and m.get('ok'))
         return values[len(values)//2] if values else None
 
-    def stage_peak(self, stage, family):
-        """Mayor RSS (bytes) medido en una etapa exitosa de la familia de sensor; None sin historial."""
-        values = [m['rss_bytes'] for (detail,) in self.db.execute("SELECT detalle FROM procesos WHERE estado='OK'")
+    def stage_peak(self, stage, family, recent=20):
+        """Mayor RSS (bytes) de una etapa exitosa en los últimos `recent` procesos OK de la familia; None sin historial.
+
+        Solo los recientes: si cambia el método de una etapa (p. ej. la descarga), sus picos
+        antiguos dejan de pesar.
+        """
+        values = [m['rss_bytes'] for (detail,) in self.db.execute(
+                      "SELECT detalle FROM procesos WHERE estado='OK' AND json_extract(detalle,'$.perfil.family')=? "
+                      "ORDER BY id DESC LIMIT ?", (family, recent))
                   for data in [json.loads(detail or '{}')] if data.get('perfil', {}).get('family') == family
                   for m in data.get('metrics', []) if m.get('stage') == stage and m.get('ok') and m.get('rss_bytes')]
         return max(values) if values else None

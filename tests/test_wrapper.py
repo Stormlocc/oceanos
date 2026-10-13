@@ -1,5 +1,7 @@
 """Pruebas de comportamiento del catálogo y del wrapper; no duplican ciencia ACOLITE."""
 import json
+import os
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -712,19 +714,23 @@ class ParallelTests(unittest.TestCase):
             # 20 CPU: se dejan 2 al sistema; 7,5 GB libres menos 1,5 GB de reserva = 6 GB.
             resources=plan(self.cat,self.config,40*GB,cpus=20,memory=8*GB,free=7.5*GB)
             self.assertEqual((resources.cpu_budget,round(resources.memory_budget/GB,2)),(18,6.0))
-            # Dos descargas de 2,6 GB caben en 6 GB, más una escena lista para ACOLITE.
-            self.assertEqual((resources.workers,resources.threads()),(3,6))
-            self.assertEqual(resources.environment()['OPENBLAS_NUM_THREADS'],'6')
-            # Equipo grande: 32 CPU (29 usables) y 60 GB libres de 64 (reserva 6,4 GB).
+            # 4 descargas (cuota CDSE) de 0,4 GB y un ACOLITE de 4,8 GB en los 4,4 GB restantes (al menos uno).
+            self.assertEqual((resources.workers,resources.threads()),(5,3))
+            self.assertEqual(resources.environment()['OPENBLAS_NUM_THREADS'],'3')
+            # Equipo grande: 32 CPU (29 usables) y 60 GB libres de 64 (reserva 6,4 GB): 4 descargas + 10 ACOLITE.
             big=plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=60*GB)
-            self.assertEqual((big.cpu_budget,round(big.memory_budget/GB,1),big.workers),(29,53.6,21))
+            self.assertEqual((big.cpu_budget,round(big.memory_budget/GB,1),big.workers),(29,53.6,14))
             # La misma máquina con la RAM ocupada por otras aplicaciones lanza menos escenas.
-            self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=10*GB).workers,2)
+            self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=10*GB).workers,5)
+            # Landsat sin cuota documentada: descargas de 3,3 GB que caben (7 en 25 GB) y un ACOLITE.
+            landsat=plan(self.cat,{**self.config,'family':'landsat'},100*GB,cpus=20,memory=31*GB,free=28*GB)
+            self.assertEqual((round(landsat.memory_budget/GB,1),landsat.workers),(24.9,8))
             self.assertEqual(plan(self.cat,self.config,4*GB,cpus=32,memory=64*GB,free=60*GB).workers,1)
             self.assertEqual(plan(self.cat,self.config,40*GB,workers=5,cpus=20,memory=8*GB,free=7.5*GB).workers,5)
             # Equipo mínimo: 2 CPU sin reserva, al menos una escena.
             small=plan(self.cat,self.config,40*GB,cpus=2,memory=4*GB,free=1*GB)
             self.assertEqual((small.cpu_budget,small.memory_budget,small.workers),(2,0.0,1))
+            self.assertFalse(small.warm)
             process=self.cat.start(self.named('20260804T150719'),'DESCARGA',self.config)
             self.cat.finish(process,'OK','TECNICA_OK',metrics=[{'stage':'acquire','seconds':9,'rss_bytes':3*GB,'ok':True}])
             self.assertAlmostEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=8*GB,free=7.5*GB).peaks['acquire']/GB,3.3)
@@ -755,19 +761,23 @@ class ParallelTests(unittest.TestCase):
 
     def test_stages_start_only_if_their_ram_fits(self):
         from oceanos.resources import Resources, PEAKS, GB
-        small=Resources(PEAKS['sentinel2'],cpus=20,memory=8*GB,free=7.5*GB)
+        # Picos de una descarga que acumula el archivo en memoria (como la nativa de USGS).
+        heavy={'acquire':2.6*GB,'extract':1.2*GB,'process':4.8*GB}
+        small=Resources(heavy,cpus=20,memory=8*GB,free=7.5*GB)
         with small.condition:
             self.assertTrue(small.admit('acquire'));self.assertTrue(small.admit('acquire'))
-            self.assertFalse(small.admit('acquire'))
+            self.assertFalse(small.admit('acquire'));self.assertEqual(small.blocked['acquire'],'RAM')
             small.free('acquire');small.free('acquire')
             # Primer ACOLITE: solo, mientras prepara LUT; luego ACOLITE (4,8) + descarga (2,6) no caben en 6.
             self.assertTrue(small.admit('process'));self.assertFalse(small.admit('extract'))
+            self.assertEqual(small.blocked['extract'],'que ACOLITE prepare sus LUT')
             small.free('process');small.warm=True
             self.assertTrue(small.admit('process'));self.assertFalse(small.admit('acquire'))
             small.free('process')
             # Con ACOLITE esperando no arranca otra descarga, aunque no haya nada en curso.
             small.waiting={'process':1}
             self.assertFalse(small.admit('acquire'));self.assertTrue(small.admit('process'))
+            self.assertEqual(small.blocked['acquire'],'que avance una escena más adelantada')
         large=Resources(PEAKS['sentinel2'],cpus=32,memory=64*GB,free=50*GB);large.warm=True
         with large.condition:
             self.assertTrue(all(large.admit('process') for _ in range(9)));self.assertFalse(large.admit('process'))
@@ -783,6 +793,7 @@ class ParallelTests(unittest.TestCase):
         with resources.condition:
             # CDSE gratuito: 4 descargas a la vez aunque la RAM alcance para más.
             self.assertTrue(all(resources.admit('acquire') for _ in range(4)));self.assertFalse(resources.admit('acquire'))
+            self.assertEqual(resources.blocked['acquire'],'turno de descarga (4 a la vez)')
             # Las demás etapas siguen entrando mientras las descargas esperan turno.
             self.assertTrue(resources.admit('process'))
             resources.free('acquire');self.assertTrue(resources.admit('acquire'))
@@ -858,6 +869,13 @@ class ParallelTests(unittest.TestCase):
         self.assertIn('[2/2] S2C 2026-08-09  ACOLITE ~50%',text)
         self.assertIn('[2/2] TECNICA_OK: listo',text)
 
+    def test_cleanup_is_hidden_from_help_but_still_works(self):
+        from oceanos import cli
+        parser=cli.parser()
+        self.assertNotIn('cleanup',parser.format_help())
+        self.assertIn('recover',parser.format_help())
+        self.assertEqual((parser.parse_args(['cleanup','7']).command,parser.parse_args(['cleanup','7']).run),('cleanup',7))
+
     def test_run_plans_workers_from_option(self):
         import io, contextlib
         from oceanos import cli
@@ -873,6 +891,172 @@ class ParallelTests(unittest.TestCase):
         with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
             cli.parser().parse_args(['run','--trabajadores','0'])
         self.assertIn('entero ≥ 1',err.getvalue())
+
+
+
+class MockProvider:
+    """Servidor HTTP local que imita a CDSE: token, redirección del catálogo a la descarga y archivo."""
+    def __init__(self, body=b'x'*3_000_000, status=200, headers=None, location=None):
+        import threading
+        from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+        self.body, self.hits, self.headers = body, {'token':0,'logout':0,'catalogue':0,'download':0}, []
+        provider = self
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get('Content-Length') or 0))
+                kind = 'logout' if self.path.endswith('/logout') else 'token'
+                provider.hits[kind] += 1
+                payload = json.dumps({'access_token':'acceso','refresh_token':'renovar'}).encode()
+                self.send_response(200);self.send_header('Content-Length',str(len(payload)));self.end_headers()
+                self.wfile.write(payload)
+            def do_GET(self):
+                provider.headers.append(self.headers.get('Authorization'))
+                if self.path.startswith('/catalogue'):
+                    provider.hits['catalogue'] += 1
+                    self.send_response(301);self.send_header('Location',location or f'{provider.base}/download/value')
+                    self.send_header('Content-Length','0');self.end_headers();return
+                provider.hits['download'] += 1
+                self.send_response(status)
+                for key, value in (headers or {}).items(): self.send_header(key,value)
+                data = provider.body if status==200 else b''
+                self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
+        self.server = ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        self.base = f'http://127.0.0.1:{self.server.server_address[1]}'
+        threading.Thread(target=self.server.serve_forever,daemon=True).start()
+        self.ac = Mock()
+        self.ac.config = {'CDSE_odata':self.base+'/catalogue','CDSE_auth':self.base+'/auth/token'}
+        self.ac.shared.auth.return_value = ('usuario','clave')
+
+    def close(self):
+        self.server.shutdown();self.server.server_close()
+
+
+class DownloadTests(unittest.TestCase):
+    """Descarga CDSE en streaming, motivos de fallo, reintentos, presupuesto y LUT."""
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.raw=Path(self.temp.name)/'raw';self.raw.mkdir()
+        self.cat=Catalog(Path(self.temp.name)/'storage')
+        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+
+    def tearDown(self):
+        self.cat.db.close();self.temp.cleanup()
+
+    def test_cdse_download_streams_once_to_disk_with_hashes(self):
+        import hashlib
+        from oceanos.native import cdse_download
+        provider=MockProvider()
+        try:
+            path,digests=cdse_download(provider.ac,source(),self.raw)
+        finally:
+            provider.close()
+        # Una sola petición del archivo (ACOLITE hace dos), con el token también tras la redirección.
+        self.assertEqual(provider.hits,{'token':1,'logout':1,'catalogue':1,'download':1})
+        self.assertEqual(provider.headers,['Bearer acceso','Bearer acceso'])
+        self.assertEqual((path.name,path.read_bytes()),(SCENE.split('.')[0]+'.zip',provider.body))
+        self.assertEqual(digests,{'md5':hashlib.md5(provider.body).hexdigest(),'sha256':hashlib.sha256(provider.body).hexdigest()})
+        self.assertEqual(list(self.raw.glob('*.part')),[])
+
+    def test_cdse_download_reports_quota_and_refuses_foreign_redirects(self):
+        from oceanos.native import cdse_download, DownloadError
+        provider=MockProvider(status=429,headers={'Retry-After':'240'})
+        try:
+            with self.assertRaises(DownloadError) as caught: cdse_download(provider.ac,source(),self.raw)
+        finally:
+            provider.close()
+        self.assertEqual((caught.exception.reason,caught.exception.retry_after),('HTTP_429',240))
+        self.assertEqual(provider.hits['logout'],1)
+        foreign=MockProvider(location='http://otro.example.com/value')
+        try:
+            with self.assertRaises(DownloadError) as caught: cdse_download(foreign.ac,source(),self.raw)
+        finally:
+            foreign.close()
+        self.assertEqual((caught.exception.reason,foreign.hits['download']),('REDIRECCION_NO_CONFIABLE',0))
+
+    def test_acquire_verifies_with_streamed_hashes_and_usgs_reasons(self):
+        import hashlib
+        from oceanos.native import acquire, DownloadError
+        body=b'contenido';archive=self.raw/'scene.zip';archive.write_bytes(body)
+        digests={'md5':hashlib.md5(body).hexdigest(),'sha256':hashlib.sha256(body).hexdigest()}
+        data=source(checksum=digests['md5'],metadata={'Checksum':[{'Algorithm':'MD5','Value':digests['md5']}],'ContentLength':len(body)})
+        with patch('oceanos.native.cdse_download',return_value=(archive,digests)), patch('oceanos.native.file_hash') as rehash:
+            result=acquire(Mock(),data,self.raw)
+        rehash.assert_not_called()
+        self.assertEqual(result['source']['sha256'],digests['sha256'])
+        with patch('oceanos.native.cdse_download',return_value=(archive,{**digests,'md5':'otro'})):
+            with self.assertRaises(ValueError): acquire(Mock(),data,self.raw)
+        ac=Mock();ac.api.earthexplorer.download.side_effect=lambda *a,**k: print('Could not retrieve download url for X') or []
+        with self.assertRaises(DownloadError) as caught:
+            acquire(ac,{'provider':'USGS','id':'e','dataset':'d','product':'p'},self.raw)
+        self.assertEqual(caught.exception.reason,'SIN_URL_DESCARGA')
+
+    def test_retry_policy_depends_on_failure_reason(self):
+        from oceanos.pipeline import StageError
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config;runner.progress=None
+        runner.resources=None;waits=[];runner.wait=waits.append
+        process=self.cat.start(self.cat.upsert_scene(source()),'DESCARGA',self.config)
+        def failing(code,retry_after=None):
+            calls=[]
+            def function():
+                calls.append(1);raise StageError('acquire',code,retry_after)
+            return function,calls
+        with patch('builtins.print'):
+            function,calls=failing('HTTP_401')
+            with self.assertRaises(StageError): runner.retry(function,process)
+            self.assertEqual((len(calls),waits),(1,[]))
+            function,calls=failing('HTTP_429',500)
+            with self.assertRaises(StageError): runner.retry(function,process)
+            self.assertEqual((len(calls),waits),(3,[500,500]))
+            waits.clear();function,calls=failing('CONEXION')
+            with self.assertRaises(StageError): runner.retry(function,process)
+            self.assertEqual(waits,[60,300])
+        messages=[r['mensaje'] for r in self.cat.db.execute("SELECT mensaje FROM eventos WHERE tipo='INTENTO_FALLIDO' ORDER BY id")]
+        self.assertEqual(messages[0],'Descarga, intento 1 de 3: credenciales rechazadas (401) (no se reintenta)')
+        self.assertIn('cuota del proveedor superada (429)',messages[1])
+        self.assertEqual(messages[-1],'Descarga, intento 3 de 3: conexión cortada')
+
+    def test_download_progress_reads_partial_file(self):
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.progress=Mock()
+        (self.raw/'scene.zip.part').write_bytes(b'x'*1000)
+        runner.watch('acquire',os.getpid(),self.temp.name,time.monotonic(),
+                     {'source':source(metadata={'ContentLength':4000}),'raw':str(self.raw)},{})
+        done,total=runner.progress.download.call_args.args[:2]
+        self.assertEqual((done,total),(1000,4000))
+        # Antes del .part se miden los bytes del proceso (token, KB); al aparecer el .part la velocidad no es negativa.
+        state={'measure':'proceso','first':(time.monotonic()-5,3000)}
+        runner.watch('acquire',os.getpid(),self.temp.name,time.monotonic(),
+                     {'source':source(metadata={'ContentLength':4000}),'raw':str(self.raw)},state)
+        rate=runner.progress.download.call_args.args[2]
+        self.assertTrue(rate is None or rate >= 0)
+        self.assertEqual(state['measure'],'part')
+
+    def test_budget_counts_only_temporaries_and_free_disk(self):
+        from oceanos.pipeline import temporary_bytes, DISK_MARGIN
+        storage=self.cat.storage
+        process=self.cat.start(self.cat.upsert_scene(source()),'DESCARGA',self.config)
+        folder=storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
+        l2w=folder/'L2W.nc';l2w.write_bytes(b'x'*5000);self.cat.artifact(process,'L2W',l2w)
+        temp=storage/'temporary'/'9';temp.mkdir(parents=True);(temp/'raw.zip').write_bytes(b'x'*700)
+        catalog_size=sum(p.stat().st_size for p in (storage/'catalog').rglob('*') if p.is_file())
+        self.assertEqual(temporary_bytes(self.cat,[storage]),700+catalog_size)
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.roots=[storage];runner.config={'budget':10**9}
+        runner.check_disk()
+        with patch('oceanos.pipeline.disk_free',return_value=DISK_MARGIN-1):
+            with self.assertRaises(RuntimeError) as caught: runner.check_disk()
+        self.assertEqual(str(caught.exception),'Disco casi lleno')
+        runner.config={'budget':500}
+        with self.assertRaises(RuntimeError): runner.check_disk()
+
+    def test_first_acolite_runs_alone_only_without_luts(self):
+        from oceanos.resources import luts_ready
+        acolite=Path(self.temp.name)/'acolite'
+        self.assertFalse(luts_ready(acolite,['S2A','S2C']))
+        for family in ('ACOLITE-LUT-202110','RSKY-202102'):
+            for sensor in ('S2A_MSI','S2C_MSI_V4'):
+                folder=acolite/'data'/'LUT'/family/sensor;folder.mkdir(parents=True);(folder/'lut.nc').touch()
+        (acolite/'data'/'LUT'/'Gas').mkdir();(acolite/'data'/'LUT'/'Gas'/'gas.nc').touch()
+        self.assertTrue(luts_ready(acolite,['S2A','S2C']))
+        self.assertFalse(luts_ready(acolite,['S2A','S2B']))
 
 
 if __name__=='__main__': unittest.main()

@@ -16,11 +16,62 @@ from .native import identity, eligible, l1_bytes
 from .validation import validate
 
 STAGES = {'query':'consulta', 'extract':'extracción', 'process':'ACOLITE'}
+# Motivos de fallo de descarga (oceanos.native.DownloadError) en palabras; HTTP_5xx se explica aparte.
+REASONS = {'HTTP_401':'credenciales rechazadas (401)', 'HTTP_403':'sin permiso de descarga (403)',
+           'HTTP_404':'producto no encontrado (404)', 'HTTP_429':'cuota del proveedor superada (429)',
+           'TOKEN_HTTP_401':'credenciales CDSE rechazadas al pedir el token (401)',
+           'SIN_CREDENCIALES':'faltan credenciales en ~/.netrc', 'CONEXION':'conexión cortada',
+           'TIEMPO_AGOTADO':'el servidor dejó de responder', 'REDIRECCION_NO_CONFIABLE':'redirección a un host ajeno',
+           'SIN_BOTON_DESCARGA':'EarthExplorer no mostró el botón de descarga',
+           'SIN_URL_DESCARGA':'EarthExplorer no entregó la URL de descarga',
+           'DESCARGA_RECHAZADA':'USGS rechazó la descarga'}
+# Fallos que no se arreglan esperando: se informan sin gastar más intentos.
+FINAL = {'HTTP_401', 'HTTP_403', 'HTTP_404', 'TOKEN_HTTP_401', 'TOKEN_HTTP_400', 'SIN_CREDENCIALES',
+         'REDIRECCION_NO_CONFIABLE'}
+# Espera mínima tras superar la cuota del proveedor, y máxima aunque pida más con Retry-After.
+QUOTA_WAIT, QUOTA_WAIT_MAX = 120, 900
+
+
+class StageError(RuntimeError):
+    """Fallo de una etapa del proceso aislado con su motivo (código corto o tipo de excepción)."""
+    def __init__(self, operation, reason, retry_after=None):
+        super().__init__(f'Etapa {operation} falló: {reason}')
+        self.reason, self.retry_after = reason, retry_after
+
+
+def reason(error):
+    """Motivo corto de un error para el catálogo: el código de la etapa o el tipo de excepción."""
+    return getattr(error, 'reason', None) or type(error).__name__
+
+
+def explain(code):
+    """Motivo de fallo en palabras para eventos y mensajes."""
+    if code.startswith('HTTP_5'):
+        return f'error del servidor del proveedor ({code[5:]})'
+    return REASONS.get(code, code)
+
+
+# Espacio que se deja libre en el disco de storage, además del presupuesto de temporales.
+DISK_MARGIN = 2e9
 
 
 def roots(storage, acolite):
-    """Carpetas que cuentan en el presupuesto de disco: storage, LUT/auxiliares y scratch de ACOLITE."""
+    """Carpetas que se miden para el presupuesto de disco: storage, LUT/auxiliares y scratch de ACOLITE."""
     return [Path(storage), Path(acolite).resolve()/'data', Path(acolite).resolve()/'scratch']
+
+
+def temporary_bytes(catalog, folders):
+    """Bytes que cuentan en el presupuesto: lo medido en `folders` menos los L1R/L2W conservados.
+
+    Los productos científicos registrados (propios e importados) crecen con el estudio y no son
+    temporales; RAW, extracciones, L2R, salidas parciales, LUT y auxiliares sí cuentan.
+    """
+    return max(0, disk_bytes(folders)-catalog.persistent_bytes())
+
+
+def disk_free(path):
+    """Bytes libres en el disco que contiene `path`."""
+    return shutil.disk_usage(path).free
 
 
 class Pipeline:
@@ -79,9 +130,9 @@ class Pipeline:
     def watch(self, operation, pid, stage, started, arguments, state):
         """Actualiza la barra de progreso de la etapa en curso del proceso aislado.
 
-        La descarga nativa guarda el archivo solo al terminar, así que se miden los bytes que
-        recibe el proceso desde que cargó ACOLITE. Las demás etapas se comparan con su
-        duración habitual en el catálogo.
+        La descarga CDSE escribe en streaming un `.part`, cuyo tamaño es el avance. La nativa de
+        USGS guarda el archivo solo al terminar, así que se miden los bytes que recibe el proceso
+        desde que cargó ACOLITE. Las demás etapas se comparan con su duración habitual.
         """
         if not self.progress:
             return
@@ -91,23 +142,48 @@ class Pipeline:
                 state[operation] = self.catalog.stage_seconds(operation)
             self.progress.stage(STAGES.get(operation,operation),elapsed,state[operation])
             return
+        total = l1_bytes(arguments['source'])
+        part = next(Path(arguments['raw']).glob('*.part'), None) if arguments.get('raw') else None
+        written = None
+        if part:
+            # El .part se renombra al terminar: puede desaparecer entre glob y stat.
+            with contextlib.suppress(OSError):
+                written = part.stat().st_size
         baseline, current = Path(stage)/'baseline', received_bytes(pid)
-        if current is None or not baseline.exists():
+        if written is not None:
+            done = written
+        elif current is None or not baseline.exists():
             self.progress.stage('descarga: conectando',elapsed)
             return
-        done = max(current-int(baseline.read_text() or 0),0)
-        total = l1_bytes(arguments['source'])
-        if total and done > total:
+        else:
+            done = max(current-int(baseline.read_text() or 0),0)
+        if total and done > total and written is None:
             # Lecturas posteriores a la descarga: hashes SHA-256/MD5 del archivo.
             self.progress.stage('descarga completa, verificando checksum',elapsed)
             return
-        # Velocidad promedio desde el primer byte recibido.
+        # Velocidad promedio desde el primer byte recibido. Si cambia la medida (bytes del proceso
+        # antes de crear el .part, tamaño del .part después), se reinicia para no restar magnitudes distintas.
         instant = time.monotonic()
+        measure = 'part' if written is not None else 'proceso'
+        if state.get('measure') != measure:
+            state.pop('first', None)
+            state['measure'] = measure
         if done and 'first' not in state:
             state['first'] = (instant,done)
         first = state.get('first')
         rate = (done-first[1])/(instant-first[0]) if first and instant-first[0] >= 1 else None
         self.progress.download(done,total,rate,elapsed)
+
+    def used(self):
+        """Bytes del presupuesto de temporales ya ocupados."""
+        return temporary_bytes(self.catalog, self.roots)
+
+    def check_disk(self):
+        """Detiene la etapa si se agotó el presupuesto de temporales o el disco está casi lleno."""
+        if self.used() >= self.config['budget']:
+            raise RuntimeError('Presupuesto temporal agotado')
+        if disk_free(self.catalog.storage) < DISK_MARGIN:
+            raise RuntimeError('Disco casi lleno')
 
     def call(self, operation, timeout=3600, **arguments):
         """Ejecuta una operación de ACOLITE en un proceso aislado (oceanos.worker).
@@ -120,8 +196,8 @@ class Pipeline:
         temporary = self.catalog.storage/'temporary'
         temporary.mkdir(parents=True, exist_ok=True)
         queued = time.monotonic()
-        waiting = lambda: self.progress and self.progress.stage(STAGES.get(operation,'descarga')+': en espera de RAM',
-                                                                time.monotonic()-queued)
+        waiting = lambda why: self.progress and self.progress.stage(f"{STAGES.get(operation,'descarga')}: en espera de {why}",
+                                                                    time.monotonic()-queued)
         reservation = self.resources.reserve(operation,waiting) if self.resources else contextlib.nullcontext()
         with tempfile.TemporaryDirectory(prefix='stage_', dir=temporary) as stage, reservation:
             # El tiempo en espera de RAM no cuenta para el límite ni para las métricas de la etapa.
@@ -130,8 +206,7 @@ class Pipeline:
             request, result = Path(stage)/'request.json', Path(stage)/'result.json'
             extra = {'scratch':str(Path(stage)/'scratch')} if self.resources else {}
             request.write_text(canonical({'operation':operation,'acolite':str(self.acolite),**extra,**arguments}))
-            if disk_bytes(self.roots) >= self.config['budget']:
-                raise RuntimeError('Presupuesto temporal agotado')
+            self.check_disk()
             # Ejecuta un proceso aislado de ACOLITE. usa (oceanos.worker.py)
             process = subprocess.Popen([sys.executable,'-m','oceanos.worker',str(request),str(result)],
                                        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -143,8 +218,7 @@ class Pipeline:
                 while process.poll() is None:
                     if time.monotonic()-started > timeout:
                         raise TimeoutError('Tiempo máximo de etapa agotado')
-                    if disk_bytes(self.roots) >= self.config['budget']:
-                        raise RuntimeError('Presupuesto temporal agotado')
+                    self.check_disk()
                     self.watch(operation,process.pid,stage,started,arguments,state)
                     self.wait(2)
                     if self.resources and self.resources.stop.is_set():
@@ -162,25 +236,35 @@ class Pipeline:
             self.metrics.append({'stage':operation, 'seconds':round(time.monotonic()-started,3),
                                  'rss_bytes':response.get('peak_rss_bytes'), 'ok':response['ok']})
             if process.returncode or not response['ok']:
-                raise RuntimeError('Etapa '+operation+' falló: '+response.get('error','WorkerExit'))
+                raise StageError(operation, response.get('reason') or response.get('error','WorkerExit'),
+                                 response.get('retry_after'))
             if self.resources and operation=='process':
                 # LUT ya preparadas: los siguientes ACOLITE pueden correr a la vez si caben en RAM.
                 self.resources.warm = True
             return response['result']
 
     def retry(self, function, process=None, scene=None):
-        """Ejecuta `function` con los reintentos y esperas del perfil; relanza el último error."""
+        """Ejecuta `function` con los reintentos y esperas del perfil; relanza el último error.
+
+        Credenciales, permisos o producto inexistente no se reintentan. Con la cuota del proveedor
+        superada (429) se espera al menos QUOTA_WAIT segundos, o lo que indique Retry-After.
+        """
         attempts = self.config['input']['transient_attempts_total']
         delays = self.config['input']['retry_wait_seconds']
         for attempt in range(attempts):
             try:
                 return function()
             except Exception as error:
-                self.notify('INTENTO_FALLIDO', f'Descarga, intento {attempt+1} de {attempts}: {type(error).__name__}',
-                            process, scene)
-                if attempt+1 == attempts:
+                code = reason(error)
+                final = code in FINAL
+                self.notify('INTENTO_FALLIDO', f'Descarga, intento {attempt+1} de {attempts}: {explain(code)}'
+                            + (' (no se reintenta)' if final else ''), process, scene)
+                if final or attempt+1 == attempts:
                     raise
-                self.pause(delays[attempt])
+                wait = delays[attempt]
+                if code == 'HTTP_429':
+                    wait = min(max(wait, QUOTA_WAIT, getattr(error,'retry_after',None) or 0), QUOTA_WAIT_MAX)
+                self.pause(wait)
 
     def search(self):
         """Consulta el proveedor del perfil, registra las escenas observadas y devuelve sus nombres."""
@@ -198,8 +282,8 @@ class Pipeline:
                 self.catalog.search_finish(search, 'OK', self.last_query)
                 return list(dict.fromkeys(scenes))
             except Exception as error:
-                self.catalog.search_finish(search, 'FALLIDA', error=type(error).__name__)
-                self.notify('BUSQUEDA_FALLIDA', f'{provider}, intento {attempt+1} de {attempts}: {type(error).__name__}')
+                self.catalog.search_finish(search, 'FALLIDA', error=reason(error))
+                self.notify('BUSQUEDA_FALLIDA', f'{provider}, intento {attempt+1} de {attempts}: {explain(reason(error))}')
                 if attempt+1 == attempts:
                     raise
                 self.wait(self.config['input']['retry_wait_seconds'][attempt])
@@ -274,12 +358,12 @@ class Pipeline:
             elif local_l1r:
                 # Copia propia: resultados externos nunca se borran ni se sobrescriben.
                 input_path = folder/'source_L1R.nc'
-                if Path(local_l1r).stat().st_size + disk_bytes(self.roots) >= self.config['budget']:
+                if Path(local_l1r).stat().st_size + self.used() >= self.config['budget']:
                     raise RuntimeError('Presupuesto insuficiente para conservar L1R')
                 shutil.copyfile(local_l1r,input_path)
             elif acquired.get('archive'):
                 extracted = self.call('extract',archive=acquired['archive'],raw=str(raw),
-                                      available=self.config['budget']-disk_bytes(self.roots))
+                                      available=self.config['budget']-self.used())
                 input_path = extracted['input']
             else:
                 input_path = acquired['input']
@@ -317,8 +401,8 @@ class Pipeline:
                 return process
             state = 'INTERRUMPIDO' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'FALLIDO'
             self.record_download(process)
-            self.catalog.finish(process,state,error=type(error).__name__,metrics=self.metrics)
-            self.say(f'{state}: {type(error).__name__} (temporales conservados)')
+            self.catalog.finish(process,state,error=reason(error),metrics=self.metrics)
+            self.say(f'{state}: {explain(reason(error))} (temporales conservados)')
             if state=='FALLIDO':
                 try:
                     cleanup(self.catalog,process)

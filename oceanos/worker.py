@@ -50,8 +50,10 @@ def main():
                     raise ValueError('Operación desconocida')
         result_path.write_text(json.dumps({'ok':True,'result':result,'peak_rss_bytes':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss*1024},default=str))
     except Exception as error:
-        # Nunca serializar mensajes HTTP, tokens ni cuerpos de autenticación.
-        result_path.write_text(canonical({'ok':False,'error':type(error).__name__}))
+        # Nunca serializar mensajes HTTP, tokens ni cuerpos de autenticación: solo tipo y motivo corto.
+        result_path.write_text(canonical({'ok':False,'error':type(error).__name__,
+                                          'reason':getattr(error,'reason',None),
+                                          'retry_after':getattr(error,'retry_after',None)}))
         return 1
     return 0
 

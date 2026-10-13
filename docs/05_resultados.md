@@ -43,6 +43,17 @@ Ocho adquisiciones en la grilla común (EPSG:32619, 2440 × 7335, ejes completos
 
 Cinco adquisiciones no tienen valores acuáticos finitos y tres conservan fracciones muy pequeñas: el enmascarado no es un caso aislado. En Landsat, la banda Rrs cercana a 613 nm proviene de contrabandas sintéticas nativas, no de una banda observada. El primer ensayo Landsat dio una grilla incorrecta por faltar `output_projection_metres=True`; se corrigió y se reprocesó desde L1R. Landsat 8 usó la LUT genérica remuestreada porque la específica no era descargable.
 
+## Descarga Sentinel-2: nativa de ACOLITE frente a la propia (13-10-2026)
+
+Misma escena (`S2B_MSIL1C_20251107T150719_…SAFE`, 734,8 MB), procesos aislados, bytes leídos por el proceso (`rchar`) como medida de red:
+
+| Método | Recibido por red | RAM extra | Tiempo | MD5 CDSE |
+|---|---:|---:|---:|---|
+| `ac.api.cdse.download` | 1.472 MB (2,0×) | 1.649 MB | 528 s (red ≈2,8 MB/s); un intento previo cortado por el servidor terminó en excepción sin controlar | correcto |
+| `native.cdse_download` | 737 MB (1,0×) | 6–7 MB | 360 s (red ≈2,0 MB/s) y 229 s (red ≈3,2 MB/s) | correcto |
+
+La nativa pide el archivo dos veces (comprobado también con un servidor local: dos peticiones al host de descarga y 3 veces el tamaño del archivo en RAM), lo que explica el pico de ≈3,2 veces el ZIP de las 14 escenas del catálogo v3 y que su velocidad aparente máxima (9,45 MB/s) fuera la mitad de los 20 MB/s por conexión de CDSE. A igual velocidad de red, la descarga propia tarda la mitad. Por eso OCEANOS la reemplazó ([ACOLITE](02_acolite.md#descarga-y-extracción)).
+
 ## Regeneración desde L1R
 
 Antes del reinicio se regeneró L2W desde L1R conservados, sin descargar: S2C del 19-08-2026 (19 variables 2D) y L9 del 17-08-2026 (L1R ya proyectado, 16 variables) dieron **valores idénticos**, incluidos flags y patrón de NaN. La igualdad se limita a esas condiciones (misma revisión, settings, LUT y auxiliares); no se compara el NetCDF byte a byte porque cambian timestamps.

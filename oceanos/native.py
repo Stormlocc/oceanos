@@ -1,6 +1,7 @@
 """Adaptación estrecha a las funciones nativas de la revisión auditada."""
 import contextlib
 import hashlib
+import io
 import re
 import subprocess
 import sys
@@ -8,6 +9,7 @@ import tarfile
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 from .config import ROOT, REVISION, file_hash, instant
 
 
@@ -320,6 +322,102 @@ def query(ac, provider, config):
             'excluded_by_profile':excluded}
 
 
+class DownloadError(RuntimeError):
+    """Fallo de descarga con un motivo corto y sin datos sensibles (p. ej. HTTP_429, CONEXION)."""
+    def __init__(self, reason, retry_after=None):
+        super().__init__(reason)
+        self.reason, self.retry_after = reason, retry_after
+
+
+# Bloques de escritura de la descarga en streaming.
+CHUNK = 1024*1024
+# Mensajes de ac.api.earthexplorer.download que explican un fallo; solo se guarda el código.
+USGS_REASONS = (('login credentials', 'SIN_CREDENCIALES'), ('entity/dataproduct', 'SIN_BOTON_DESCARGA'),
+                ('download url', 'SIN_URL_DESCARGA'), ('error occurred trying to download', 'DESCARGA_RECHAZADA'))
+
+
+def http_error(response):
+    """DownloadError con el código HTTP y, si el proveedor lo indica, los segundos de Retry-After."""
+    try:
+        wait = int(response.headers.get('Retry-After'))
+    except (TypeError, ValueError):
+        wait = None
+    return DownloadError(f'HTTP_{response.status_code}', wait)
+
+
+def cdse_token(ac, session):
+    """Token de CDSE con las credenciales que usa ACOLITE (máquina `cdse` de ~/.netrc)."""
+    auth = ac.shared.auth('cdse')
+    if auth is None:
+        raise DownloadError('SIN_CREDENCIALES')
+    response = session.post(ac.config['CDSE_auth'], timeout=(30, 60), data={
+        'client_id': 'cdse-public', 'grant_type': 'password', 'username': auth[0], 'password': auth[1]})
+    if not response.ok:
+        raise DownloadError(f'TOKEN_HTTP_{response.status_code}')
+    token = response.json()
+    if 'access_token' not in token:
+        raise DownloadError('TOKEN_SIN_ACCESO')
+    return token
+
+
+def cdse_logout(ac, session, token):
+    """Cierra la sesión del token: CDSE admite 100 sesiones activas por usuario y cada token abre una."""
+    with contextlib.suppress(Exception):
+        session.post(ac.config['CDSE_auth'].rsplit('/token', 1)[0]+'/logout', timeout=30,
+                     data={'client_id': 'cdse-public', 'refresh_token': token.get('refresh_token', '')})
+
+
+def cdse_download(ac, source, raw):
+    """Descarga el ZIP de un producto CDSE en streaming a disco y devuelve (ruta, {md5, sha256}).
+
+    Reemplaza a ac.api.cdse.download, que pide el archivo dos veces y lo acumula en memoria. Sigue
+    las redirecciones a mano (requests quita el token al cambiar de host), solo hacia hosts del
+    dominio de CDSE, y calcula los hashes mientras escribe. Sin terminar queda solo el `.part`.
+    """
+    import requests
+    target = Path(raw)/(source['product'].split('.')[0]+'.zip')
+    part = target.with_name(target.name+'.part')
+    url = f"{ac.config['CDSE_odata']}/Products({source['id']})/$value"
+    # Solo hosts del dominio del catálogo (dataspace.copernicus.eu) y sin bajar de https a http.
+    scheme, trusted = urlparse(url).scheme, urlparse(url).hostname.split('.', 1)[1]
+    digests = {'md5': hashlib.md5(), 'sha256': hashlib.sha256()}
+    with requests.Session() as session:
+        token = cdse_token(ac, session)
+        session.headers['Authorization'] = 'Bearer '+token['access_token']
+        try:
+            response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120))
+            for _ in range(5):
+                if response.status_code not in (301, 302, 303, 307, 308):
+                    break
+                response.close()
+                url = urljoin(url, response.headers.get('Location', ''))
+                host = urlparse(url).hostname or ''
+                if urlparse(url).scheme != scheme or not (host == trusted or host.endswith('.'+trusted)):
+                    raise DownloadError('REDIRECCION_NO_CONFIABLE')
+                response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120))
+            with response:
+                if response.status_code != 200:
+                    raise http_error(response)
+                with part.open('wb') as stream:
+                    for chunk in response.iter_content(CHUNK):
+                        stream.write(chunk)
+                        for value in digests.values():
+                            value.update(chunk)
+        except requests.Timeout:
+            raise DownloadError('TIEMPO_AGOTADO') from None
+        except requests.RequestException:
+            raise DownloadError('CONEXION') from None
+        finally:
+            cdse_logout(ac, session, token)
+    part.replace(target)
+    return target, {name: value.hexdigest() for name, value in digests.items()}
+
+
+def usgs_reason(printed):
+    """Código del fallo de la descarga nativa USGS según lo que imprimió (sin guardar el texto)."""
+    return next((code for text, code in USGS_REASONS if text in printed), 'DESCARGA_FALLIDA')
+
+
 def acquire(ac, source, raw):
     """Descarga la escena (o toma el archivo local) y verifica tamaño y checksums.
 
@@ -327,22 +425,19 @@ def acquire(ac, source, raw):
     """
     raw = Path(raw).resolve()
     raw.mkdir(parents=True, exist_ok=True)
+    digests = {}
     if source.get('local'):
         archive = Path(source['local']).resolve()
     elif source['provider'] == 'CDSE':
-        url = f"{ac.config['CDSE_odata']}/Products({source['id']})/$value"
-        files = ac.api.cdse.download([url], scenes=[source['product']], output=str(raw),
-                                     extract_zip=False, remove_zip=False, override=True, verbosity=0)
-        if not files:
-            raise RuntimeError('Descarga SAFE fallida')
-        archive = Path(files[0])
+        archive, digests = cdse_download(ac, source, raw)
     else:
-        files = ac.api.earthexplorer.download([source['id']], [source['dataset']], [source['product']],
-                    output=str(raw), extract_tar=False, remove_tar=False, override=True, verbosity=0)
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            files = ac.api.earthexplorer.download([source['id']], [source['dataset']], [source['product']],
+                        output=str(raw), extract_tar=False, remove_tar=False, override=True, verbosity=0)
         if not files:
-            raise RuntimeError('Descarga USGS fallida')
+            raise DownloadError(usgs_reason(printed.getvalue()))
         archive = Path(files[0])
-    sha = file_hash(archive)
+    sha = digests.get('sha256') or file_hash(archive)
     if source.get('sha256') and sha != source['sha256']:
         raise ValueError('La fuente cambió después de registrarse')
     metadata = source.get('metadata', {})
@@ -350,7 +445,7 @@ def acquire(ac, source, raw):
         raise ValueError('Descarga incompleta')
     for checksum in metadata.get('Checksum', []):
         algorithm = checksum['Algorithm'].lower().replace('-', '')
-        if algorithm in ('md5','sha256') and file_hash(archive, algorithm).lower() != checksum['Value'].lower():
+        if algorithm in ('md5','sha256') and (digests.get(algorithm) or file_hash(archive, algorithm)).lower() != checksum['Value'].lower():
             raise ValueError('Checksum del proveedor no coincide')
     return {'archive':str(archive), 'source':{**source,'sha256':sha}}
 

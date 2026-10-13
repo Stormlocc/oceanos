@@ -4,9 +4,9 @@ import json
 import sys
 from pathlib import Path
 from .catalog import Catalog
-from .config import ROOT, ACOLITE, PRODUCTS, canonical, disk_bytes, exclusive, file_hash, instant, profile
+from .config import ROOT, ACOLITE, PRODUCTS, canonical, exclusive, file_hash, instant, profile
 from .native import prepare, scene_identity, eligible
-from .pipeline import Pipeline, cleanup, recover, roots
+from .pipeline import DISK_MARGIN, Pipeline, cleanup, disk_free, recover, roots, temporary_bytes
 from .progress import Progress, size, duration
 from .resources import plan
 from .sync import sync
@@ -120,9 +120,14 @@ def parser():
     selection(result, top=True)
     commands = result.add_subparsers(dest='command', required=True, metavar='COMANDO', title='comandos')
 
-    def command(name, summary, description='', examples=''):
-        """Crea un subcomando con ayuda en español y ejemplos al final."""
-        sub = commands.add_parser(name, help=summary, description=summary + ('\n\n'+description if description else ''),
+    def command(name, summary, description='', examples='', hidden=False):
+        """Crea un subcomando con ayuda en español y ejemplos al final.
+
+        `hidden` lo omite de la lista de `oceanos -h` (sin `help`, argparse no lo enumera); sigue
+        funcionando y con su propia ayuda `oceanos <comando> -h`.
+        """
+        listed = {} if hidden else {'help': summary}
+        sub = commands.add_parser(name, **listed, description=summary + ('\n\n'+description if description else ''),
                                   epilog=('ejemplos:\n'+examples) if examples else None, **options)
         return spanish(sub)
 
@@ -209,7 +214,7 @@ def parser():
     command('recover', 'Registrar interrupciones y limpiar lo parcial (automático al iniciar search/run/derive)',
             examples='  oceanos recover')
     clean = command('cleanup', 'Evaluar la limpieza de temporales de un proceso',
-                    examples='  oceanos cleanup 7')
+                    examples='  oceanos cleanup 7', hidden=True)
     clean.add_argument('run', type=int, metavar='PROCESO', help='número de proceso (ver status)')
     return result
 
@@ -477,8 +482,12 @@ def main(argv=None):
                             return 0
                         print(f'Escenas por procesar: {len(scenes)}')
                     if len(scenes) > 1 and args.trabajadores != 1:
-                        free = config['budget']-disk_bytes(roots(catalog.storage,args.acolite))
-                        pipeline.resources = plan(catalog,config,free,args.trabajadores)
+                        # Disco para escenas en curso: lo libre del presupuesto, sin pasar del disco real.
+                        free = min(config['budget']-temporary_bytes(catalog,roots(catalog.storage,args.acolite)),
+                                   disk_free(catalog.storage)-DISK_MARGIN)
+                        pipeline.resources = plan(catalog,config,free,args.trabajadores,acolite=args.acolite)
+                        # No más hilos de escena que escenas: así los núcleos se reparten entre las que corren.
+                        pipeline.resources.workers = min(pipeline.resources.workers,len(scenes))
                         print(pipeline.resources.describe())
                     result = pipeline.batch(scenes,force=args.force)
                     show_summary(catalog,result)

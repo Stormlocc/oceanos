@@ -7,7 +7,7 @@ Revisión fijada: [`80da0c0c681d9597fd4b7737837d6a3e61907b33`](https://github.co
 | Necesidad | ACOLITE | OCEANOS |
 |---|---|---|
 | Catálogo Sentinel-2 / Landsat | `api.cdse.query`, `api.earthexplorer.query` | Intervalo UTC, elegibilidad del perfil, snapshots, completitud |
-| Descarga y extracción | `api.cdse.download`, `api.earthexplorer.download`, `shared.extract_bundle` | Reintentos, checksums, rutas aisladas, presupuesto de disco |
+| Descarga y extracción | `api.earthexplorer.download` (Landsat), `shared.extract_bundle`; credenciales (`shared.auth`) y URLs (`ac.config`) | Descarga Sentinel-2 propia en streaming (`native.cdse_download`), reintentos según el motivo, checksums, rutas aisladas, presupuesto de disco |
 | Lectura, ROI y alineación | `sentinel2.l1_convert`, `landsat.l1_convert`, `limit` | Ninguno: solo genera los settings |
 | Corrección atmosférica, L2R y L2W | `acolite_run` → `acolite_l2r` → `acolite_l2w` | Ninguno |
 | Flags y máscara acuática | `acolite_flags`, `l2_flags` | Verifica que existan; no relaja umbrales |
@@ -26,8 +26,9 @@ ACOLITE aplica defaults generales (`config/defaults.txt`), luego los del sensor 
 
 ## Descarga y extracción
 
-- `api.cdse.download` usa `session.get` sin `stream=True`: el ZIP completo pasa por memoria y se escribe al final. No reintenta, no tiene timeout ni verifica checksum; un ZIP existente se reutiliza aunque esté incompleto. Con `verbosity>1` imprime el token.
-- `api.earthexplorer.download` inicia sesión en EROS (usuario y contraseña de `.netrc`), lee la página de opciones de EarthExplorer y descarga el botón "Download Product" (Product Bundle). Depende del HTML del portal.
+- `api.cdse.download` **ya no se usa** (13-10-2026). Al seguir la redirección de `catalogue.dataspace…` a `download.dataspace…` hace un `session.get` sin `stream=True` que baja el ZIP completo y luego `dl = session.get(url)` lo baja otra vez: medido con una escena real de 734,8 MB, recibió 1.472 MB (2,0×) y usó 1,65 GB de RAM; un corte de conexión a mitad de la transferencia sale como excepción sin controlar. No reintenta, no tiene timeout ni verifica checksum, y con `verbosity>1` imprime el token. Sin cambios upstream desde mayo de 2026.
+- `native.cdse_download` (OCEANOS) la reemplaza siguiendo la [documentación de CDSE](https://documentation.dataspace.copernicus.eu/APIs/OData.html#product-download): toma credenciales (`shared.auth('cdse')`) y URLs (`CDSE_odata`, `CDSE_auth`) de ACOLITE, sigue a mano las redirecciones solo dentro de `dataspace.copernicus.eu` y sin bajar de https a http (requests quitaría el token al cambiar de host), escribe en streaming a un `.part` con MD5 y SHA-256 calculados mientras baja, y cierra la sesión del token al terminar (CDSE admite 100 sesiones activas). Misma escena: 737 MB recibidos (1,0×), 6–7 MB de RAM extra, MD5 oficial correcto. El archivo es el mismo producto del proveedor, por lo que la entrada de ACOLITE y las claves de reutilización no cambian.
+- `api.earthexplorer.download` inicia sesión en EROS (usuario y contraseña de `.netrc`), lee la página de opciones de EarthExplorer y descarga el botón "Download Product" (Product Bundle). Depende del HTML del portal y repite el patrón de dos `get` sin streaming sobre la misma URL (probable doble descarga, sin medir). Sigue en uso para Landsat; OCEANOS captura lo que imprime solo para guardar un código de fallo (`SIN_URL_DESCARGA`, `DESCARGA_RECHAZADA`, …). La vía oficial alternativa es `download-request`/`download-retrieve` de M2M, que requiere pedir acceso de descarga M2M en el perfil ERS.
 - `remove_zip=True` / `remove_tar=True` borran antes de nuestro QA: OCEANOS usa `extract_zip=False`, `remove_zip=False`, `remove_tar=False`, verifica tamaño y checksums y luego extrae con `shared.extract_bundle` dentro de `storage/temporary/<run>`. El argumento `targ_bundle` de esa función se reinicia internamente: no sirve para confinar la extracción; OCEANOS revisa antes rutas y enlaces del archivo.
 
 Entradas que reconoce `acolite_run`: SAFE L1C (rechaza otro nivel), ZIP/TAR comprimidos (los extrae), bundle Landsat L1 con MTL (no procesa L2 como L1) y NetCDF ACOLITE (L1R o L2R).

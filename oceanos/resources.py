@@ -19,10 +19,11 @@ RESERVE_FRACTION, RESERVE_MINIMUM = 0.1, 1.5*GB
 # Variables de entorno para fijar a mano los núcleos y la RAM (GB) del lote.
 CPUS_VARIABLE, RAM_VARIABLE = 'OCEANOS_CPUS', 'OCEANOS_RAM_GB'
 CGROUP = Path('/sys/fs/cgroup')
-# Picos RSS por etapa sin historial: catálogo v3, 14 escenas Sentinel-2 (descarga ≈2,5 GB porque
-# ACOLITE acumula el ZIP en memoria; ACOLITE ≈4,7 GB) y máximo de los ensayos Landsat (6,57 GB).
-PEAKS = {'sentinel2': {'query': 1.0*GB, 'acquire': 2.6*GB, 'extract': 1.2*GB, 'process': 4.8*GB},
-         'landsat': {'query': 1.0*GB, 'acquire': 2.6*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
+# Picos RSS por etapa sin historial. ACOLITE: catálogo v3, 14 escenas Sentinel-2 (≈4,7 GB) y máximo
+# de los ensayos Landsat (6,57 GB). Descarga Sentinel-2: streaming propio (oceanos.native.cdse_download).
+# Descarga Landsat: la nativa de USGS acumula el bundle en memoria (≈3,2 veces su tamaño, ≈1 GB).
+PEAKS = {'sentinel2': {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'process': 4.8*GB},
+         'landsat': {'query': 1.0*GB, 'acquire': 3.3*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
 # Disco por escena en curso: RAW, extraído, salidas y auxiliares (3,42 GB medidos).
 SCENE_DISK = 3.5*GB
 # Descargas simultáneas por familia: una cuenta gratuita de CDSE admite 4 conexiones a la vez
@@ -32,6 +33,8 @@ DOWNLOADS = {'sentinel2': 4, 'landsat': None}
 DOWNLOADS_VARIABLE = 'OCEANOS_DESCARGAS'
 # Prioridad al admitir: lo más avanzado primero, para liberar RAM y disco antes de descargar más.
 PRIORITY = {'process': 0, 'extract': 1, 'acquire': 2, 'query': 3}
+# Carpeta de LUT por sensor que ACOLITE prepara la primera vez (acolite/data/LUT/<familia>/<sensor>).
+LUT_SENSORS = {'S2A': 'S2A_MSI', 'S2B': 'S2B_MSI', 'S2C': 'S2C_MSI', 'L8': 'L8_OLI', 'L9': 'L9_OLI'}
 THREADS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS')
 NAMES = {'acquire': 'descarga', 'extract': 'extracción', 'process': 'ACOLITE'}
 
@@ -138,8 +141,24 @@ def download_limit(family, environ=os.environ):
     return number
 
 
+def luts_ready(acolite, platforms):
+    """Indica si ACOLITE ya preparó las LUT de todas las plataformas en acolite/data/LUT.
+
+    Exige una carpeta no vacía por plataforma en cada familia de LUT organizada por sensor; si
+    falta alguna, el primer ACOLITE del lote corre solo mientras las prepara.
+    """
+    root = Path(acolite)/'data'/'LUT'
+    if not root.is_dir():
+        return False
+    families = [d for d in root.iterdir() if d.is_dir() and any(s.is_dir() for s in d.iterdir())]
+    return bool(families) and all(
+        any(s.is_dir() and s.name.startswith(LUT_SENSORS.get(platform, platform)) and any(s.iterdir())
+            for s in family.iterdir())
+        for family in families for platform in platforms)
+
+
 def peaks(catalog, family):
-    """Pico de RAM esperado por etapa: el mayor medido en el catálogo (+10 %) o el valor por defecto."""
+    """Pico de RAM esperado por etapa: el mayor de las mediciones recientes (+10 %) o el valor por defecto."""
     result = {}
     for stage, default in PEAKS[family].items():
         measured = catalog.stage_peak(stage, family)
@@ -147,13 +166,14 @@ def peaks(catalog, family):
     return result
 
 
-def plan(catalog, config, free_disk, workers=None, cpus=None, memory=None, free=None, live=available):
+def plan(catalog, config, free_disk, workers=None, cpus=None, memory=None, free=None, live=available, acolite=None):
     """Recursos de un lote según el equipo, el historial del catálogo y el disco libre del presupuesto.
 
     `cpus`, `memory` (total) y `free` (disponible) sustituyen a lo detectado; OCEANOS_CPUS y
-    OCEANOS_RAM_GB fijan directamente núcleos y RAM del lote. Sin `workers` se calcula: tantas
-    descargas como quepan en la RAM asignada más una escena lista para ACOLITE, sin superar los
-    núcleos asignados ni el disco libre (3,5 GB por escena).
+    OCEANOS_RAM_GB fijan directamente núcleos y RAM del lote. Sin `workers` se calcula: las
+    descargas que permiten la cuota del proveedor y la RAM, más los ACOLITE que caben en la RAM
+    restante (al menos uno), sin superar los núcleos asignados ni el disco libre (3,5 GB por
+    escena). Con `acolite`, si sus LUT ya están preparadas, ningún ACOLITE espera a correr solo.
     """
     detected = hardware()
     cpus, memory = cpus or detected[0], memory or detected[1]
@@ -163,9 +183,13 @@ def plan(catalog, config, free_disk, workers=None, cpus=None, memory=None, free=
                           cpu_budget=fixed_cpus, memory_budget=fixed_ram,
                           limits={'acquire': download_limit(config['family'])})
     if workers is None:
-        by_memory = int(resources.memory_budget//resources.peaks['acquire'])+1
-        workers = min(resources.cpu_budget, by_memory, int(free_disk//SCENE_DISK))
+        downloads = int(resources.memory_budget//resources.peaks['acquire'])
+        downloads = min(downloads, resources.limits.get('acquire', downloads))
+        left = max(0.0, resources.memory_budget-downloads*resources.peaks['acquire'])
+        scenes = max(1, int(left//resources.peaks['process']))
+        workers = min(resources.cpu_budget, downloads+scenes, int(free_disk//SCENE_DISK))
     resources.workers = max(1, workers)
+    resources.warm = bool(acolite) and luts_ready(acolite, config['search']['platforms'])
     return resources
 
 
@@ -194,6 +218,8 @@ class Resources:
         # prepara LUT en acolite/data, un directorio compartido sin auditoría de concurrencia.
         self.warm = False
         self.waiting = {}
+        # Motivo del último rechazo de admit() por etapa, para la barra de progreso.
+        self.blocked = {}
         self.condition = threading.Condition()
         self.stop = threading.Event()
 
@@ -222,17 +248,25 @@ class Resources:
         exclusive = stage == 'process' and not self.warm
         rank = PRIORITY.get(stage, len(PRIORITY))
         ahead = any(count for other, count in self.waiting.items() if PRIORITY.get(other, len(PRIORITY)) < rank)
-        if self.alone or ahead:
-            return False
-        if self.running.get(stage, 0) >= self.limits.get(stage, float('inf')):
-            return False
-        if self.active and (exclusive or self.used+need > self.memory_budget or not self.fits_now(need)):
-            return False
+        limit = self.limits.get(stage)
+        if self.alone or (exclusive and self.active):
+            return self.refuse(stage, 'que ACOLITE prepare sus LUT')
+        if ahead:
+            return self.refuse(stage, 'que avance una escena más adelantada')
+        if limit and self.running.get(stage, 0) >= limit:
+            return self.refuse(stage, f'turno de descarga ({limit} a la vez)')
+        if self.active and (self.used+need > self.memory_budget or not self.fits_now(need)):
+            return self.refuse(stage, 'RAM')
         self.used += need
         self.running[stage] = self.running.get(stage, 0)+1
         self.active += 1
         self.alone = exclusive
         return True
+
+    def refuse(self, stage, why):
+        """Anota por qué la etapa no entró y devuelve False."""
+        self.blocked[stage] = why
+        return False
 
     def free(self, stage):
         """Libera la reserva de la etapa (con `condition` tomada) y despierta a los que esperan."""
@@ -246,7 +280,7 @@ class Resources:
     def reserve(self, stage, waiting=None):
         """Espera a que la etapa quepa, la mantiene reservada mientras dura y luego la libera.
 
-        `waiting()` se llama cada segundo de espera (barra de progreso). Si se pidió detener el
+        `waiting(motivo)` se llama cada segundo de espera (barra de progreso). Si se pidió detener el
         lote, la espera termina con KeyboardInterrupt.
         """
         with self.condition:
@@ -256,7 +290,7 @@ class Resources:
                     if self.stop.is_set():
                         raise KeyboardInterrupt
                     if waiting:
-                        waiting()
+                        waiting(self.blocked.get(stage, 'RAM'))
                     self.condition.wait(1)
             finally:
                 self.waiting[stage] -= 1
