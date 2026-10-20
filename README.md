@@ -2,6 +2,10 @@
 
 Wrapper local para Sentinel-2 y Landsat 8/9 sobre La Parguera (Puerto Rico). ACOLITE hace la ciencia (consulta, descarga, corrección atmosférica y productos); OCEANOS administra el catálogo SQLite, la cola de descargas, los reintentos y la conservación. Persisten **L1R + L2W + SQLite**; regenerar productos desde L1R repite la corrección atmosférica. La validación científica sigue pendiente.
 
+## Instalación en Ubuntu
+
+`bash scripts/instalar_ubuntu.sh` instala todo en `/home/gri/Documents/LopezA` (cambiar con `BASE=...`): micromamba, ACOLITE en la revisión fijada con el parche, el entorno `acolite` del pipeline, un entorno `analisis` (xarray, rioxarray, geopandas, statsmodels, JupyterLab…), credenciales en `~/.netrc`, atajos en `~/.bashrc` y las pruebas.
+
 ## Uso en Ubuntu WSL
 
 ```bash
