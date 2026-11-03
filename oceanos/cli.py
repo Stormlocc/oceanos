@@ -6,7 +6,7 @@ from pathlib import Path
 from .catalog import Catalog
 from .config import ROOT, ACOLITE, PRODUCTS, canonical, exclusive, file_hash, instant, profile
 from .native import prepare, scene_identity, eligible
-from .pipeline import DISK_MARGIN, Pipeline, cleanup, disk_free, recover, roots, temporary_bytes
+from .pipeline import DISK_MARGIN, Pipeline, cleanup, disk_free, explain, recover, roots, temporary_bytes
 from .progress import Progress, size, duration
 from .resources import plan
 from .sync import sync
@@ -15,6 +15,7 @@ from .sync import sync
 SENSORS = {'sentinel2': 'project.yaml', 'landsat': 'landsat.yaml'}
 SATELLITES = {'S2A': 'sentinel2', 'S2B': 'sentinel2', 'S2C': 'sentinel2', 'L8': 'landsat', 'L9': 'landsat'}
 STATES = ['EN_CURSO', 'OK', 'OMITIDO', 'FALLIDO', 'INTERRUMPIDO', 'IMPORTADO']
+RESULTS = ['OK', 'IMPORTADA', 'DISPONIBLE', 'FALLIDA', 'PENDIENTE']
 DATE = 'AAAA-MM-DD[THH:MM:SSZ]'
 
 
@@ -198,6 +199,18 @@ def parser():
     status.add_argument('run', nargs='?', metavar='PROCESO', help='número de proceso: detalle con archivos, métricas y eventos')
     status.add_argument('--ultimas', type=int, metavar='N', help='solo los N procesos más recientes')
     status.add_argument('--estado', choices=STATES, metavar='ESTADO', help='filtrar por estado: '+', '.join(STATES))
+    report = command('reporte', 'Reporte de escenas trabajadas: éxitos y fallidas juntas, con su motivo (sin red)',
+        'Resultado por escena:\n'
+        '  OK          L2W propio\n'
+        '  IMPORTADA   L1R/L2W registrados con sync\n'
+        '  DISPONIBLE  su adquisición ya tenía L2W: no se descargó\n'
+        '  FALLIDA     no se consiguió; el próximo run la reintenta (motivo e intentos)\n'
+        '  PENDIENTE   en la cola, aún sin procesar\n'
+        '--csv guarda la misma tabla para revisarla en una hoja de cálculo.',
+        '  oceanos reporte\n  oceanos reporte --resultado FALLIDA\n  oceanos reporte --sensor landsat --csv reporte.csv')
+    report.add_argument('--resultado', choices=RESULTS, metavar='RESULTADO', help='filtrar: '+', '.join(RESULTS))
+    report.add_argument('--csv', type=Path, metavar='ARCHIVO', help='guardar el reporte en CSV')
+    report.add_argument('--sensor', choices=sorted(SENSORS), help='solo sentinel2 o landsat')
     queue = command('cola', 'Ver la cola de descargas registrada por search --registrar (sin red)',
         'Estados: PENDIENTE, FALLIDA (se reintenta en el próximo run), PROCESADA, DISPONIBLE, IMPORTADA.',
         '  oceanos cola\n  oceanos cola --quitar 20260116 20260205')
@@ -268,8 +281,8 @@ def show_versions(catalog, scenes, config):
 
 COMPLETENESS = {
     'COMPLETE': 'completa: el proveedor devolvió todas las escenas que coinciden con la búsqueda',
-    'INCOMPLETE': 'INCOMPLETA: el proveedor tiene más coincidencias que las devueltas (ACOLITE pide hasta '
-                  '1000 sin paginar); acote --start/--end y repita',
+    'INCOMPLETE': 'INCOMPLETA: el proveedor tiene más coincidencias que las devueltas (la paginación se '
+                  'cortó); repita la búsqueda o acote --start/--end',
     'UNKNOWN': 'desconocida: el proveedor no informó el total de coincidencias (totalHits), '
                'no se puede asegurar que estén todas'}
 
@@ -293,18 +306,23 @@ def show_query(report):
     status, _, missing = sizes.partition(';FALTAN:')
     if status.startswith('NO_DISPONIBLE'):
         print(f"Tamaños: USGS no los entregó ({status.split(':', 1)[1]}). download-options de M2M requiere el rol "
-              'MACHINE y la página de opciones de EarthExplorer no los mostró. La descarga no depende de esto.')
+              'MACHINE (permiso "download" de M2M) y la página de opciones de EarthExplorer no los mostró. La descarga no depende de esto.')
     elif status == 'M2M':
         print('Tamaños: Product Bundle L1 según download-options de USGS M2M.')
     elif status == 'EARTHEXPLORER':
         print('Tamaños: Product Bundle L1 según la página de descarga de EarthExplorer (redondeado a 0.01 MiB); '
-              'download-options de M2M no está permitido para esta cuenta (requiere el rol MACHINE).')
+              'download-options de M2M no está permitido para esta cuenta (HTTP 403: la cuenta solo tiene el permiso '
+              '"user" de M2M; falta pedir el acceso de descarga M2M en ers.cr.usgs.gov).')
     if missing:
         print(f'  {missing} escenas quedaron sin tamaño informado.')
 
 
-def register(catalog, rows, selected):
-    """Pone en la cola las escenas elegidas de search; omite las que ya tienen L1R/L2W."""
+def register(catalog, rows, selected, region):
+    """Pone en la cola las escenas elegidas de search.
+
+    Omite las que ya tienen L2W (propio o importado) y las que repiten una adquisición ya en la
+    cola: así run no descarga lo que ya tenemos.
+    """
     if selected:
         wanted = {catalog.resolve_scene(text) for text in selected}
         unknown = wanted - {row['escena'] for row in rows}
@@ -316,9 +334,14 @@ def register(catalog, rows, selected):
     done = ('DISPONIBLE', 'PROCESADA', 'IMPORTADA')
     skipped = [row for row in chosen if row['estado'] in done]
     chosen = [row for row in chosen if row['estado'] not in done]
-    catalog.enqueue([row['escena'] for row in chosen])
+    queued, refused = catalog.enqueue([row['escena'] for row in chosen], region)
     if skipped:
         print(f'Omitidas {len(skipped)} que ya tienen L2W: '+', '.join(r['escena'] for r in skipped))
+    if refused:
+        print(f'Omitidas {len(refused)} para no descargar dos veces la misma adquisición:')
+        for scene, why in refused.items():
+            print(f'  {scene} — {why}')
+    chosen = [row for row in chosen if row['escena'] in queued]
     print(f"Registradas {len(chosen)} escenas para descarga ({size(sum((r['tamano_mb'] or 0)*1e6 for r in chosen))} en L1). "
           "Ejecute 'oceanos run' para procesarlas.")
 
@@ -335,6 +358,36 @@ def show_queue(catalog):
     for item in items:
         counts[item['estado']] = counts.get(item['estado'], 0) + 1
     print('\n'+' · '.join(f'{state}: {count}' for state, count in sorted(counts.items())))
+
+
+def show_report(catalog, result=None, csv_path=None, sensor=None):
+    """Tabla de éxitos y fallidas por escena, totales y, con `csv_path`, el mismo contenido en CSV."""
+    rows = [row for row in catalog.report(sensor) if result is None or row['resultado'] == result]
+    for row in rows:
+        failed = row['resultado'] in ('FALLIDA', 'PENDIENTE') and row['error']
+        row['motivo'] = explain(row['error']) if failed else ''
+        row['ultimo'] = row['fin'] or ''
+    columns = [('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TILE', 'tile'), ('RESULTADO', 'resultado'),
+               ('PROCESOS', 'procesos'), ('INTENTOS', 'intentos'), ('MOTIVO', 'motivo'), ('ÚLTIMO', 'ultimo'),
+               ('L2W', 'l2w'), ('ESCENA', 'escena')]
+    if not rows:
+        print('Sin escenas trabajadas' + (f' con resultado {result}' if result else '') + '.')
+    else:
+        table(rows, columns)
+        counts = {}
+        for row in rows:
+            counts[row['resultado']] = counts.get(row['resultado'], 0) + 1
+        print('\n' + ' · '.join(f'{name}: {counts[name]}' for name in RESULTS if name in counts))
+        if counts.get('FALLIDA'):
+            print("Las FALLIDA siguen en la cola: 'oceanos run' las reintenta "
+                  "('oceanos cola --quitar ESCENA' para descartarlas).")
+    if csv_path:
+        import csv
+        with Path(csv_path).open('w', newline='', encoding='utf-8') as stream:
+            writer = csv.writer(stream)
+            writer.writerow([title for title, _ in columns])
+            writer.writerows([['' if row[key] is None else row[key] for _, key in columns] for row in rows])
+        print(f'CSV guardado en {csv_path}')
 
 
 def show_runs(rows):
@@ -415,6 +468,9 @@ def main(argv=None):
                 if args.command=='cleanup':
                     print(cleanup(catalog,args.run))
                     return 0
+                if args.command=='reporte':
+                    show_report(catalog, args.resultado, args.csv, args.sensor)
+                    return 0
                 if args.command=='cola':
                     for text in args.quitar or []:
                         catalog.dequeue(catalog.resolve_scene(text))
@@ -465,16 +521,19 @@ def main(argv=None):
                         print("Solo consulta: nada quedó registrado para descarga. "
                               "Use 'oceanos search --registrar [ESCENA ...]' para que 'oceanos run' las procese.")
                     else:
-                        register(catalog,rows,args.registrar)
+                        register(catalog,rows,args.registrar,config['aoi']['id'])
                     return 0
                 else:
                     # RUN: trabaja sobre la cola registrada por search; no vuelve a consultar al proveedor.
                     if args.version:
                         scenes = [catalog.resolve_scene(args.version)]
                     else:
-                        scenes, outside, available = catalog.pending(config,force=args.force)
+                        scenes, outside, available, deferred = catalog.pending(config,force=args.force)
                         if available:
                             print(f'{len(available)} en cola ya tienen L2W; marcadas DISPONIBLE.')
+                        if deferred:
+                            print(f'{len(deferred)} en cola repiten la adquisición de otra que se procesa ahora; '
+                                  'esperan al siguiente run (si aquella termina bien quedarán DISPONIBLE).')
                         if outside:
                             print(f'{len(outside)} en cola quedan fuera del perfil/intervalo actual y se conservan pendientes.')
                         if not scenes:

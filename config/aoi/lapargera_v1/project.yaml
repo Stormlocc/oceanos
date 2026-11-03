@@ -60,8 +60,9 @@ grid:
 
 input:
   # Sentinel-2: SAFE L1C (ZIP) desde CDSE, extraído en temporal. No descargar sin autorización.
+  # Reintentos cortos: si la imagen no se consigue, queda FALLIDA en el reporte y se reprocesa luego.
   transient_attempts_total: 3
-  retry_wait_seconds: [60, 300]
+  retry_wait_seconds: [10, 30]
 
 storage:
   # GB decimales: máximo conjunto de temporales, no por archivo.

@@ -286,7 +286,7 @@ class AdapterTests(unittest.TestCase):
             runner.call=fake
             with self.assertRaises(TimeoutError): runner.search()
             self.assertEqual(providers,['CDSE']*3)
-            self.assertEqual(waits,[60,300])
+            self.assertEqual(waits,[10,30])
             self.assertEqual(cat.db.execute("SELECT count(*) FROM busquedas WHERE estado='FALLIDA'").fetchone()[0],3)
             cat.db.close()
 
@@ -480,8 +480,8 @@ class QueueSyncTests(unittest.TestCase):
         self.cat.enqueue([inside,later,outside])
         (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
         self.cat.scene_state(inside,'PENDIENTE')
-        ready,out,available=self.cat.pending(self.config)
-        self.assertEqual((ready,out,available),([later],[outside],[inside]))
+        ready,out,available,deferred=self.cat.pending(self.config)
+        self.assertEqual((ready,out,available,deferred),([later],[outside],[inside],[]))
         self.assertEqual({i['escena']:i['estado'] for i in self.cat.queue()}[inside],'DISPONIBLE')
         self.cat.scene_state(later,'PROCESADA');self.cat.enqueue([later])
         self.assertEqual({i['escena']:i['estado'] for i in self.cat.queue()}[later],'PROCESADA')
@@ -613,8 +613,8 @@ class UsgsQueryTests(unittest.TestCase):
         ac=Mock();ac.config={'EARTHEXPLORER_api':'https://m2m.example/api'}
         ac.api.earthexplorer.auth.return_value='token'
         attrs=[{'fieldName':'Start Time','value':'2026-08-05 14:57:33'}]
-        ac.api.earthexplorer.query.return_value=([n[:4]+'ENT'+str(i) for i,n in enumerate(names)],names,
-                                                 ['landsat_ot_c2_l1']*len(names),[attrs]*len(names))
+        found=[{'entity':n[:4]+'ENT'+str(i),'product':n,'dataset':'landsat_ot_c2_l1','metadata':attrs} for i,n in enumerate(names)]
+        search=patch('oceanos.native.usgs_search',return_value=(found,None));search.start();self.addCleanup(search.stop)
         return ac
 
     def test_query_explains_exclusions_sizes_and_unknown_completeness(self):
@@ -632,17 +632,29 @@ class UsgsQueryTests(unittest.TestCase):
         self.assertIn('L1TP',reasons['LC09_L1GT_005048_20260805_20260806_02_T2'])
         self.assertEqual(native.scene_date(result['sources'][0]),'2026-08-05 14:57')
 
-    def test_scene_search_counters_are_observed_without_patching_acolite(self):
+    def test_usgs_search_follows_pages_until_total_hits(self):
         import requests
-        from oceanos.native import observe_post, usgs_completeness
-        response=Mock();response.json.return_value={'data':{'totalHits':4,'recordsReturned':4,'totalHitsAccuracy':'actual','results':[1]}}
-        with patch.object(requests.Session,'post',return_value=response) as original:
-            with observe_post('scene-search') as seen:
-                requests.Session().post('https://m2m.example/api/scene-search')
-                requests.Session().post('https://m2m.example/api/scene-metadata')
-            self.assertIs(requests.Session.post,original)
-        self.assertEqual(seen,[{'totalHits':4,'recordsReturned':4,'totalHitsAccuracy':'actual','numExcluded':None,'nextRecord':None}])
-        self.assertEqual(usgs_completeness(seen[0]),'COMPLETE')
+        from oceanos.native import usgs_search, usgs_completeness
+        ac=Mock();ac.config={'EARTHEXPLORER_api':'https://m2m.example/api'};ac.api.earthexplorer.auth.return_value='token'
+        ac.shared.roi_wkt.return_value='POLYGON ((-67.2 17.9, -66.9 17.9, -66.9 18.0, -67.2 18.0, -67.2 17.9))'
+        scene=lambda i: {'entityId':f'E{i}','metadata':[{'fieldName':'Landsat Product Identifier L2','value':'L2'},
+                                                         {'fieldName':'Landsat Product Identifier L1','value':f'P{i}'}]}
+        pages=[{'data':{'totalHits':5,'totalHitsAccuracy':'calculated','results':[scene(1),scene(2)],'nextRecord':3}},
+               {'data':{'totalHits':5,'totalHitsAccuracy':'calculated','results':[scene(3),scene(4)],'nextRecord':5}},
+               {'data':{'totalHits':5,'totalHitsAccuracy':'calculated','results':[scene(5)],'nextRecord':5}}]
+        sent=[]
+        def post(session,url,data=None,**kwargs):
+            response=Mock();response.raise_for_status.return_value=None
+            if url.endswith('/scene-search'):
+                sent.append(json.loads(data));response.json.return_value=pages[len(sent)-1]
+            return response
+        with patch.object(requests.Session,'post',post):
+            found,stats=usgs_search(ac,'landsat_ot_c2_l1',[17.9,-67.2,18.0,-66.9],'2026-08-01T00:00:00+00:00','2026-08-21T00:00:00+00:00',70,page=2)
+        self.assertEqual([f['product'] for f in found],['P1','P2','P3','P4','P5'])
+        self.assertEqual([body['startingNumber'] for body in sent],[1,3,5])
+        self.assertEqual(sent[0]['sceneFilter']['spatialFilter']['lowerLeft'],{'longitude':-67.2,'latitude':17.9})
+        self.assertEqual(sent[0]['sceneFilter']['cloudCoverFilter']['max'],70)
+        self.assertEqual((stats['recordsReturned'],stats['pages'],usgs_completeness(stats)),(5,3,'COMPLETE'))
         self.assertEqual(usgs_completeness({'totalHits':1200,'recordsReturned':1000}),'INCOMPLETE')
         self.assertEqual(usgs_completeness({'totalHits':4,'recordsReturned':4,'totalHitsAccuracy':'approximate'}),'UNKNOWN')
         self.assertEqual(usgs_completeness(None),'UNKNOWN')
@@ -722,9 +734,9 @@ class ParallelTests(unittest.TestCase):
             self.assertEqual((big.cpu_budget,round(big.memory_budget/GB,1),big.workers),(29,53.6,14))
             # La misma máquina con la RAM ocupada por otras aplicaciones lanza menos escenas.
             self.assertEqual(plan(self.cat,self.config,100*GB,cpus=32,memory=64*GB,free=10*GB).workers,5)
-            # Landsat sin cuota documentada: descargas de 3,3 GB que caben (7 en 25 GB) y un ACOLITE.
+            # Landsat: tope prudente de 4 descargas en streaming (0,4 GB) y 3 ACOLITE de 6,6 GB en lo que queda.
             landsat=plan(self.cat,{**self.config,'family':'landsat'},100*GB,cpus=20,memory=31*GB,free=28*GB)
-            self.assertEqual((round(landsat.memory_budget/GB,1),landsat.workers),(24.9,8))
+            self.assertEqual((round(landsat.memory_budget/GB,1),landsat.workers),(24.9,7))
             self.assertEqual(plan(self.cat,self.config,4*GB,cpus=32,memory=64*GB,free=60*GB).workers,1)
             self.assertEqual(plan(self.cat,self.config,40*GB,workers=5,cpus=20,memory=8*GB,free=7.5*GB).workers,5)
             # Equipo mínimo: 2 CPU sin reserva, al menos una escena.
@@ -801,7 +813,7 @@ class ParallelTests(unittest.TestCase):
             sentinel=plan(self.cat,self.config,40*GB,cpus=20,memory=32*GB,free=28*GB)
             self.assertEqual(sentinel.limits,{'acquire':4})
             self.assertIn('descargas a la vez 4',sentinel.describe())
-            self.assertEqual(plan(self.cat,{**self.config,'family':'landsat'},40*GB,cpus=20,memory=32*GB,free=28*GB).limits,{})
+            self.assertEqual(plan(self.cat,{**self.config,'family':'landsat'},40*GB,cpus=20,memory=32*GB,free=28*GB).limits,{'acquire':4})
         with patch.dict(os.environ,{'OCEANOS_DESCARGAS':'2'}):
             self.assertEqual(plan(self.cat,self.config,40*GB,cpus=20,memory=32*GB,free=28*GB).limits,{'acquire':2})
         with patch.dict(os.environ,{'OCEANOS_DESCARGAS':'0'}), self.assertRaises(ValueError):
@@ -985,10 +997,11 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(result['source']['sha256'],digests['sha256'])
         with patch('oceanos.native.cdse_download',return_value=(archive,{**digests,'md5':'otro'})):
             with self.assertRaises(ValueError): acquire(Mock(),data,self.raw)
-        ac=Mock();ac.api.earthexplorer.download.side_effect=lambda *a,**k: print('Could not retrieve download url for X') or []
+        ac=Mock();ac.shared.auth.return_value=None
         with self.assertRaises(DownloadError) as caught:
             acquire(ac,{'provider':'USGS','id':'e','dataset':'d','product':'p'},self.raw)
-        self.assertEqual(caught.exception.reason,'SIN_URL_DESCARGA')
+        self.assertEqual(caught.exception.reason,'SIN_CREDENCIALES')
+        ac.api.earthexplorer.download.assert_not_called()
 
     def test_retry_policy_depends_on_failure_reason(self):
         from oceanos.pipeline import StageError
@@ -1004,15 +1017,20 @@ class DownloadTests(unittest.TestCase):
             function,calls=failing('HTTP_401')
             with self.assertRaises(StageError): runner.retry(function,process)
             self.assertEqual((len(calls),waits),(1,[]))
-            function,calls=failing('HTTP_429',500)
+            # 429 con Retry-After corto: se espera lo pedido (mín. 30 s); largo: no se espera, queda FALLIDA.
+            function,calls=failing('HTTP_429',45)
             with self.assertRaises(StageError): runner.retry(function,process)
-            self.assertEqual((len(calls),waits),(3,[500,500]))
-            waits.clear();function,calls=failing('CONEXION')
+            self.assertEqual((len(calls),waits),(3,[45,45]))
+            waits.clear();function,calls=failing('HTTP_429',500)
             with self.assertRaises(StageError): runner.retry(function,process)
-            self.assertEqual(waits,[60,300])
+            self.assertEqual((len(calls),waits),(1,[]))
+            function,calls=failing('CONEXION')
+            with self.assertRaises(StageError): runner.retry(function,process)
+            self.assertEqual(waits,[10,30])
         messages=[r['mensaje'] for r in self.cat.db.execute("SELECT mensaje FROM eventos WHERE tipo='INTENTO_FALLIDO' ORDER BY id")]
         self.assertEqual(messages[0],'Descarga, intento 1 de 3: credenciales rechazadas (401) (no se reintenta)')
         self.assertIn('cuota del proveedor superada (429)',messages[1])
+        self.assertTrue(any(m.endswith('(429) (no se reintenta)') for m in messages))
         self.assertEqual(messages[-1],'Descarga, intento 3 de 3: conexión cortada')
 
     def test_download_progress_reads_partial_file(self):
@@ -1057,6 +1075,230 @@ class DownloadTests(unittest.TestCase):
         (acolite/'data'/'LUT'/'Gas').mkdir();(acolite/'data'/'LUT'/'Gas'/'gas.nc').touch()
         self.assertTrue(luts_ready(acolite,['S2A','S2C']))
         self.assertFalse(luts_ready(acolite,['S2A','S2B']))
+
+
+class RangeProvider:
+    """Servidor HTTP local para `fetch`: corta la primera respuesta y atiende Range/If-Range con ETag."""
+    def __init__(self, body=b'abcdefghij'*300_000, cut=2_500_000, etag='"v1"', honor_range=True):
+        import threading
+        from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+        self.body, self.cut, self.etag, self.requests = body, cut, etag, []
+        provider = self
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = 'HTTP/1.1'
+            def log_message(self, *args): pass
+            def do_GET(self):
+                wanted, condition = self.headers.get('Range'), self.headers.get('If-Range')
+                provider.requests.append((wanted, condition))
+                start = int(wanted.split('=')[1].rstrip('-')) if wanted else 0
+                partial = wanted and honor_range and condition == provider.etag
+                data = provider.body[start:] if partial else provider.body
+                self.send_response(206 if partial else 200)
+                self.send_header('ETag', provider.etag);self.send_header('Content-Length', str(len(data)))
+                if partial:
+                    self.send_header('Content-Range', f'bytes {start}-{len(provider.body)-1}/{len(provider.body)}')
+                self.end_headers()
+                if provider.cut is not None:
+                    # Primera respuesta: se corta la conexión a mitad del archivo.
+                    self.wfile.write(data[:provider.cut]);provider.cut=None;self.wfile.flush()
+                    self.close_connection = True;return
+                self.wfile.write(data)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        self.url = f'http://127.0.0.1:{self.server.server_address[1]}/file'
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.server.shutdown();self.server.server_close()
+
+
+class NoRepeatTests(unittest.TestCase):
+    """Cola sin descargas repetidas, reanudación de descargas, descarga Landsat propia y auxiliares por día."""
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory()
+        self.cat=Catalog(Path(self.temp.name)/'storage')
+        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.imports=self.cat.storage/'importados';self.imports.mkdir()
+        self.raw=Path(self.temp.name)/'raw';self.raw.mkdir()
+
+    def tearDown(self):
+        self.cat.db.close();self.temp.cleanup()
+
+    def version(self, generated, date='20260804T150719', baseline='N0512'):
+        name=SCENE.replace('20260804T150719',date).replace('20260804T182348',generated).replace('N0512',baseline)
+        return self.cat.upsert_scene({**source(),'product':name,'identity':scene_identity(name)})
+
+    def runner(self):
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config;runner.engine={}
+        runner.acolite=ACOLITE;runner.roots=[];runner.wait=lambda _:None;runner.metrics=[]
+        runner.progress=None;runner.resources=None
+        return runner
+
+    def test_queue_takes_one_version_per_acquisition_and_skips_existing_l2w(self):
+        from oceanos.sync import sync
+        old=self.version('20260804T182348');new=self.version('20260901T101010',baseline='N0600')
+        other=self.version('20260809T182348',date='20260809T150719')
+        queued,skipped=self.cat.enqueue([old,new,other],self.config['aoi']['id'])
+        # Reproceso del proveedor: misma adquisición, entra solo la versión más reciente.
+        self.assertEqual((sorted(queued),list(skipped)),(sorted([new,other]),[old]))
+        self.assertIn(new,skipped[old])
+        # Un registro posterior no duplica la adquisición que ya está en la cola.
+        self.assertEqual(self.cat.enqueue([old],self.config['aoi']['id'])[0],[])
+        # Con L2W importado de otra computadora, la adquisición no vuelve a la cola.
+        self.cat.dequeue(new);(self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
+        queued,skipped=self.cat.enqueue([old,new],self.config['aoi']['id'])
+        self.assertEqual(queued,[])
+        self.assertEqual(set(skipped.values()),{'ya importada','su adquisición ya tiene L2W'})
+
+    def test_pending_defers_repeated_acquisition(self):
+        old=self.version('20260804T182348');new=self.version('20260901T101010',baseline='N0600')
+        self.cat.scene_state(old,'FALLIDA');self.cat.scene_state(new,'PENDIENTE')
+        ready,_,_,deferred=self.cat.pending(self.config)
+        self.assertEqual((ready,deferred),([new],[old]))
+
+    def test_run_does_not_download_an_acquisition_that_already_has_l2w(self):
+        from oceanos.sync import sync
+        scene=self.version('20260804T182348');self.cat.enqueue([scene])
+        (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
+        self.cat.scene_state(scene,'PENDIENTE')
+        runner=self.runner();calls=[]
+        runner.call=lambda operation,**args: calls.append(operation) or (_ for _ in ()).throw(RuntimeError('red'))
+        with patch('builtins.print'):
+            result=runner.batch([scene])
+        processes=self.cat.db.execute("SELECT count(*) FROM procesos WHERE tipo!='IMPORTADO'").fetchone()[0]
+        self.assertEqual((calls,processes,result['runs'],result['failed']),([],0,[],[]))
+        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas WHERE escena=?',(scene,)).fetchone()[0],'DISPONIBLE')
+        self.assertEqual(list(self.cat.storage.glob('temporary/*')),[])
+        # Con --force sí se intenta (aquí la red falla a propósito).
+        with patch('builtins.print'), self.assertRaises(Exception):
+            runner.run(scene,force=True)
+        self.assertEqual(calls[0],'acquire')
+
+    def test_skip_after_download_deletes_raw_and_empty_folder(self):
+        scene=self.version('20260804T182348')
+        process=self.cat.start(scene,'DESCARGA',self.config)
+        folder=self.cat.storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
+        raw=self.cat.storage/'temporary'/str(process);raw.mkdir(parents=True);(raw/'scene.zip').write_bytes(b'zip')
+        runner=self.runner()
+        with patch('builtins.print'):
+            runner.skip(process,scene,{'proceso':99})
+        row=self.cat.process(process)
+        self.assertEqual((row['estado'],row['limpieza']),('OMITIDO','HECHA'))
+        self.assertFalse(raw.exists());self.assertFalse(folder.exists())
+
+    def test_fetch_resumes_cut_download_with_range(self):
+        import hashlib, requests
+        from oceanos.native import fetch, DownloadError
+        provider=RangeProvider();target=self.raw/'scene.zip'
+        try:
+            with requests.Session() as session:
+                with self.assertRaises(DownloadError) as caught: fetch(session,provider.url,target,'127.0.0.1')
+                self.assertEqual(caught.exception.reason,'CONEXION')
+                # Se conservan los bloques completos (1 MiB) recibidos antes del corte.
+                part=target.with_name('scene.zip.part');kept=part.stat().st_size
+                self.assertEqual(kept,2*1024*1024)
+                digests=fetch(session,provider.url,target,'127.0.0.1')
+        finally:
+            provider.close()
+        # El segundo intento pide solo lo que falta, condicionado a que el archivo no haya cambiado.
+        self.assertEqual(provider.requests,[(None,None),(f'bytes={kept}-','"v1"')])
+        self.assertEqual(target.read_bytes(),provider.body)
+        self.assertEqual(digests,{'md5':hashlib.md5(provider.body).hexdigest(),'sha256':hashlib.sha256(provider.body).hexdigest()})
+        self.assertEqual(sorted(p.name for p in self.raw.iterdir()),['scene.zip'])
+
+    def test_fetch_restarts_when_file_changed_or_range_ignored(self):
+        import requests
+        from oceanos.native import fetch, DownloadError
+        for change in ('etag','ignore'):
+            provider=RangeProvider(honor_range=change!='ignore');target=self.raw/f'{change}.zip'
+            try:
+                with requests.Session() as session:
+                    with self.assertRaises(DownloadError): fetch(session,provider.url,target,'127.0.0.1')
+                    if change=='etag':
+                        provider.etag='"v2"';provider.body=b'z'*2_600_000
+                    fetch(session,provider.url,target,'127.0.0.1')
+            finally:
+                provider.close()
+            # El servidor manda el archivo entero (200) y se escribe desde cero, sin mezclar pedazos.
+            self.assertEqual(target.read_bytes(),provider.body)
+
+    def test_usgs_download_streams_bundle_from_earthexplorer(self):
+        import threading, hashlib
+        from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+        from oceanos.native import usgs_download, bundle_ids
+        body=b't'*2_500_000;hits=[]
+        button=('<button class="btn btn-secondary secondaryDownloadButton" title="Download Product" '
+                'data-entityId="LC90050482026217LGN00" data-productId="5e81f14f92acf9ef">Product Bundle 2.38 MiB</button>')
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def reply(self, data, kind='text/html'):
+                self.send_response(200);self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(data)))
+                self.end_headers();self.wfile.write(data)
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get('Content-Length') or 0));hits.append(self.path);self.reply(b'ok')
+            def do_GET(self):
+                hits.append(self.path)
+                if self.path=='/ers/login': self.reply(b'<input name="csrf" value="c1">')
+                elif self.path.startswith('/download/options/'): self.reply(button.encode())
+                elif self.path.endswith('/EE/'): self.reply(json.dumps({'url':base+'/bundle'}).encode(),'application/json')
+                else: self.reply(body,'application/x-tar')
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler);base=f'http://127.0.0.1:{server.server_address[1]}'
+        threading.Thread(target=server.serve_forever,daemon=True).start()
+        ac=Mock();ac.config={'EARTHEXPLORER_ers':base+'/ers','EARTHEXPLORER_download':base+'/download'}
+        ac.shared.auth.return_value=('usuario','clave');ac.api.earthexplorer.auth.return_value='token'
+        data={'provider':'USGS','id':'LC90050482026217LGN00','dataset':'landsat_ot_c2_l1','product':'LC09_L1TP_005048_20260805_20260806_02_T1'}
+        try:
+            with patch('oceanos.native.USGS_DOMAIN','127.0.0.1'):
+                path,digests=usgs_download(ac,data,self.raw)
+        finally:
+            server.shutdown();server.server_close()
+        self.assertEqual((path.name,path.read_bytes()),(data['product']+'.tar',body))
+        self.assertEqual(digests['sha256'],hashlib.sha256(body).hexdigest())
+        # Una sola transferencia del bundle (la nativa pide dos) y cierre de sesión EROS.
+        self.assertEqual(hits.count('/bundle'),1)
+        self.assertIn('/download/5e81f14f92acf9ef/LC90050482026217LGN00/EE/',hits);self.assertEqual(hits[-1],'/ers/logout')
+        ac.api.earthexplorer.download.assert_not_called()
+        self.assertIsNone(bundle_ids(button,'OTRA'))
+        # Una URL de descarga fuera de USGS no se sigue.
+        from oceanos.native import DownloadError, trusted_host
+        self.assertFalse(trusted_host('https://evilusgs.gov/x','usgs.gov'))
+        self.assertTrue(trusted_host('https://landsatlook.usgs.gov/x','usgs.gov'))
+
+    def test_report_lists_successes_and_failures_with_reason(self):
+        import io, contextlib, csv
+        from oceanos import cli
+        ok=self.version('20260804T182348');bad=self.version('20260809T182348',date='20260809T150719')
+        self.cat.enqueue([ok,bad])
+        first=self.cat.start(ok,'DESCARGA',self.config);self.files_ok(first);self.cat.finish(first,'OK','TECNICA_OK')
+        self.cat.scene_state(ok,'PROCESADA')
+        second=self.cat.start(bad,'DESCARGA',self.config);self.cat.downloaded(second,None,None,3)
+        self.cat.finish(second,'FALLIDO',error='HTTP_429');self.cat.scene_state(bad,'FALLIDA')
+        out=io.StringIO();path=Path(self.temp.name)/'reporte.csv'
+        with contextlib.redirect_stdout(out):
+            cli.show_report(self.cat,csv_path=path)
+        text=out.getvalue()
+        self.assertIn('cuota del proveedor superada (429)',text);self.assertIn('OK: 1 · FALLIDA: 1',text)
+        rows=list(csv.DictReader(path.open(encoding='utf-8')))
+        self.assertEqual([(r['RESULTADO'],r['INTENTOS']) for r in rows],[('OK',''),('FALLIDA','3')])
+        self.assertTrue(rows[0]['L2W'].endswith('L2W.nc'))
+        with contextlib.redirect_stdout(io.StringIO()) as only:
+            cli.show_report(self.cat,'FALLIDA')
+        self.assertNotIn(ok,only.getvalue())
+
+    def files_ok(self, process):
+        folder=self.cat.storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
+        for kind in ('L1R','L2W'):
+            path=folder/(kind+'.nc');path.write_bytes(kind.encode());self.cat.artifact(process,kind,path)
+
+    def test_two_acolite_of_the_same_day_do_not_run_together(self):
+        from oceanos.resources import Resources, PEAKS, GB
+        resources=Resources(PEAKS['sentinel2'],cpus=20,memory=64*GB,free=60*GB);resources.warm=True
+        with resources.condition:
+            self.assertTrue(resources.admit('process','20260804'))
+            self.assertFalse(resources.admit('process','20260804'))
+            self.assertIn('mismo día',resources.blocked['process'])
+            self.assertTrue(resources.admit('process','20260809'))
+            resources.free('process','20260804')
+            self.assertTrue(resources.admit('process','20260804'))
 
 
 if __name__=='__main__': unittest.main()

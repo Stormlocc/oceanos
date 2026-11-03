@@ -1,7 +1,7 @@
 """Adaptación estrecha a las funciones nativas de la revisión auditada."""
 import contextlib
 import hashlib
-import io
+import json
 import re
 import subprocess
 import sys
@@ -143,30 +143,58 @@ def l1_bytes(source):
     return metadata.get('ContentLength') or metadata.get('filesize')
 
 
-@contextlib.contextmanager
-def observe_post(endpoint):
-    """Guarda los contadores de las respuestas de `endpoint` que ACOLITE pide con requests.Session.post.
+# Resultados por página de scene-search (los mismos 1000 que pide ACOLITE) y tope de páginas.
+USGS_PAGE, USGS_PAGES = 1000, 50
 
-    La función nativa descarta totalHits/recordsReturned; observarlos aquí evita modificar ACOLITE.
+
+def usgs_search(ac, dataset, roi, start, end, cloud, level=1, page=USGS_PAGE):
+    """Busca escenas en M2M `scene-search` paginando con startingNumber/nextRecord.
+
+    Reproduce el filtro de ac.api.earthexplorer.query (rectángulo del AOI, intervalo, nubosidad)
+    pero sigue `nextRecord` hasta reunir `totalHits`: la nativa pide una sola página de 1000 y
+    pierde el resto. Devuelve ([{entity, product, dataset, metadata}], contadores); `product` es
+    el 'Landsat Product Identifier L<level>' de la metadata (None si falta).
     """
     import requests
-    seen, original = [], requests.Session.post
-
-    def post(session, url, *args, **kwargs):
-        response = original(session, url, *args, **kwargs)
-        if str(url).endswith('/'+endpoint):
-            try:
-                data = response.json().get('data') or {}
-                seen.append({k: data.get(k) for k in ('totalHits', 'totalHitsAccuracy', 'recordsReturned',
-                                                      'numExcluded', 'nextRecord')})
-            except (ValueError, AttributeError):
-                pass
-        return response
-    requests.Session.post = post
-    try:
-        yield seen
-    finally:
-        requests.Session.post = original
+    from osgeo import ogr
+    token = ac.api.earthexplorer.auth(netrc_machine='earthexplorer_token')
+    if not token:
+        raise RuntimeError('Consulta USGS sin token')
+    west, east, south, north = ogr.CreateGeometryFromWkt(ac.shared.roi_wkt(roi)).GetEnvelope()
+    scene_filter = {'spatialFilter': {'filterType': 'mbr', 'lowerLeft': {'longitude': west, 'latitude': south},
+                                      'upperRight': {'longitude': east, 'latitude': north}},
+                    'acquisitionFilter': {'start': start, 'end': end}}
+    if cloud is not None:
+        scene_filter['cloudCoverFilter'] = {'max': cloud, 'min': 0, 'includeUnknown': False}
+    found, stats, first = [], {}, 1
+    with requests.Session() as session:
+        session.headers['X-Auth-Token'] = token
+        try:
+            for number in range(1, USGS_PAGES+1):
+                response = session.post(ac.config['EARTHEXPLORER_api']+'/scene-search', timeout=300, data=json.dumps(
+                    {'datasetName': dataset, 'sceneFilter': scene_filter, 'maxResults': page,
+                     'startingNumber': first, 'metadataType': 'full'}))
+                response.raise_for_status()
+                body = response.json()
+                data = body.get('data')
+                if body.get('errorCode') or data is None:
+                    raise ValueError('Consulta USGS fallida')
+                results = data.get('results') or []
+                for result in results:
+                    names = [m['value'] for m in result.get('metadata', [])
+                             if 'Product Identifier' in m['fieldName'] and m['fieldName'].endswith(str(level))]
+                    found.append({'entity': result['entityId'], 'product': names[0] if names else None,
+                                  'dataset': dataset, 'metadata': result.get('metadata', [])})
+                stats = {'totalHits': data.get('totalHits'), 'totalHitsAccuracy': data.get('totalHitsAccuracy'),
+                         'recordsReturned': len(found), 'pages': number}
+                following = data.get('nextRecord')
+                if not results or not following or following <= first or len(found) >= (data.get('totalHits') or 0):
+                    break
+                first = following
+        finally:
+            with contextlib.suppress(Exception):
+                session.post(ac.config['EARTHEXPLORER_api']+'/logout', timeout=30)
+    return found, stats
 
 
 def usgs_completeness(stats):
@@ -174,6 +202,7 @@ def usgs_completeness(stats):
     if not stats or stats.get('totalHits') is None or stats.get('recordsReturned') is None:
         return 'UNKNOWN'
     if stats['recordsReturned'] < stats['totalHits']:
+        # Solo si la paginación se cortó (tope de páginas o respuesta inconsistente de USGS).
         return 'INCOMPLETE'
     # Con sceneFilter USGS calcula totalHits sobre la consulta; 'approximate' es un conteo en caché.
     return 'UNKNOWN' if stats.get('totalHitsAccuracy') == 'approximate' else 'COMPLETE'
@@ -230,26 +259,46 @@ def bundle_size(html, entity):
     return None
 
 
-def earthexplorer_sizes(ac, dataset, entities):
-    """Respaldo de usgs_sizes: lee el tamaño de la misma página de opciones que usa la descarga nativa.
+def bundle_ids(html, entity):
+    """(data-entityId, data-productId) del botón 'Download Product' del Product Bundle, o None.
 
-    Inicia sesión en EROS como ac.api.earthexplorer.download; devuelve ({entityId: bytes}, None)
-    o ({}, código). No descarga escenas.
+    Es el mismo botón que busca ac.api.earthexplorer.download (clase secondaryDownloadButton).
     """
-    import requests
-    if not entities:
-        return {}, None
+    for button in re.findall(r'<button\b[^>]*>', html, flags=re.S):
+        found = lambda name: re.search(rf'\b{name}="([^"]*)"', button, flags=re.I)
+        if (found('title') and found('title')[1] == 'Download Product' and 'secondaryDownloadButton' in button
+                and found('data-entityId') and found('data-entityId')[1] == entity and found('data-productId')):
+            return found('data-entityId')[1], found('data-productId')[1]
+    return None
+
+
+def eros_login(ac, session):
+    """Inicia sesión en EROS como ac.api.earthexplorer.download; devuelve None o un código de fallo."""
     auth = ac.shared.auth('earthexplorer')
     if auth is None:
-        return {}, 'SIN_CREDENCIALES_EARTHEXPLORER'
-    session = requests.Session()
+        return 'SIN_CREDENCIALES_EARTHEXPLORER'
     session.headers['X-Auth-Token'] = f"{ac.api.earthexplorer.auth(netrc_machine='earthexplorer_token')}"
     page = session.get(ac.config['EARTHEXPLORER_ers']+'/login', timeout=60)
     csrf = re.findall(r'name="csrf" value="(.+?)"', page.text)
     if not csrf:
-        return {}, 'LOGIN_EARTHEXPLORER'
+        return 'LOGIN_EARTHEXPLORER'
     session.post(ac.config['EARTHEXPLORER_ers']+'/login', data={'username': auth[0], 'password': auth[1], 'csrf': csrf[0]},
                  allow_redirects=True, timeout=60)
+    return None
+
+
+def earthexplorer_sizes(ac, dataset, entities):
+    """Respaldo de usgs_sizes: lee el tamaño de la misma página de opciones que usa la descarga.
+
+    Inicia sesión en EROS; devuelve ({entityId: bytes}, None) o ({}, código). No descarga escenas.
+    """
+    import requests
+    if not entities:
+        return {}, None
+    session = requests.Session()
+    failure = eros_login(ac, session)
+    if failure:
+        return {}, failure
     sizes = {}
     for entity in entities:
         html = session.get('{}/options/{}/{}'.format(ac.config['EARTHEXPLORER_download'], dataset, entity), timeout=60).text
@@ -283,25 +332,19 @@ def query(ac, provider, config):
         # La función nativa sigue @odata.nextLink hasta agotar los resultados.
         completeness = 'COMPLETE'
     else:
-        with observe_post('scene-search') as seen:
-            result = ac.api.earthexplorer.query(dataset=config['search']['dataset'],
-                roi=config['limit'], start_date=first.isoformat(), end_date=last.isoformat(),
-                cloud_cover=cloud, attributes=True, verbosity=0)
-        if result is None:
-            raise RuntimeError('Consulta USGS sin respuesta utilizable')
-        entities, names, datasets, metadata = result
-        if not len(entities) == len(names) == len(datasets) == len(metadata):
-            raise ValueError('Retorno USGS inconsistente')
-        for entity, name, dataset, attrs in zip(entities, names, datasets, metadata):
+        found, stats = usgs_search(ac, config['search']['dataset'], config['limit'], first.isoformat(),
+                                   last.isoformat(), cloud)
+        for item in found:
+            name, attrs = item['product'] or '', item['metadata']
             try:
                 info = scene_identity(name)
             except ValueError:
-                unsupported.append({'product': name, 'reason': 'producto no soportado: solo Landsat 8/9 L1TP Collection 2 Tier 1'})
+                unsupported.append({'product': name or item['entity'],
+                                    'reason': 'producto no soportado: solo Landsat 8/9 L1TP Collection 2 Tier 1'})
                 continue
             selected = {m['fieldName']: m['value'] for m in attrs if any(k in m['fieldName'].lower() for k in ['identifier','date','time','cloud','path','row','processing','collection'])}
-            sources.append({'provider':'USGS','product':name,'format':'TAR','id':entity,
-                            'dataset':dataset,'identity':info,'metadata':selected})
-        stats = seen[-1] if seen else None
+            sources.append({'provider':'USGS','product':name,'format':'TAR','id':item['entity'],
+                            'dataset':item['dataset'],'identity':info,'metadata':selected})
         completeness = usgs_completeness(stats)
         wanted = [s for s in sources if eligible(s, config)]
         entities = [s['id'] for s in wanted]
@@ -331,9 +374,6 @@ class DownloadError(RuntimeError):
 
 # Bloques de escritura de la descarga en streaming.
 CHUNK = 1024*1024
-# Mensajes de ac.api.earthexplorer.download que explican un fallo; solo se guarda el código.
-USGS_REASONS = (('login credentials', 'SIN_CREDENCIALES'), ('entity/dataproduct', 'SIN_BOTON_DESCARGA'),
-                ('download url', 'SIN_URL_DESCARGA'), ('error occurred trying to download', 'DESCARGA_RECHAZADA'))
 
 
 def http_error(response):
@@ -367,55 +407,176 @@ def cdse_logout(ac, session, token):
                      data={'client_id': 'cdse-public', 'refresh_token': token.get('refresh_token', '')})
 
 
+def trusted_host(url, domain):
+    """Indica si el host de `url` es `domain` o un subdominio suyo."""
+    host = urlparse(url).hostname or ''
+    return host == domain or host.endswith('.'+domain)
+
+
+def trusted_get(session, url, trusted, headers=None):
+    """GET en streaming que sigue a mano hasta 5 redirecciones, solo hacia hosts de `trusted`.
+
+    requests quita las cabeceras de autorización al cambiar de host; seguirlas a mano conserva el
+    token y la cabecera Range, y permite rechazar un host ajeno o bajar de https a http.
+    """
+    scheme = urlparse(url).scheme
+    response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120), headers=headers)
+    for _ in range(5):
+        if response.status_code not in (301, 302, 303, 307, 308):
+            return response
+        response.close()
+        url = urljoin(url, response.headers.get('Location', ''))
+        if urlparse(url).scheme != scheme or not trusted_host(url, trusted):
+            raise DownloadError('REDIRECCION_NO_CONFIABLE')
+        response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120), headers=headers)
+    return response
+
+
+def content_range(response):
+    """(inicio, total) de la cabecera Content-Range de una respuesta 206, o None si no se entiende."""
+    match = re.fullmatch(r'bytes (\d+)-\d+/(\d+|\*)', response.headers.get('Content-Range', '').strip())
+    return (int(match[1]), None if match[2] == '*' else int(match[2])) if match else None
+
+
+def fetch(session, url, target, trusted, fresh=False):
+    """Descarga `url` en streaming a `target` y devuelve {md5, sha256}; reanuda un `.part` previo.
+
+    Si un intento anterior dejó `<target>.part` y su `.part.json` (ETag o Last-Modified y tamaño
+    total del primer intento), pide solo lo que falta con `Range` e `If-Range`: el servidor manda
+    el resto (206) solo si el archivo no cambió; si responde el archivo completo (200) o un rango
+    que no empieza donde quedó el `.part`, se empieza de cero. Sin validador no se reanuda, para
+    no unir pedazos de dos archivos distintos. Los hashes cubren el archivo completo (incluida la
+    parte ya escrita) y se comprueba que llegaron todos los bytes anunciados. `fresh` indica que ya
+    se descartó lo parcial: un 206 o 416 sin haber pedido rango es un fallo (RANGO_INVALIDO).
+    """
+    import requests
+    part, meta = target.with_name(target.name+'.part'), target.with_name(target.name+'.part.json')
+    saved = {}
+    with contextlib.suppress(OSError, ValueError):
+        saved = json.loads(meta.read_text())
+    offset = part.stat().st_size if part.is_file() and (saved.get('etag') or saved.get('modified')) else 0
+    try:
+        headers = {'Range': f'bytes={offset}-', 'If-Range': saved.get('etag') or saved['modified']} if offset else None
+        response = trusted_get(session, url, trusted, headers)
+        with response:
+            resumed = response.status_code == 206 and offset and content_range(response)
+            if resumed and (resumed[0] != offset or (saved.get('total') and resumed[1] not in (None, saved['total']))):
+                resumed = None
+            if (response.status_code == 206 and not resumed) or response.status_code == 416:
+                if fresh or not offset:
+                    raise DownloadError('RANGO_INVALIDO')
+                # Rango distinto del pedido: se descarta lo parcial y se pide entero.
+                response.close()
+                return fetch_again(session, url, target, trusted, part, meta)
+            if response.status_code not in (200, 206):
+                raise http_error(response)
+            digests = {'md5': hashlib.md5(), 'sha256': hashlib.sha256()}
+            if resumed:
+                total = resumed[1] or saved.get('total')
+                with part.open('rb') as stream:
+                    for chunk in iter(lambda: stream.read(CHUNK), b''):
+                        for value in digests.values():
+                            value.update(chunk)
+            else:
+                offset = 0
+                length = response.headers.get('Content-Length')
+                total = int(length) if length and length.isdigit() else None
+                meta.write_text(json.dumps({'etag': response.headers.get('ETag'),
+                                            'modified': response.headers.get('Last-Modified'), 'total': total}))
+            written = offset
+            with part.open('ab' if resumed else 'wb') as stream:
+                for chunk in response.iter_content(CHUNK):
+                    stream.write(chunk)
+                    written += len(chunk)
+                    for value in digests.values():
+                        value.update(chunk)
+    except requests.Timeout:
+        raise DownloadError('TIEMPO_AGOTADO') from None
+    except requests.RequestException:
+        raise DownloadError('CONEXION') from None
+    if total is not None and written != total:
+        # Conexión cerrada antes de tiempo sin error de la librería: el .part queda para reanudar.
+        raise DownloadError('CONEXION')
+    part.replace(target)
+    meta.unlink(missing_ok=True)
+    return {name: value.hexdigest() for name, value in digests.items()}
+
+
+def fetch_again(session, url, target, trusted, part, meta):
+    """Descarta el `.part` y su `.part.json` y descarga el archivo entero."""
+    part.unlink(missing_ok=True)
+    meta.unlink(missing_ok=True)
+    return fetch(session, url, target, trusted, fresh=True)
+
+
 def cdse_download(ac, source, raw):
     """Descarga el ZIP de un producto CDSE en streaming a disco y devuelve (ruta, {md5, sha256}).
 
     Reemplaza a ac.api.cdse.download, que pide el archivo dos veces y lo acumula en memoria. Sigue
-    las redirecciones a mano (requests quita el token al cambiar de host), solo hacia hosts del
-    dominio de CDSE, y calcula los hashes mientras escribe. Sin terminar queda solo el `.part`.
+    las redirecciones a mano solo hacia hosts del dominio de CDSE y calcula los hashes mientras
+    escribe. Si se corta queda el `.part`, que el siguiente intento reanuda (ver `fetch`).
     """
     import requests
     target = Path(raw)/(source['product'].split('.')[0]+'.zip')
-    part = target.with_name(target.name+'.part')
     url = f"{ac.config['CDSE_odata']}/Products({source['id']})/$value"
     # Solo hosts del dominio del catálogo (dataspace.copernicus.eu) y sin bajar de https a http.
-    scheme, trusted = urlparse(url).scheme, urlparse(url).hostname.split('.', 1)[1]
-    digests = {'md5': hashlib.md5(), 'sha256': hashlib.sha256()}
+    trusted = urlparse(url).hostname.split('.', 1)[1]
     with requests.Session() as session:
         token = cdse_token(ac, session)
         session.headers['Authorization'] = 'Bearer '+token['access_token']
         try:
-            response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120))
-            for _ in range(5):
-                if response.status_code not in (301, 302, 303, 307, 308):
-                    break
-                response.close()
-                url = urljoin(url, response.headers.get('Location', ''))
-                host = urlparse(url).hostname or ''
-                if urlparse(url).scheme != scheme or not (host == trusted or host.endswith('.'+trusted)):
-                    raise DownloadError('REDIRECCION_NO_CONFIABLE')
-                response = session.get(url, stream=True, allow_redirects=False, timeout=(30, 120))
-            with response:
-                if response.status_code != 200:
-                    raise http_error(response)
-                with part.open('wb') as stream:
-                    for chunk in response.iter_content(CHUNK):
-                        stream.write(chunk)
-                        for value in digests.values():
-                            value.update(chunk)
-        except requests.Timeout:
-            raise DownloadError('TIEMPO_AGOTADO') from None
-        except requests.RequestException:
-            raise DownloadError('CONEXION') from None
+            digests = fetch(session, url, target, trusted)
         finally:
             cdse_logout(ac, session, token)
-    part.replace(target)
-    return target, {name: value.hexdigest() for name, value in digests.items()}
+    return target, digests
 
 
-def usgs_reason(printed):
-    """Código del fallo de la descarga nativa USGS según lo que imprimió (sin guardar el texto)."""
-    return next((code for text, code in USGS_REASONS if text in printed), 'DESCARGA_FALLIDA')
+# Hosts aceptados para la descarga USGS (earthexplorer.usgs.gov, landsatlook.usgs.gov, dds.cr.usgs.gov…).
+USGS_DOMAIN = 'usgs.gov'
+
+
+def usgs_download(ac, source, raw):
+    """Descarga el TAR (Product Bundle L1) de una escena Landsat en streaming y devuelve (ruta, {md5, sha256}).
+
+    Sigue los pasos de ac.api.earthexplorer.download (sesión EROS, botón 'Download Product' de la
+    página de opciones y URL de descarga de /download/<producto>/<entidad>/EE/), pero escribe a
+    disco mientras recibe: la nativa pide el archivo dos veces y lo acumula en memoria (≈3,3 GB
+    de RAM). Si se corta queda el `.part`, que el siguiente intento reanuda (ver `fetch`).
+    """
+    import requests
+    target = Path(raw)/(source['product']+'.tar')
+    with requests.Session() as session:
+        try:
+            failure = eros_login(ac, session)
+            if failure:
+                raise DownloadError('SIN_CREDENCIALES' if failure.startswith('SIN_CREDENCIALES') else failure)
+            try:
+                page = session.get('{}/options/{}/{}'.format(ac.config['EARTHEXPLORER_download'], source['dataset'],
+                                                             source['id']), timeout=60)
+                ids = bundle_ids(page.text, source['id'])
+                if not ids:
+                    raise DownloadError('SIN_BOTON_DESCARGA')
+                response = session.get('{}/{}/{}/EE/'.format(ac.config['EARTHEXPLORER_download'], ids[1], ids[0]),
+                                       allow_redirects=False, timeout=120)
+                if not response.ok:
+                    raise DownloadError('SIN_URL_DESCARGA')
+                try:
+                    url = response.json()['url']
+                except (ValueError, KeyError, TypeError):
+                    raise DownloadError('SIN_URL_DESCARGA') from None
+                # Mismo esquema que EarthExplorer (https) y un host de USGS.
+                if urlparse(url).scheme != urlparse(ac.config['EARTHEXPLORER_download']).scheme \
+                        or not trusted_host(url, USGS_DOMAIN):
+                    raise DownloadError('REDIRECCION_NO_CONFIABLE')
+            except requests.Timeout:
+                raise DownloadError('TIEMPO_AGOTADO') from None
+            except requests.RequestException:
+                raise DownloadError('CONEXION') from None
+            digests = fetch(session, url, target, USGS_DOMAIN)
+        finally:
+            with contextlib.suppress(Exception):
+                session.post(ac.config['EARTHEXPLORER_ers']+'/logout', timeout=30)
+    return target, digests
 
 
 def acquire(ac, source, raw):
@@ -431,12 +592,7 @@ def acquire(ac, source, raw):
     elif source['provider'] == 'CDSE':
         archive, digests = cdse_download(ac, source, raw)
     else:
-        with contextlib.redirect_stdout(io.StringIO()) as printed:
-            files = ac.api.earthexplorer.download([source['id']], [source['dataset']], [source['product']],
-                        output=str(raw), extract_tar=False, remove_tar=False, override=True, verbosity=0)
-        if not files:
-            raise DownloadError(usgs_reason(printed.getvalue()))
-        archive = Path(files[0])
+        archive, digests = usgs_download(ac, source, raw)
     sha = digests.get('sha256') or file_hash(archive)
     if source.get('sha256') and sha != source['sha256']:
         raise ValueError('La fuente cambió después de registrarse')

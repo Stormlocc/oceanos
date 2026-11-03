@@ -20,16 +20,17 @@ RESERVE_FRACTION, RESERVE_MINIMUM = 0.1, 1.5*GB
 CPUS_VARIABLE, RAM_VARIABLE = 'OCEANOS_CPUS', 'OCEANOS_RAM_GB'
 CGROUP = Path('/sys/fs/cgroup')
 # Picos RSS por etapa sin historial. ACOLITE: catálogo v3, 14 escenas Sentinel-2 (≈4,7 GB) y máximo
-# de los ensayos Landsat (6,57 GB). Descarga Sentinel-2: streaming propio (oceanos.native.cdse_download).
-# Descarga Landsat: la nativa de USGS acumula el bundle en memoria (≈3,2 veces su tamaño, ≈1 GB).
+# de los ensayos Landsat (6,57 GB). Descargas: streaming propio (oceanos.native.fetch), unos MB;
+# 0,4 GB cubre cargar ACOLITE en el proceso aislado.
 PEAKS = {'sentinel2': {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'process': 4.8*GB},
-         'landsat': {'query': 1.0*GB, 'acquire': 3.3*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
+         'landsat': {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
 # Disco por escena en curso: RAW, extraído, salidas y auxiliares (3,42 GB medidos).
 SCENE_DISK = 3.5*GB
 # Descargas simultáneas por familia: una cuenta gratuita de CDSE admite 4 conexiones a la vez
-# (documentation.dataspace.copernicus.eu/Quotas.html; con más, CDSE rechaza la descarga). USGS sin
-# límite documentado. OCEANOS_DESCARGAS lo cambia (p. ej. una cuenta CDSE con más cuota).
-DOWNLOADS = {'sentinel2': 4, 'landsat': None}
+# (documentation.dataspace.copernicus.eu/Quotas.html; con más, CDSE rechaza la descarga). USGS no
+# documenta un límite; con la descarga en streaming la RAM ya no lo acota, así que se usa el mismo
+# tope prudente de 4. OCEANOS_DESCARGAS lo cambia (p. ej. una cuenta CDSE con más cuota).
+DOWNLOADS = {'sentinel2': 4, 'landsat': 4}
 DOWNLOADS_VARIABLE = 'OCEANOS_DESCARGAS'
 # Prioridad al admitir: lo más avanzado primero, para liberar RAM y disco antes de descargar más.
 PRIORITY = {'process': 0, 'extract': 1, 'acquire': 2, 'query': 3}
@@ -218,6 +219,9 @@ class Resources:
         # prepara LUT en acolite/data, un directorio compartido sin auditoría de concurrencia.
         self.warm = False
         self.waiting = {}
+        # Días con un ACOLITE en curso: dos escenas del mismo día (varios tiles) pedirían a la vez el
+        # mismo auxiliar (meteorología, ozono) y lo escribirían en paralelo en acolite/data.
+        self.days = set()
         # Motivo del último rechazo de admit() por etapa, para la barra de progreso.
         self.blocked = {}
         self.condition = threading.Condition()
@@ -238,11 +242,12 @@ class Resources:
         free = self.live()
         return free is None or need <= free-self.spare
 
-    def admit(self, stage):
+    def admit(self, stage, day=None):
         """Reserva la RAM de la etapa si cabe ahora (con `condition` tomada) y devuelve si entró.
 
         Una etapa sola siempre entra aunque su pico supere la RAM asignada; si no, un equipo
-        pequeño nunca podría procesar una escena.
+        pequeño nunca podría procesar una escena. Con `day` (AAAAMMDD de la adquisición), un ACOLITE
+        no entra mientras corre otro del mismo día.
         """
         need = self.peaks.get(stage, 0)
         exclusive = stage == 'process' and not self.warm
@@ -251,6 +256,8 @@ class Resources:
         limit = self.limits.get(stage)
         if self.alone or (exclusive and self.active):
             return self.refuse(stage, 'que ACOLITE prepare sus LUT')
+        if day and day in self.days:
+            return self.refuse(stage, 'que termine el ACOLITE de otra escena del mismo día (auxiliares compartidos)')
         if ahead:
             return self.refuse(stage, 'que avance una escena más adelantada')
         if limit and self.running.get(stage, 0) >= limit:
@@ -261,6 +268,8 @@ class Resources:
         self.running[stage] = self.running.get(stage, 0)+1
         self.active += 1
         self.alone = exclusive
+        if day:
+            self.days.add(day)
         return True
 
     def refuse(self, stage, why):
@@ -268,8 +277,9 @@ class Resources:
         self.blocked[stage] = why
         return False
 
-    def free(self, stage):
+    def free(self, stage, day=None):
         """Libera la reserva de la etapa (con `condition` tomada) y despierta a los que esperan."""
+        self.days.discard(day)
         self.used -= self.peaks.get(stage, 0)
         self.running[stage] -= 1
         self.active -= 1
@@ -277,7 +287,7 @@ class Resources:
         self.condition.notify_all()
 
     @contextlib.contextmanager
-    def reserve(self, stage, waiting=None):
+    def reserve(self, stage, waiting=None, day=None):
         """Espera a que la etapa quepa, la mantiene reservada mientras dura y luego la libera.
 
         `waiting(motivo)` se llama cada segundo de espera (barra de progreso). Si se pidió detener el
@@ -286,7 +296,7 @@ class Resources:
         with self.condition:
             self.waiting[stage] = self.waiting.get(stage, 0)+1
             try:
-                while not self.admit(stage):
+                while not self.admit(stage, day):
                     if self.stop.is_set():
                         raise KeyboardInterrupt
                     if waiting:
@@ -298,7 +308,7 @@ class Resources:
             yield
         finally:
             with self.condition:
-                self.free(stage)
+                self.free(stage, day)
 
     def describe(self):
         """Resumen legible del reparto para imprimir al iniciar el lote."""

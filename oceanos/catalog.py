@@ -264,13 +264,40 @@ class Catalog:
                              + (text if not found else ', '.join(found[:5])))
         return found[0]
 
-    def enqueue(self, scenes):
-        """Pone escenas en la cola (estado PENDIENTE); las ya procesadas no se reactivan."""
+    def enqueue(self, scenes, region=None):
+        """Pone escenas en la cola (estado PENDIENTE) y devuelve (registradas, omitidas {escena: motivo}).
+
+        Las ya procesadas o importadas no se reactivan. Una adquisición (satélite:día:tile) entra
+        una sola vez: se omite si ya tiene L2W en `region` o si otra escena suya ya está en la cola;
+        entre varias versiones del mismo producto (reprocesos del proveedor) entra la más reciente.
+        Así `run` nunca descarga algo que ya tenemos.
+        """
+        done = self.completed(region) if region else {}
+        rows = [self.db.execute('SELECT escena, adquisicion, estado FROM escenas WHERE escena=?', (scene,)).fetchone()
+                for scene in dict.fromkeys(scenes)]
+        queued, skipped, taken = [], {}, {}
+        # Más reciente primero: el nombre lleva baseline (N05xx) e instante de generación.
+        for row in sorted((row for row in rows if row), key=lambda row: row['escena'], reverse=True):
+            scene, acquisition = row['escena'], row['adquisicion']
+            if row['estado'] in ('PROCESADA', 'IMPORTADA'):
+                skipped[scene] = 'ya procesada' if row['estado'] == 'PROCESADA' else 'ya importada'
+                continue
+            if acquisition in done:
+                skipped[scene] = 'su adquisición ya tiene L2W'
+                continue
+            other = taken.get(acquisition) or self.db.execute(
+                "SELECT escena FROM escenas WHERE adquisicion=? AND escena!=? AND estado IN ('PENDIENTE','FALLIDA')",
+                (acquisition, scene)).fetchone()
+            if other:
+                skipped[scene] = 'otra versión de la misma adquisición ya está en la cola: ' + (
+                    other if isinstance(other, str) else other['escena'])
+                continue
+            taken[acquisition] = scene
+            queued.append(scene)
         with self.db:
-            for scene in scenes:
-                self.db.execute("UPDATE escenas SET estado='PENDIENTE',registrada=? WHERE escena=? "
-                                "AND estado NOT IN ('PROCESADA','IMPORTADA')", (stamp(), scene))
-        return len(scenes)
+            for scene in queued:
+                self.db.execute("UPDATE escenas SET estado='PENDIENTE',registrada=? WHERE escena=?", (stamp(), scene))
+        return queued, skipped
 
     def dequeue(self, scene):
         """Retira una escena de la cola si aún no se procesó (vuelve a NUEVA)."""
@@ -284,6 +311,23 @@ class Catalog:
             (SELECT max(id) FROM procesos p WHERE p.escena=e.escena) AS ultimo
             FROM escenas e WHERE e.registrada IS NOT NULL ORDER BY e.fecha_utc''').fetchall()
         return [dict(row) for row in rows]
+
+    def report(self, sensor=None):
+        """Una fila por escena trabajada (en cola alguna vez o con procesos): resultado y último proceso.
+
+        Resultado: OK (L2W propio), IMPORTADA, DISPONIBLE (la adquisición ya tenía L2W), FALLIDA
+        (el próximo run la reintenta) o PENDIENTE. Incluye intentos de descarga, motivo del último
+        fallo y la ruta del L2W, ordenadas por fecha.
+        """
+        rows = self.db.execute('''SELECT e.escena, e.sensor, e.satelite, e.fecha_utc, e.tile, e.estado,
+              p.id AS proceso, p.estado AS proceso_estado, p.intentos, p.error, p.fin, p.descarga_min,
+              (SELECT count(*) FROM procesos q WHERE q.escena=e.escena AND q.tipo!='IMPORTADO') AS procesos,
+              (SELECT l2w FROM procesos q WHERE q.escena=e.escena AND q.l2w IS NOT NULL ORDER BY q.id DESC LIMIT 1) AS l2w
+            FROM escenas e LEFT JOIN procesos p ON p.id=(SELECT max(id) FROM procesos q WHERE q.escena=e.escena)
+            WHERE (e.registrada IS NOT NULL OR p.id IS NOT NULL) AND (? IS NULL OR e.sensor=?)
+            ORDER BY e.fecha_utc''', (sensor, sensor)).fetchall()
+        names = {'PROCESADA': 'OK'}
+        return [{**dict(row), 'resultado': names.get(row['estado'], row['estado'])} for row in rows]
 
     def completed(self, region):
         """Adquisiciones con L2W presente para la región (propias o importadas); solo comprueba existencia y tamaño."""
@@ -302,21 +346,27 @@ class Catalog:
     def pending(self, config, force=False):
         """Escenas de la cola por procesar (PENDIENTE o FALLIDA) dentro del perfil.
 
-        Las que ya tienen L2W pasan a DISPONIBLE, salvo con `force`. Devuelve
-        (por procesar, fuera del perfil, ya disponibles).
+        Las que ya tienen L2W pasan a DISPONIBLE, salvo con `force`. De una misma adquisición se
+        procesa una sola escena por run (la más reciente); las demás esperan en la cola y el
+        siguiente run las marca DISPONIBLE si aquella termina bien. Devuelve
+        (por procesar, fuera del perfil, ya disponibles, aplazadas por repetir adquisición).
         """
         done = {} if force else self.completed(config['aoi']['id'])
-        ready, outside, available = [], [], []
-        for row in self.db.execute("SELECT escena, adquisicion, fuente FROM escenas "
-                                   "WHERE estado IN ('PENDIENTE','FALLIDA') ORDER BY fecha_utc").fetchall():
+        ready, outside, available, deferred, taken = [], [], [], [], set()
+        rows = self.db.execute("SELECT escena, adquisicion, fuente FROM escenas "
+                               "WHERE estado IN ('PENDIENTE','FALLIDA') ORDER BY fecha_utc, escena DESC").fetchall()
+        for row in rows:
             if row['adquisicion'] in done:
                 self.scene_state(row['escena'], 'DISPONIBLE')
                 available.append(row['escena'])
-            elif eligible(json.loads(row['fuente']), config):
-                ready.append(row['escena'])
-            else:
+            elif not eligible(json.loads(row['fuente']), config):
                 outside.append(row['escena'])
-        return ready, outside, available
+            elif row['adquisicion'] in taken:
+                deferred.append(row['escena'])
+            else:
+                taken.add(row['adquisicion'])
+                ready.append(row['escena'])
+        return ready, outside, available, deferred
 
     # ---------- búsquedas ----------
 

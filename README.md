@@ -15,6 +15,7 @@ oceanos search --registrar               # dejar las nuevas en la cola
 oceanos cola                             # revisar la cola
 oceanos run                              # descargar y procesar la cola, con progreso y resumen
 oceanos status --ultimas 5               # revisar resultados
+oceanos reporte                          # éxitos y fallidas juntas, con motivo (--csv archivo.csv)
 ```
 
 - `--sensor landsat` usa el perfil Landsat; `--satelite S2B,S2C`, `--start AAAA-MM-DD` y `--end AAAA-MM-DD` (fin excluido) cambian la selección sin editar el YAML. Usa la misma selección en `search` y en `run`.

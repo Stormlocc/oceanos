@@ -1,6 +1,6 @@
 # Pendientes, riesgos y trabajo futuro
 
-Estado al 08-10-2026. Ninguna fase nueva se inicia sin orden explícita del usuario, y no se descargan escenas, LUT ni auxiliares sin autorización.
+Estado al 03-11-2026. Ninguna fase nueva se inicia sin orden explícita del usuario, y no se descargan escenas, LUT ni auxiliares sin autorización.
 
 ## Pendientes científicos
 
@@ -14,15 +14,12 @@ Estado al 08-10-2026. Ninguna fase nueva se inicia sin orden explícita del usua
 
 | Tema | Detalle |
 |---|---|
-| RAW retenido tras `SKIPPED` | Si la salida reutilizable se reconoce **después** de descargar, el intento queda `SKIPPED`, conserva el RAW y `cleanup` lo aplaza. Corrección pendiente |
-| Completitud USGS | La función nativa pide hasta 1000 resultados y no pagina. El wrapper informa `INCOMPLETE` si hay más: acotar el intervalo |
-| Tamaño Landsat | `download-options` de M2M requiere el rol MACHINE (la cuenta recibe HTTP 403). El respaldo lee el HTML de EarthExplorer y puede romperse si USGS cambia la página; es solo informativo |
-| Descarga Landsat en memoria | La nativa de USGS descarga sin streaming (probablemente dos veces). Sentinel-2 ya usa descarga propia en streaming (13-10-2026). Siguiente paso: pedir acceso de descarga M2M y usar `download-request`/`download-retrieve` |
+| HTTP 403 de USGS M2M | La cuenta solo tiene el permiso M2M `user` (comprobado el 03-11-2026), y `download-options`/`download-request` exigen `download`. **Acción del usuario:** pedir el acceso de descarga M2M en ers.cr.usgs.gov (*Access Request*). Mientras tanto, tamaños y descarga van por la página de EarthExplorer, que puede romperse si USGS la cambia |
+| Descarga Landsat por EarthExplorer | Desde el 03-11-2026 es propia y en streaming, pero lee el botón "Download Product" de la página de opciones, igual que la nativa: puede romperse si USGS cambia la página. Alternativa estable: pedir el rol de descarga M2M y usar `download-request`/`download-retrieve` |
 | Fuente sin checksum comparable | Sin MD5/SHA del proveedor (USGS), decidir si se omite el cálculo exige descargar primero |
 | Importación por nombre | `sync` no abre los NetCDF; un nombre engañoso marcaría la adquisición como disponible. Usar `--hash` si los archivos serán evidencia |
 | Recursos | Presupuesto de 50 GB de temporales (sin contar L1R/L2W conservados) y 2 GB libres de disco, supervisados por muestreo, sin cuota instantánea; no se registra qué auxiliares consumió cada escena |
-| Reintentos | Esperas de 60 y 300 s; con 429 al menos 120 s o `Retry-After` (solo Sentinel-2, cuya descarga propia ve el código HTTP). En Landsat el motivo sale de lo que imprime ACOLITE, sin código HTTP |
-| Respaldo externo | No hay backups automáticos del catálogo ni de `storage/runs`; definir destino y procedimiento |
+| Respaldo externo | Planificado para después: un módulo/comando que exporte los L2W (y el catálogo) a un storage en la nube |
 | Cambio de ACOLITE | Cambiar revisión o parche invalida la reutilización de todas las salidas previas (ver [ACOLITE](02_acolite.md#instalación-y-prepare)) |
 
 ## Paralelo: resuelto y pendiente
@@ -31,11 +28,12 @@ Resuelto (08-10-2026, [operación](04_operacion.md#paralelo)): una conexión SQL
 
 Pendiente:
 - **Sin ensayo real.** Probado con dobles y con un proceso aislado real sin red; falta un lote real con descargas para medir la ganancia y confirmar que CDSE/USGS aceptan descargas simultáneas.
-- **Descarga en memoria.** Resuelto para Sentinel-2 (13-10-2026): descarga propia en streaming, 6–7 MB de RAM y una sola transferencia. Landsat sigue con la nativa (≈3,3 GB reservados por descarga).
-- **Reanudar descargas cortadas.** El `.part` se descarta en cada intento; reanudar con `Range` requiere comprobar que CDSE lo admite (no está documentado).
+- **Descarga en memoria.** Resuelto: Sentinel-2 (13-10-2026) y Landsat (03-11-2026) con descarga propia en streaming y una sola transferencia.
+- **Reanudar descargas cortadas.** Implementado el 03-11-2026 (`Range` + `If-Range`, con vuelta a empezar si el servidor no lo admite), solo entre intentos del mismo proceso: un nuevo `run` empieza de cero. Probado contra un servidor local; **falta confirmar con CDSE/USGS reales** si responden 206 (si no, el comportamiento es el de antes).
 - **Presupuesto de disco.** Se muestrea cada 2 s por proceso y no reserva espacio; el número de escenas a la vez se limita al inicio con 3,5 GB por escena. Desde el 13-10-2026 cuenta solo temporales: antes sumaba los L1R/L2W conservados y habría detenido el pipeline tras unas 60 escenas más.
-- **Auxiliares del mismo día.** Dos escenas de la misma fecha (varios tiles) descargarían el mismo auxiliar a la vez a `acolite/data`; con un único tile no ocurre.
-- **Proveedores.** CDSE: 4 descargas a la vez y 100 sesiones activas (la descarga propia cierra la sesión de cada token). USGS: sin límite de descarga documentado; M2M limita a 15.000 peticiones cada 15 min.
+- **Auxiliares del mismo día.** Resuelto (03-11-2026): dos ACOLITE del mismo día no corren a la vez.
+- **Descargas repetidas.** Resuelto (03-11-2026): la cola admite una escena por adquisición y `run` no descarga si la adquisición ya tiene L2W; si se reconoce tras descargar, el RAW se borra en el acto.
+- **Proveedores.** CDSE: 4 descargas a la vez y 100 sesiones activas (la descarga propia cierra la sesión de cada token). USGS: sin límite de descarga documentado (se usan 4 a la vez por prudencia); M2M limita a 15.000 peticiones cada 15 min.
 - **Identidad compuesta.** `clave_resultado`/`clave_correccion` dependen de la identidad del motor; cualquier cambio del parche ACOLITE invalida la reutilización de todas las salidas previas.
 - **Importados sin verificar.** Los 14 L1R/L2W actuales son procesos `IMPORTADO`: evitan descargas repetidas, pero no se reutilizan como padre para regenerar productos. Para eso hay que reprocesar la escena (o validar los archivos y marcarlos `TECNICA_OK`).
 

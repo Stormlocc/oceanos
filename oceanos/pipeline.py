@@ -24,12 +24,15 @@ REASONS = {'HTTP_401':'credenciales rechazadas (401)', 'HTTP_403':'sin permiso d
            'TIEMPO_AGOTADO':'el servidor dejó de responder', 'REDIRECCION_NO_CONFIABLE':'redirección a un host ajeno',
            'SIN_BOTON_DESCARGA':'EarthExplorer no mostró el botón de descarga',
            'SIN_URL_DESCARGA':'EarthExplorer no entregó la URL de descarga',
-           'DESCARGA_RECHAZADA':'USGS rechazó la descarga'}
+           'DESCARGA_RECHAZADA':'USGS rechazó la descarga',
+           'RANGO_INVALIDO':'el servidor respondió un rango que no se pidió',
+           'LOGIN_EARTHEXPLORER':'EarthExplorer no mostró el formulario de inicio de sesión'}
 # Fallos que no se arreglan esperando: se informan sin gastar más intentos.
 FINAL = {'HTTP_401', 'HTTP_403', 'HTTP_404', 'TOKEN_HTTP_401', 'TOKEN_HTTP_400', 'SIN_CREDENCIALES',
          'REDIRECCION_NO_CONFIABLE'}
-# Espera mínima tras superar la cuota del proveedor, y máxima aunque pida más con Retry-After.
-QUOTA_WAIT, QUOTA_WAIT_MAX = 120, 900
+# Espera mínima tras superar la cuota del proveedor (429) y máxima: si Retry-After pide más, no se
+# espera; la escena queda FALLIDA para el próximo run (reintentos cortos, ver `retry`).
+QUOTA_WAIT, QUOTA_WAIT_MAX = 30, 60
 
 
 class StageError(RuntimeError):
@@ -86,6 +89,8 @@ class Pipeline:
     resources = None
     # Informe de la última consulta al proveedor (sin fuentes), para que el CLI lo explique.
     last_query = None
+    # L2W existente por el que run() no descargó la última escena (su adquisición ya estaba completa).
+    found = None
 
     def __init__(self, catalog, config, acolite, wait=time.sleep, progress=None, resources=None):
         """Guarda catálogo y perfil y calcula la identidad del motor ACOLITE."""
@@ -185,12 +190,13 @@ class Pipeline:
         if disk_free(self.catalog.storage) < DISK_MARGIN:
             raise RuntimeError('Disco casi lleno')
 
-    def call(self, operation, timeout=3600, **arguments):
+    def call(self, operation, timeout=3600, day=None, **arguments):
         """Ejecuta una operación de ACOLITE en un proceso aislado (oceanos.worker).
 
         Los argumentos y el resultado viajan como JSON en una carpeta temporal. El proceso se
         corta si supera `timeout` segundos o el presupuesto de disco. Con `resources` espera a
-        que su pico de RAM quepa, limita sus hilos numéricos y usa un scratch propio de ACOLITE.
+        que su pico de RAM quepa, limita sus hilos numéricos y usa un scratch propio de ACOLITE;
+        `day` (AAAAMMDD) impide dos ACOLITE a la vez de escenas del mismo día.
         """
         # JSON únicamente como transporte efímero entre procesos actual y el de ACOLITE; no es otro registro.
         temporary = self.catalog.storage/'temporary'
@@ -198,7 +204,7 @@ class Pipeline:
         queued = time.monotonic()
         waiting = lambda why: self.progress and self.progress.stage(f"{STAGES.get(operation,'descarga')}: en espera de {why}",
                                                                     time.monotonic()-queued)
-        reservation = self.resources.reserve(operation,waiting) if self.resources else contextlib.nullcontext()
+        reservation = self.resources.reserve(operation,waiting,day) if self.resources else contextlib.nullcontext()
         with tempfile.TemporaryDirectory(prefix='stage_', dir=temporary) as stage, reservation:
             # El tiempo en espera de RAM no cuenta para el límite ni para las métricas de la etapa.
             started = time.monotonic()
@@ -247,7 +253,9 @@ class Pipeline:
         """Ejecuta `function` con los reintentos y esperas del perfil; relanza el último error.
 
         Credenciales, permisos o producto inexistente no se reintentan. Con la cuota del proveedor
-        superada (429) se espera al menos QUOTA_WAIT segundos, o lo que indique Retry-After.
+        superada (429) se espera al menos QUOTA_WAIT segundos, o lo que indique Retry-After si no
+        pasa de QUOTA_WAIT_MAX; si pide más, se deja de intentar. Las esperas son cortas a propósito:
+        lo que no se consigue queda FALLIDO en el reporte y el siguiente run lo reintenta.
         """
         attempts = self.config['input']['transient_attempts_total']
         delays = self.config['input']['retry_wait_seconds']
@@ -256,14 +264,15 @@ class Pipeline:
                 return function()
             except Exception as error:
                 code = reason(error)
-                final = code in FINAL
+                hint = getattr(error,'retry_after',None) or 0
+                final = code in FINAL or (code == 'HTTP_429' and hint > QUOTA_WAIT_MAX)
                 self.notify('INTENTO_FALLIDO', f'Descarga, intento {attempt+1} de {attempts}: {explain(code)}'
                             + (' (no se reintenta)' if final else ''), process, scene)
                 if final or attempt+1 == attempts:
                     raise
                 wait = delays[attempt]
                 if code == 'HTTP_429':
-                    wait = min(max(wait, QUOTA_WAIT, getattr(error,'retry_after',None) or 0), QUOTA_WAIT_MAX)
+                    wait = min(max(wait, QUOTA_WAIT, hint), QUOTA_WAIT_MAX)
                 self.pause(wait)
 
     def search(self):
@@ -301,23 +310,48 @@ class Pipeline:
         return processing, correction
 
     def skip(self, process, scene, existing):
-        """Cierra un proceso como OMITIDO porque ya existe un L2W verificado equivalente."""
-        self.catalog.finish(process, 'OMITIDO', 'TECNICA_OK')
-        self.catalog.update(process, limpieza='NO_APLICA')
+        """Cierra un proceso como OMITIDO porque ya existe un L2W verificado equivalente.
+
+        Si se reconoció después de descargar (fuente sin SHA previo), el RAW y la carpeta vacía
+        del proceso se borran en el acto: no ocupan presupuesto ni esperan a `cleanup`.
+        """
+        self.catalog.finish(process, 'OMITIDO', 'TECNICA_OK', metrics=self.metrics)
         self.notify('OMITIDO', f'Ya existe un L2W equivalente en el proceso {existing["proceso"]}', process, scene)
+        with contextlib.suppress(OSError):
+            # Un fallo de borrado queda como limpieza FALLIDA (cleanup lo registra) sin cambiar el estado.
+            cleanup(self.catalog, process)
         return process
+
+    def already_available(self, scene):
+        """Ruta del L2W que ya existe para la adquisición de la escena en el AOI del perfil, o None.
+
+        Es la misma regla que usan la cola (`enqueue`/`pending`): se mira por adquisición y región,
+        sin descargar. Evita bajar una escena cuya adquisición se completó después de encolarla
+        (otra versión del producto, `run --escena`, un `sync` posterior).
+        """
+        row = self.catalog.db.execute('SELECT adquisicion FROM escenas WHERE escena=?', (scene,)).fetchone()
+        return row and self.catalog.completed(self.config['aoi']['id']).get(row['adquisicion'])
 
     def run(self, scene, source=None, local_l1r=None, force=False):
         """Procesa una escena de principio a fin y devuelve el id del proceso.
 
         `source` sustituye la fuente del catálogo (archivo local de `run --source`/`derive`).
         Reutiliza L2W o L1R verificados si existen; si no, adquiere, extrae y procesa. Al
-        terminar valida, registra L1R/L2W y limpia los temporales.
+        terminar valida, registra L1R/L2W y limpia los temporales. Sin `force`, una escena del
+        proveedor cuya adquisición ya tiene L2W no se descarga: queda DISPONIBLE y devuelve None.
         """
         remote = source is None
         source = source or self.catalog.source(scene)
         if not eligible(source,self.config):
             raise ValueError('Escena fuera del perfil solicitado')
+        existing = self.found = self.already_available(scene) if remote and not force else None
+        if existing:
+            state = self.catalog.db.execute('SELECT estado FROM escenas WHERE escena=?',(scene,)).fetchone()['estado']
+            if state not in ('PROCESADA','IMPORTADA'):
+                self.catalog.scene_state(scene,'DISPONIBLE')
+            self.notify('DISPONIBLE', f'No se descarga: la adquisición ya tiene L2W en {existing} (use --force para reprocesar)',
+                        scene=scene)
+            return None
         result_key, correction_key = self.keys(source)
         kind = 'DERIVADO' if local_l1r else ('LOCAL' if source.get('local') else 'DESCARGA')
         process = self.catalog.start(scene, kind, self.config, result_key, correction_key)
@@ -371,8 +405,8 @@ class Pipeline:
                 validate({'l1r':str(input_path)},self.config)
             settings = folder/'settings.txt'
             settings.write_text('\n'.join(k+'='+str(v) for k,v in sorted(self.config['native'].items()))+'\n')
-            result = self.call('process',input=str(input_path),settings=str(settings),
-                               output=str(folder),derive=derive)
+            result = self.call('process',day=source['identity']['date'][:8],input=str(input_path),
+                               settings=str(settings),output=str(folder),derive=derive)
             files = result['files']
             report = validate(files,self.config)
             # Solo L1R y L2W persisten; L2R se usa para QA y metadata, luego se elimina.
@@ -455,11 +489,13 @@ class Pipeline:
         if self.progress:
             row = self.catalog.db.execute('SELECT satelite, fecha_utc, tile FROM escenas WHERE escena=?',(scene,)).fetchone()
             self.progress.scene(index,total,f"{row['satelite']} {row['fecha_utc']} {row['tile']}")
-        self.current_run = None
+        self.current_run, self.found = None, None
         failed = False
         try:
             self.run(scene,force=force)
-            self.catalog.scene_state(scene,'PROCESADA')
+            if not self.found:
+                # Sin descarga por existir ya el L2W, run() dejó la escena DISPONIBLE.
+                self.catalog.scene_state(scene,'PROCESADA')
         except Exception:
             failed = True
             self.catalog.scene_state(scene,'FALLIDA')
@@ -515,8 +551,9 @@ class Pipeline:
 def cleanup(catalog, process):
     """Borra los temporales de un proceso si la política lo permite y devuelve el resultado.
 
-    Se borra si L1R y L2W están verificados, si se agotaron los reintentos de una fuente
-    recuperable o si el proceso fue interrumpido; en otro caso se aplaza.
+    Se borra si L1R y L2W están verificados, si falló con una fuente recuperable (CDSE/USGS: el
+    próximo run la vuelve a descargar, así que lo parcial no sirve), si el proceso fue interrumpido o si se omitió por existir un L2W equivalente
+    (su descarga, si la hubo, no se usa); en otro caso se aplaza.
     """
     row = catalog.process(int(process))
     process = row['id']
@@ -524,9 +561,8 @@ def cleanup(catalog, process):
         # Archivos copiados a mano: no hay temporales propios y nunca se borran.
         return 'NO_APLICA'
     source = catalog.source(row['escena'])
-    required = json.loads(row['detalle'] or '{}').get('perfil',{}).get('input',{}).get('transient_attempts_total',3)
     recoverable = source['provider'] in ('CDSE','USGS') and bool(source.get('id'))
-    exhausted = row['estado']=='FALLIDO' and catalog.failed_attempts(process) >= required and recoverable
+    exhausted = row['estado']=='FALLIDO' and recoverable
     kinds = {kind for kind in ('L1R','L2W') if catalog.available(row,kind)}
     if row['l1r_padre']:
         parent = catalog.process(row['l1r_padre'])
@@ -536,14 +572,15 @@ def cleanup(catalog, process):
     # Interrumpido (marcado por recover): sus descargas/salidas parciales nunca se reutilizan;
     # un nuevo run vuelve a adquirir la fuente, así que solo ocupan presupuesto.
     interrupted = row['estado']=='INTERRUMPIDO'
-    if not complete and not exhausted and not interrupted:
+    omitted = row['estado']=='OMITIDO'
+    if not complete and not exhausted and not interrupted and not omitted:
         catalog.update(process, limpieza='APLAZADA')
-        catalog.event('LIMPIEZA_APLAZADA','No se cumplen los criterios técnicos, de reintentos agotados ni de interrupción',
+        catalog.event('LIMPIEZA_APLAZADA','No se cumplen los criterios técnicos, de fallo recuperable ni de interrupción',
                       process,row['escena'])
         return 'APLAZADA'
     targets = [('temporary/'+str(process),'temporary')]
-    # Carpeta de un proceso interrumpido solo si no registró archivos (corte entre registro y cierre).
-    if interrupted and not row['l1r'] and not row['l2w'] and row['carpeta']:
+    # Carpeta de un proceso interrumpido u omitido solo si no registró archivos (corte entre registro y cierre).
+    if (interrupted or omitted) and not row['l1r'] and not row['l2w'] and row['carpeta']:
         targets.append((row['carpeta'],'runs'))
     for relative, root in targets:
         target = catalog.storage/relative
@@ -558,7 +595,8 @@ def cleanup(catalog, process):
             catalog.event('LIMPIEZA_FALLIDA','No se pudo borrar '+relative,process,row['escena'])
             raise
     catalog.update(process, limpieza='HECHA')
-    reason = 'L1R y L2W verificados' if complete else ('reintentos agotados' if exhausted else 'proceso interrumpido')
+    reason = ('L1R y L2W verificados' if complete else 'falló; el próximo run vuelve a descargar' if exhausted else
+              'proceso interrumpido' if interrupted else 'omitido por existir un L2W equivalente')
     catalog.event('LIMPIEZA_HECHA','Temporales borrados: '+reason,process,row['escena'])
     return 'HECHA'
 
