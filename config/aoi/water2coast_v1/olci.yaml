@@ -1,0 +1,13 @@
+# Sentinel-3 OLCI L1 EFR (SEN3 desde CDSE) a 300 m. ACOLITE proyecta el L1R (geometría de
+# barrido) a la grilla de 300 m de la zona antes de la corrección atmosférica.
+sensor_family: olci
+provider: CDSE
+platforms: [S3A, S3B]
+level: OL_1_EFR___
+resolution_m: 300
+interval_start_utc: "2025-11-01T00:00:00Z"
+interval_end_exclusive_utc: "2026-11-01T00:00:00Z"
+# Sin tiles: una escena entra en las zonas que su huella cubre.
+# OLCI tiene 510 nm: OC4 solo aquí. La revisión fijada no configura chl_oc2/chl_oc3 para OLCI, ni
+# FAI/FAIT (sin SWIR); NDCI sí (665/709 nm).
+products: ["Rrs_*", chl_oc4, chl_ci, ndci, tur_nechad2009, spm_nechad2010, qaa_v6_Kd_490]

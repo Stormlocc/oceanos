@@ -1,21 +1,24 @@
-"""Interfaz manual del MVP; ejecutar dentro del entorno ACOLITE de WSL."""
+"""Interfaz de línea de comandos; ejecutar dentro del entorno ACOLITE de WSL."""
 import argparse
 import json
 import sys
+from collections import Counter
+from datetime import timedelta
 from pathlib import Path
 from .catalog import Catalog
-from .config import ROOT, ACOLITE, PRODUCTS, canonical, exclusive, file_hash, instant, profile
+from .config import ROOT, ACOLITE, PLATFORMS, PROFILE, canonical, exclusive, file_hash, instant, profile, profile_sensors
+from .escenas import SENSOR_TAG
 from .native import prepare, scene_identity, eligible
-from .pipeline import DISK_MARGIN, Pipeline, cleanup, disk_free, explain, recover, roots, temporary_bytes
+from .pipeline import (DISK_MARGIN, Pipeline, cleanup, disk_free, explain, product_estimate, recover,
+                       superimagen_bytes)
 from .progress import Progress, size, duration
 from .resources import plan
 from .sync import sync
 
-
-SENSORS = {'sentinel2': 'project.yaml', 'landsat': 'landsat.yaml'}
-SATELLITES = {'S2A': 'sentinel2', 'S2B': 'sentinel2', 'S2C': 'sentinel2', 'L8': 'landsat', 'L9': 'landsat'}
+SATELLITES = {platform: family for family, platforms in PLATFORMS.items() for platform in platforms}
 STATES = ['EN_CURSO', 'OK', 'OMITIDO', 'FALLIDO', 'INTERRUMPIDO', 'IMPORTADO']
-RESULTS = ['OK', 'IMPORTADA', 'DISPONIBLE', 'FALLIDA', 'PENDIENTE']
+RESULTS = ['OK', 'DISPONIBLE', 'FALLIDA', 'PENDIENTE']
+LOCAL_FORMATS = {'sentinel2': 'SAFE', 'landsat': 'TAR', 'olci': 'SEN3'}
 DATE = 'AAAA-MM-DD[THH:MM:SSZ]'
 
 
@@ -28,23 +31,21 @@ def date_text(value):
     return value
 
 
-def product_list(value):
-    """Valida productos separados por coma contra los soportados."""
+def name_list(value):
+    """Lista separada por comas (productos o zonas); el perfil valida cada nombre."""
     items = [item.strip() for item in value.split(',')]
-    unknown = [item for item in items if item not in PRODUCTS]
-    if unknown or not all(items):
-        raise argparse.ArgumentTypeError(f"producto no soportado {', '.join(unknown) or '(vacío)'}; "
-                                         f"opciones: {', '.join(sorted(PRODUCTS))} (OC4 excluido)")
+    if not all(items):
+        raise argparse.ArgumentTypeError('lista vacía o con elementos vacíos')
     return items
 
 
 def satellite_list(value):
-    """Valida satélites separados por coma (S2A,S2B,S2C,L8,L9); acepta minúsculas y LC08/LC09."""
+    """Valida satélites separados por coma; acepta minúsculas y LC08/LC09."""
     items = [item.strip().upper().replace('LC0', 'L') for item in value.split(',')]
     unknown = [item for item in items if item not in SATELLITES]
     if unknown:
         raise argparse.ArgumentTypeError(f"satélite desconocido {', '.join(unknown)}; opciones: "
-                                         "S2A, S2B, S2C (sentinel2) o L8, L9 (landsat)")
+                                         "S2A, S2B, S2C (sentinel2), L8, L9 (landsat), S3A, S3B (olci)")
     return list(dict.fromkeys(items))
 
 
@@ -75,15 +76,15 @@ def spanish(parser):
 
 
 def selection(parser, top=False):
-    """Agrega --sensor, --satelite, --start y --end; en subcomandos no pisan lo dado antes del comando."""
+    """Agrega --sensor, --satelite, --zona, --start y --end; en subcomandos no pisan lo dado antes del comando."""
     hidden = {} if top else {'default': argparse.SUPPRESS}
-    group = parser.add_argument_group('selección de escenas' + ('' if top else ' (también válidas antes del comando)'))
-    group.add_argument('--sensor', choices=list(SENSORS), **hidden,
-                       help='familia de sensor: sentinel2 (perfil project.yaml) o landsat (perfil landsat.yaml). '
-                            'Por defecto la del --profile')
+    group = parser.add_argument_group('selección' + ('' if top else ' (también válidas antes del comando)'))
+    group.add_argument('--sensor', choices=list(PLATFORMS), **hidden,
+                       help='solo ese sensor. Por defecto todos los del perfil, en orden: sentinel2, landsat, olci')
     group.add_argument('--satelite', type=satellite_list, metavar='SAT[,SAT]', **hidden,
-                       help='solo esos satélites: S2A, S2B, S2C (sentinel2) o L8, L9 (landsat), separados por coma. '
-                            'Por defecto todos los del perfil')
+                       help='solo esos satélites: S2A, S2B, S2C, L8, L9, S3A, S3B, separados por coma')
+    group.add_argument('--zona', type=name_list, metavar='ZONA[,ZONA]', **hidden,
+                       help='solo esas zonas: mayaguez_cabo_rojo, la_parguera_guanica, ponce_guayanilla, fajardo_culebra')
     group.add_argument('--start', type=date_text, metavar=DATE, **hidden,
                        help='inicio UTC incluido. Por defecto el del perfil')
     group.add_argument('--end', type=date_text, metavar=DATE, **hidden,
@@ -97,150 +98,126 @@ def parser():
         # Sugiere el valor correcto ante un error de escritura (p. ej. 'serch' -> 'search').
         options['suggest_on_error'] = True
     result = spanish(argparse.ArgumentParser(prog='oceanos', description=(
-        'Pipeline OCEANOS: catálogo SQLite local y ACOLITE nativo.\n\n'
-        'Orden habitual:\n'
+        'Pipeline OCEANOS: superimagen Water2Coast con ACOLITE nativo y catálogo SQLite local.\n\n'
+        'Uso habitual:\n'
         '  oceanos prepare                       # una vez: verificar ACOLITE\n'
-        '  oceanos sync                          # registrar L1R/L2W copiados a storage/importados\n'
-        '  oceanos search                        # ver escenas remotas (no descarga)\n'
-        '  oceanos search --registrar            # dejarlas en la cola\n'
-        '  oceanos cola                          # revisar la cola\n'
-        '  oceanos run                           # descargar y procesar la cola\n'
-        '  oceanos status --ultimas 5            # revisar resultados\n\n'
+        '  oceanos run --plan                    # ver qué se descargaría y cuánto disco ocuparía\n'
+        '  oceanos run                           # todo: buscar, descargar, ACOLITE, escenas, sargazo, compuestos\n'
+        '  oceanos superimagen                   # productos por zona y presupuesto de disco\n'
+        '  oceanos reporte                       # resultado por escena\n\n'
         'Ayuda de cada comando: oceanos <comando> -h'), **options))
     general = result.add_argument_group('rutas y perfil')
     general.add_argument('--storage', type=Path, default=ROOT/'storage', metavar='CARPETA',
-                         help='catálogo, runs e importados. Por defecto: storage/')
+                         help='catálogo, temporales y superimagen. Por defecto: storage/')
     general.add_argument('--acolite', type=Path, default=ACOLITE, metavar='CARPETA',
                          help=f'instalación de ACOLITE. Por defecto: {ACOLITE}')
-    general.add_argument('--profile', type=Path, metavar='YAML',
-                         help='perfil AOI/sensor. Por defecto: config/aoi/lapargera_v1/project.yaml '
-                              '(o landsat.yaml con --sensor landsat)')
-    general.add_argument('--products', type=product_list, metavar='PROD[,PROD]',
-                         help='productos L2W separados por coma, entre: ' + ', '.join(sorted(PRODUCTS))
-                              + '. NDCI solo Sentinel-2; OC4 excluido. Por defecto los del perfil')
+    general.add_argument('--profile', type=Path, default=PROFILE, metavar='CARPETA',
+                         help='carpeta del perfil (project.yaml y un YAML por sensor). Por defecto: config/aoi/water2coast_v1')
+    general.add_argument('--products', type=name_list, metavar='PROD[,PROD]',
+                         help='solo esos productos del perfil (l2w_parameters de ACOLITE). Por defecto todos')
     selection(result, top=True)
     commands = result.add_subparsers(dest='command', required=True, metavar='COMANDO', title='comandos')
 
     def command(name, summary, description='', examples='', hidden=False):
-        """Crea un subcomando con ayuda en español y ejemplos al final.
-
-        `hidden` lo omite de la lista de `oceanos -h` (sin `help`, argparse no lo enumera); sigue
-        funcionando y con su propia ayuda `oceanos <comando> -h`.
-        """
+        """Crea un subcomando con ayuda en español y ejemplos; `hidden` lo omite de `oceanos -h`."""
         listed = {} if hidden else {'help': summary}
         sub = commands.add_parser(name, **listed, description=summary + ('\n\n'+description if description else ''),
                                   epilog=('ejemplos:\n'+examples) if examples else None, **options)
         return spanish(sub)
 
-    command('prepare', 'Verificar la revisión de ACOLITE y aplicar el parche de catálogo',
-            examples='  oceanos prepare')
-    search = command('search', 'Consultar el catálogo remoto (CDSE o USGS) sin descargar escenas',
-        'Muestra fecha UTC, satélite, tile, tamaño L1 (L1C SAFE en Sentinel-2, Product Bundle\n'
-        'en Landsat), nubosidad, estado local y nombre de la escena:\n'
-        '  NUEVA          aún no descargada ni en cola\n'
-        '  PENDIENTE      en la cola; la procesará run\n'
-        '  FALLIDA        falló el último intento; run la reintenta\n'
-        '  PROCESADA      ya tiene L1R/L2W propios\n'
-        '  DISPONIBLE     la misma adquisición ya tiene L2W (propio o importado)\n'
-        '  IMPORTADA      registrada con sync\n'
-        'Debajo explica la consulta:\n'
-        '  completitud    COMPLETE (están todas), INCOMPLETE (el proveedor tiene más) o\n'
-        '                 UNKNOWN (el proveedor no informó el total)\n'
-        '  descartadas    escenas que el proveedor devuelve por tocar el rectángulo del AOI pero\n'
-        '                 que no cumplen el perfil (tile o path/row, satélite, intervalo), con su motivo\n'
-        'Sin --registrar no se compromete ninguna descarga.',
-        '  oceanos search\n'
+    command('prepare', 'Verificar la revisión de ACOLITE y aplicar el parche de catálogo', examples='  oceanos prepare')
+    run = command('run', 'Todo en uno: buscar, descargar, ACOLITE, escenas, sargazo diario y compuestos mensuales',
+        'Por cada sensor: máscaras de tierra → búsqueda y registro de escenas nuevas → descarga →\n'
+        'ACOLITE por zona → COG en superimagen/escenas (se borran crudo, L1R, L2R y L2W) → sargazo\n'
+        'diario → compuestos de los meses completos (y sus estaciones y años). Se puede cortar y\n'
+        'repetir: lo terminado no se descarga ni se recalcula otra vez.\n\n'
+        'Antes de descargar muestra cuántas escenas y cuántos GB, y la estimación de disco de la\n'
+        'superimagen frente a su presupuesto. --plan se detiene ahí.\n\n'
+        'Paralelo: varias escenas a la vez según CPU, RAM y disco del equipo (OCEANOS_CPUS,\n'
+        'OCEANOS_RAM_GB, OCEANOS_DESCARGAS los fijan a mano; CDSE admite 4 descargas a la vez).',
+        '  oceanos run --plan --start 2025-12-01 --end 2026-02-01\n'
+        '  oceanos run --start 2025-12-01 --end 2026-02-01\n'
+        '  oceanos run --sensor landsat --zona fajardo_culebra\n'
+        '  oceanos run --escena 20251216\n'
+        '  oceanos run --sensor sentinel2 --source /ruta/escena.zip --scene S2B_MSIL1C_..._T19QGV_....SAFE')
+    selection(run)
+    run.add_argument('--plan', action='store_true', help='buscar y mostrar qué se descargaría, sin registrar ni descargar')
+    local = run.add_argument_group('una sola escena')
+    local.add_argument('--escena', dest='version', metavar='ESCENA',
+                       help='procesar solo esta escena (nombre o fragmento único), sin buscar')
+    local.add_argument('--source', type=Path, metavar='ARCHIVO', help='ZIP (S2, OLCI) o TAR (Landsat) local; requiere --scene')
+    local.add_argument('--scene', metavar='NOMBRE', help='nombre nativo de la escena del archivo local')
+    run.add_argument('--force', action='store_true', help='reprocesar zonas que ya tienen resultado')
+    run.add_argument('--trabajadores', type=workers_count, metavar='N',
+                     help='escenas a la vez (1 = secuencial). Por defecto según el equipo')
+    search = command('search', 'Consultar el proveedor sin descargar (CDSE para S2 y OLCI, USGS para Landsat)',
+        'Muestra fecha, satélite, tile, tamaño L1, nubosidad publicada, zonas que toca y estado:\n'
+        '  NUEVA       aún no en cola · PENDIENTE en cola · FALLIDA se reintenta en el próximo run\n'
+        '  PROCESADA   sus zonas tienen resultado · DISPONIBLE su adquisición ya estaba completa',
         '  oceanos search --sensor landsat\n'
-        '  oceanos search --satelite S2B,S2C --start 2026-03-01 --end 2026-04-01\n'
-        '  oceanos search --registrar                  # todas las NUEVAS\n'
-        '  oceanos search --registrar 20260116 20260205   # solo esas (fragmento del nombre)')
+        '  oceanos search --registrar 20251216        # dejar en cola solo esa')
     selection(search)
     search.add_argument('--registrar', nargs='*', metavar='ESCENA',
-                        help='dejar en la cola para run: sin nombres, todas las NUEVAS; con nombres o fragmentos '
-                             'únicos (p. ej. 20260215), solo esas')
+                        help='dejar en la cola: sin nombres, todas las NUEVAS; con nombres o fragmentos únicos, solo esas')
     search.add_argument('--json', action='store_true', help='imprimir solo los nombres de las escenas en JSON')
-    run = command('run', 'Descargar y procesar con ACOLITE las escenas de la cola (no repite search)',
-        'Sin opciones procesa las escenas PENDIENTE o FALLIDA de la cola que caen en el\n'
-        'sensor/satélite/intervalo elegidos; las demás quedan pendientes. Muestra barra de\n'
-        'progreso y, al final, tiempos y disco ocupado por L1R/L2W.\n\n'
-        'Paralelo: varias escenas avanzan a la vez hasta su L2W aprovechando el equipo donde se\n'
-        'ejecuta: los núcleos utilizables (menos ~10 %) y la RAM libre al iniciar (menos 10 %, mín.\n'
-        '1,5 GB), respetando límites de WSL, contenedores y cgroup. Cada etapa (descarga, extracción,\n'
-        'ACOLITE) arranca solo si su pico de RAM medido cabe en ese presupuesto y en la RAM libre del\n'
-        'momento; el resto espera. El número de escenas a la vez se calcula al iniciar según CPU,\n'
-        'RAM, historial del catálogo y disco libre. OCEANOS_CPUS y OCEANOS_RAM_GB lo fijan a mano.\n'
-        'Descargas Sentinel-2: como máximo 4 a la vez (cuota de una cuenta CDSE gratuita); las demás\n'
-        'escenas esperan turno o avanzan en extracción/ACOLITE. OCEANOS_DESCARGAS lo cambia.',
-        '  oceanos run\n'
-        '  oceanos run --trabajadores 1               # una escena a la vez (como antes)\n'
-        '  oceanos run --satelite S2B\n'
-        '  oceanos run --sensor landsat\n'
-        '  oceanos run --escena 20260215\n'
-        '  oceanos run --source /ruta/escena.zip --scene S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE')
-    selection(run)
-    local = run.add_argument_group('una sola escena')
-    local.add_argument('--escena', '--version', dest='version', metavar='ESCENA',
-                       help='procesar solo esta escena (nombre o fragmento único, p. ej. 20260215), esté o no en la cola')
-    local.add_argument('--source', type=Path, metavar='ARCHIVO', help='ZIP (Sentinel-2) o TAR (Landsat) local; requiere --scene')
-    local.add_argument('--scene', metavar='NOMBRE',
-                       help='nombre nativo de la escena, p. ej. S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE '
-                            'o LC09_L1TP_005048_20260805_20260806_02_T1')
-    run.add_argument('--force', action='store_true', help='reprocesar aunque ya exista un L2W verificado')
-    run.add_argument('--trabajadores', type=workers_count, metavar='N',
-                     help='escenas a la vez (1 = secuencial). Por defecto se calcula con la CPU y RAM libres del equipo; '
-                          'la RAM de cada etapa se respeta igual')
-    derive = command('derive', 'Regenerar L2W desde un L1R sin descargar (repite la corrección atmosférica)',
-        examples="  oceanos --products 'Rrs_*,chl_oc3,fai,ndvi' derive --l1r storage/runs/0007_S2B_2026-02-15/X_L1R.nc --scene NOMBRE.SAFE")
-    selection(derive)
-    derive.add_argument('--l1r', type=Path, required=True, metavar='ARCHIVO', help='L1R NetCDF de entrada (obligatorio)')
-    derive.add_argument('--scene', required=True, metavar='NOMBRE', help='nombre nativo de la escena (obligatorio)')
-    status = command('status', 'Mostrar procesos desde SQLite (sin ACOLITE ni red)',
-        examples='  oceanos status\n  oceanos status --ultimas 5\n  oceanos status --estado FALLIDO\n  oceanos status 7')
-    status.add_argument('run', nargs='?', metavar='PROCESO', help='número de proceso: detalle con archivos, métricas y eventos')
+    for name, summary, example in (
+            ('mascara', 'Crear las máscaras de tierra (ESA WorldCover) de cada zona y sensor', '  oceanos mascara'),
+            ('sargazo', 'Recalcular los mapas diarios de sargazo desde superimagen/escenas (sin descargar)',
+             '  oceanos sargazo --sensor sentinel2 --start 2025-12-01 --end 2026-02-01'),
+            ('componer', 'Recalcular compuestos mensuales, estacionales y anuales de los meses completos (sin descargar)',
+             '  oceanos componer --zona fajardo_culebra')):
+        selection(command(name, summary, examples=example))
+    command('superimagen', 'Productos por zona y sensor, compuestos y disco frente al presupuesto (sin red)',
+            examples='  oceanos superimagen')
+    status = command('status', 'Procesos desde SQLite (sin ACOLITE ni red)',
+        examples='  oceanos status --ultimas 5\n  oceanos status --estado FALLIDO\n  oceanos status 7\n  oceanos status --legado')
+    status.add_argument('run', nargs='?', metavar='PROCESO', help='número de proceso: detalle con métricas y eventos')
     status.add_argument('--ultimas', type=int, metavar='N', help='solo los N procesos más recientes')
     status.add_argument('--estado', choices=STATES, metavar='ESTADO', help='filtrar por estado: '+', '.join(STATES))
-    report = command('reporte', 'Reporte de escenas trabajadas: éxitos y fallidas juntas, con su motivo (sin red)',
-        'Resultado por escena:\n'
-        '  OK          L2W propio\n'
-        '  IMPORTADA   L1R/L2W registrados con sync\n'
-        '  DISPONIBLE  su adquisición ya tenía L2W: no se descargó\n'
-        '  FALLIDA     no se consiguió; el próximo run la reintenta (motivo e intentos)\n'
-        '  PENDIENTE   en la cola, aún sin procesar\n'
-        '--csv guarda la misma tabla para revisarla en una hoja de cálculo.',
-        '  oceanos reporte\n  oceanos reporte --resultado FALLIDA\n  oceanos reporte --sensor landsat --csv reporte.csv')
+    status.add_argument('--legado', action='store_true', help='procesos de AOI anteriores (lapargera_v1), aparte')
+    report = command('reporte', 'Resultado por escena con el de cada zona y el motivo de las fallidas (sin red)',
+        '--csv guarda la misma tabla. --legado lista los L1R/L2W de AOI anteriores, que se conservan\n'
+        'pero no entran a la superimagen.',
+        '  oceanos reporte\n  oceanos reporte --resultado FALLIDA\n  oceanos reporte --sensor landsat --csv reporte.csv\n'
+        '  oceanos reporte --legado')
     report.add_argument('--resultado', choices=RESULTS, metavar='RESULTADO', help='filtrar: '+', '.join(RESULTS))
     report.add_argument('--csv', type=Path, metavar='ARCHIVO', help='guardar el reporte en CSV')
-    report.add_argument('--sensor', choices=sorted(SENSORS), help='solo sentinel2 o landsat')
-    queue = command('cola', 'Ver la cola de descargas registrada por search --registrar (sin red)',
-        'Estados: PENDIENTE, FALLIDA (se reintenta en el próximo run), PROCESADA, DISPONIBLE, IMPORTADA.',
-        '  oceanos cola\n  oceanos cola --quitar 20260116 20260205')
-    queue.add_argument('--quitar', nargs='+', metavar='ESCENA', help='retirar de la cola escenas no procesadas (nombre o fragmento único)')
-    imports = command('sync', 'Registrar L1R/L2W copiados a mano a una carpeta de storage, solo por el nombre',
-        'Nombres reconocidos (salida ACOLITE):\n'
-        '  S2B_MSI_2026_02_15_15_07_58_T19QGV_lapargera_v1_L2W.nc\n'
-        '  L9_OLI_2026_08_05_14_57_33_005048_lapargera_v1_L1R.nc\n'
-        'En storage/runs cada subcarpeta se adopta como un proceso y se renombra (0001_S2B_2026-01-06).',
-        '  oceanos sync\n  oceanos sync storage/importados/pc2 --hash\n  oceanos sync storage/runs --hash')
+    report.add_argument('--sensor', choices=list(PLATFORMS), help='solo ese sensor')
+    report.add_argument('--legado', action='store_true', help='listar el legado en vez de la superimagen')
+    queue = command('cola', 'Ver la cola de descargas (sin red)',
+        examples='  oceanos cola\n  oceanos cola --quitar 20260116 20260205')
+    queue.add_argument('--quitar', nargs='+', metavar='ESCENA', help='retirar de la cola escenas no procesadas')
+    imports = command('sync', 'Registrar como legado L1R/L2W copiados a mano a una carpeta de storage',
+        'Se conservan y se listan con --legado; no cuentan para la superimagen ni para la cola.',
+        '  oceanos sync storage/importados/pc2 --hash')
     imports.add_argument('carpeta', nargs='?', type=Path, metavar='CARPETA',
-                         help='carpeta dentro de storage, salvo catalog y temporary. Por defecto: storage/importados')
+                         help='carpeta dentro de storage. Por defecto: storage/importados')
     imports.add_argument('--hash', action='store_true', help='calcular también el SHA-256 de cada archivo (lento)')
-    command('recover', 'Registrar interrupciones y limpiar lo parcial (automático al iniciar search/run/derive)',
+    command('recover', 'Registrar interrupciones y limpiar lo parcial (automático al iniciar run y search)',
             examples='  oceanos recover')
-    clean = command('cleanup', 'Evaluar la limpieza de temporales de un proceso',
-                    examples='  oceanos cleanup 7', hidden=True)
+    clean = command('cleanup', 'Evaluar la limpieza de temporales de un proceso', examples='  oceanos cleanup 7', hidden=True)
     clean.add_argument('run', type=int, metavar='PROCESO', help='número de proceso (ver status)')
     return result
 
 
-def load_profile(args):
-    """Carga el perfil según --profile/--sensor/--satelite y valida que sean coherentes."""
-    path = args.profile
-    if args.sensor and not path:
-        path = ROOT/'config/aoi/lapargera_v1'/SENSORS[args.sensor]
-    config = profile(path or ROOT/'config/aoi/lapargera_v1/project.yaml', args.products, args.start, args.end, args.satelite)
-    if args.sensor and config['family'] != args.sensor:
-        raise ValueError(f"El perfil {path} es {config['family']}, no {args.sensor}")
-    return config
+def sensors_for(args):
+    """Sensores a procesar: --sensor, los de --satelite o todos los del perfil."""
+    if args.sensor:
+        return [args.sensor]
+    if args.satelite:
+        return list(dict.fromkeys(SATELLITES[s] for s in args.satelite))
+    return profile_sensors(args.profile)
+
+
+def load_profiles(args):
+    """Un perfil por sensor elegido, con productos, intervalo, satélites y zonas de la línea de comandos."""
+    configs = []
+    for sensor in sensors_for(args):
+        satellites = [s for s in args.satelite or [] if SATELLITES[s] == sensor] or None
+        if args.satelite and not satellites:
+            raise ValueError(f"--satelite {','.join(args.satelite)} no es del sensor {sensor}")
+        configs.append(profile(args.profile, sensor, args.products, args.start, args.end, satellites, args.zona))
+    return configs
 
 
 def table(rows, columns):
@@ -252,9 +229,9 @@ def table(rows, columns):
         print('  '.join(text(row[key]).ljust(width) for (_, key), width in zip(columns, widths)))
 
 
-def show_versions(catalog, scenes, config):
-    """Tabla de search con fecha, tamaño, nubosidad y estado de cada escena; devuelve las filas."""
-    done = catalog.completed(config['aoi']['id'])
+def scene_rows(catalog, scenes, config):
+    """Filas de las escenas encontradas con su estado al día (DISPONIBLE si su adquisición ya está completa)."""
+    done = catalog.completed(config['aoi']['id'], config['zones'])
     rows = []
     for scene in scenes:
         row = dict(catalog.db.execute('SELECT * FROM escenas WHERE escena=?', (scene,)).fetchone())
@@ -262,29 +239,25 @@ def show_versions(catalog, scenes, config):
             catalog.scene_state(scene, 'DISPONIBLE')
             row['estado'] = 'DISPONIBLE'
         row['tamano'] = f"{row['tamano_mb']:,.1f} MB" if row['tamano_mb'] else 'no informado'
+        row['zonas'] = ','.join(json.loads(row['zonas'] or '[]'))
         rows.append(row)
-    rows.sort(key=lambda row: row['fecha_utc'])
+    return sorted(rows, key=lambda row: row['fecha_utc'])
+
+
+def show_versions(rows):
+    """Tabla de search y totales por estado."""
     if rows:
         table(rows, [('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TILE', 'tile'), ('TAMAÑO L1', 'tamano'),
-                     ('NUBES %', 'nubosidad'), ('ESTADO', 'estado'), ('ESCENA', 'escena')])
-    total = lambda items: size(sum((r['tamano_mb'] or 0)*1e6 for r in items))
-    new = [row for row in rows if row['estado'] == 'NUEVA']
-    unknown = sum(row['tamano_mb'] is None for row in rows)
-    print(f"\n{len(rows)} escenas · {total(rows)} en L1" + (f" (sin contar {unknown} sin tamaño)" if unknown else '')
-          + f" · {len(new)} nuevas ({total(new)}) · "
-          + ' · '.join(f"{sum(r['estado'] == state for r in rows)} {label}"
-                       for state, label in (('PENDIENTE', 'en cola'), ('FALLIDA', 'fallidas'), ('PROCESADA', 'procesadas'),
-                                            ('DISPONIBLE', 'ya disponibles'), ('IMPORTADA', 'importadas'))
-                       if any(r['estado'] == state for r in rows)))
-    return rows
+                     ('NUBES %', 'nubosidad'), ('ZONAS', 'zonas'), ('ESTADO', 'estado'), ('ESCENA', 'escena')])
+    states = Counter(row['estado'] for row in rows)
+    print(f"\n{len(rows)} escenas · " + ' · '.join(f'{count} {state}' for state, count in sorted(states.items())))
 
 
 COMPLETENESS = {
     'COMPLETE': 'completa: el proveedor devolvió todas las escenas que coinciden con la búsqueda',
     'INCOMPLETE': 'INCOMPLETA: el proveedor tiene más coincidencias que las devueltas (la paginación se '
                   'cortó); repita la búsqueda o acote --start/--end',
-    'UNKNOWN': 'desconocida: el proveedor no informó el total de coincidencias (totalHits), '
-               'no se puede asegurar que estén todas'}
+    'UNKNOWN': 'desconocida: el proveedor no informó el total de coincidencias, no se puede asegurar que estén todas'}
 
 
 def show_query(report):
@@ -293,101 +266,111 @@ def show_query(report):
         return
     counts = report.get('provider_counts') or {}
     total = f" de {counts['totalHits']} coincidencias" if counts.get('totalHits') is not None else ''
-    print(f"\nConsulta {report['provider']}: {report.get('returned', report['count'])} escenas devueltas{total}, "
-          f"{report['count']} cumplen el perfil.")
-    print('Completitud '+COMPLETENESS.get(report['completeness'], report['completeness'])+'.')
+    print(f"Consulta {report['provider']}: {report.get('returned', report['count'])} escenas devueltas{total}, "
+          f"{report['count']} cumplen el perfil. Completitud "
+          + COMPLETENESS.get(report['completeness'], report['completeness'])+'.')
     excluded = report.get('excluded_by_profile') or []
     if excluded:
-        print(f'Descartadas por el perfil ({len(excluded)}): el proveedor las devuelve porque tocan el rectángulo '
-              'del AOI, pero no cumplen el perfil; no aparecen en la tabla ni se pueden registrar.')
-        for item in excluded:
-            print(f"  {item['product']} — {item['reason']}")
-    sizes = report.get('sizes', 'OK')
-    status, _, missing = sizes.partition(';FALTAN:')
+        reasons = Counter(item['reason'] for item in excluded)
+        print(f'Descartadas por el perfil ({len(excluded)}): '+'; '.join(f'{n} por {why}' for why, n in reasons.items()))
+    status, _, missing = report.get('sizes', 'OK').partition(';FALTAN:')
     if status.startswith('NO_DISPONIBLE'):
-        print(f"Tamaños: USGS no los entregó ({status.split(':', 1)[1]}). download-options de M2M requiere el rol "
-              'MACHINE (permiso "download" de M2M) y la página de opciones de EarthExplorer no los mostró. La descarga no depende de esto.')
-    elif status == 'M2M':
-        print('Tamaños: Product Bundle L1 según download-options de USGS M2M.')
-    elif status == 'EARTHEXPLORER':
-        print('Tamaños: Product Bundle L1 según la página de descarga de EarthExplorer (redondeado a 0.01 MiB); '
-              'download-options de M2M no está permitido para esta cuenta (HTTP 403: la cuenta solo tiene el permiso '
-              '"user" de M2M; falta pedir el acceso de descarga M2M en ers.cr.usgs.gov).')
+        print(f"Tamaños: USGS no los entregó ({status.split(':', 1)[1]}). La descarga no depende de esto.")
     if missing:
         print(f'  {missing} escenas quedaron sin tamaño informado.')
 
 
-def register(catalog, rows, selected, region):
-    """Pone en la cola las escenas elegidas de search.
+def show_estimate(catalog, config, rows):
+    """Lo que se descargaría y el disco estimado de la superimagen; avisa si pasa del presupuesto."""
+    queued = [row for row in rows if row['estado'] in ('NUEVA', 'PENDIENTE', 'FALLIDA')]
+    zones = sum(len([zone for zone in row['zonas'].split(',') if zone]) for row in queued)
+    per_zone = catalog.product_bytes(SENSOR_TAG[config['family']]) or product_estimate(config)
+    used = superimagen_bytes(catalog.storage)
+    expected = used+zones*per_zone
+    print(f"Por descargar: {len(queued)} escenas ({size(sum((r['tamano_mb'] or 0)*1e6 for r in queued))} de L1, "
+          'se borran al exportar) · '
+          f"{zones} productos de zona de ~{size(per_zone)} · superimagen {size(used)} → ~{size(expected)} "
+          f"de {size(config['superimagen_budget'])}")
+    if expected > config['superimagen_budget']:
+        print('AVISO: la estimación pasa el presupuesto de la superimagen; la exportación se detendrá al alcanzarlo '
+              '(PRESUPUESTO_SUPERIMAGEN). Acote --start/--end o --zona.')
+    return queued
 
-    Omite las que ya tienen L2W (propio o importado) y las que repiten una adquisición ya en la
-    cola: así run no descarga lo que ya tenemos.
-    """
+
+def register(catalog, rows, selected, config):
+    """Pone en la cola las escenas elegidas (todas las NUEVAS y FALLIDAS si no se nombra ninguna)."""
     if selected:
         wanted = {catalog.resolve_scene(text) for text in selected}
         unknown = wanted - {row['escena'] for row in rows}
         if unknown:
             raise ValueError('Escenas fuera de esta búsqueda: '+', '.join(sorted(unknown)))
-        chosen = [row for row in rows if row['escena'] in wanted]
+        chosen = [row['escena'] for row in rows if row['escena'] in wanted]
     else:
-        chosen = [row for row in rows if row['estado'] in ('NUEVA', 'FALLIDA')]
-    done = ('DISPONIBLE', 'PROCESADA', 'IMPORTADA')
-    skipped = [row for row in chosen if row['estado'] in done]
-    chosen = [row for row in chosen if row['estado'] not in done]
-    queued, refused = catalog.enqueue([row['escena'] for row in chosen], region)
-    if skipped:
-        print(f'Omitidas {len(skipped)} que ya tienen L2W: '+', '.join(r['escena'] for r in skipped))
-    if refused:
-        print(f'Omitidas {len(refused)} para no descargar dos veces la misma adquisición:')
-        for scene, why in refused.items():
-            print(f'  {scene} — {why}')
-    chosen = [row for row in chosen if row['escena'] in queued]
-    print(f"Registradas {len(chosen)} escenas para descarga ({size(sum((r['tamano_mb'] or 0)*1e6 for r in chosen))} en L1). "
-          "Ejecute 'oceanos run' para procesarlas.")
+        chosen = [row['escena'] for row in rows if row['estado'] in ('NUEVA', 'FALLIDA')]
+    queued, refused = catalog.enqueue(chosen, catalog.completed(config['aoi']['id'], config['zones']))
+    for scene, why in refused.items():
+        print(f'  omitida {scene} — {why}')
+    print(f'Registradas {len(queued)} escenas en la cola.')
+    return queued
 
 
 def show_queue(catalog):
     """Tabla de la cola de descargas."""
     items = catalog.queue()
     if not items:
-        print("Cola vacía. Use 'oceanos search --registrar' para registrar escenas.")
+        print("Cola vacía. 'oceanos run' busca y registra las escenas nuevas.")
         return
     table(items, [('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TAMAÑO MB', 'tamano_mb'), ('ESTADO', 'estado'),
                   ('PROCESOS', 'procesos'), ('ÚLTIMO', 'ultimo'), ('REGISTRADA', 'registrada'), ('ESCENA', 'escena')])
-    counts = {}
-    for item in items:
-        counts[item['estado']] = counts.get(item['estado'], 0) + 1
-    print('\n'+' · '.join(f'{state}: {count}' for state, count in sorted(counts.items())))
+    print('\n'+' · '.join(f'{state}: {count}' for state, count in sorted(Counter(i['estado'] for i in items).items())))
+
+
+def write_csv(path, rows, columns):
+    """Guarda filas en CSV con los títulos de las columnas."""
+    import csv
+    with Path(path).open('w', newline='', encoding='utf-8') as stream:
+        writer = csv.writer(stream)
+        writer.writerow([title for title, _ in columns])
+        writer.writerows([['' if row[key] is None else row[key] for _, key in columns] for row in rows])
+    print(f'CSV guardado en {path}')
 
 
 def show_report(catalog, result=None, csv_path=None, sensor=None):
-    """Tabla de éxitos y fallidas por escena, totales y, con `csv_path`, el mismo contenido en CSV."""
+    """Tabla por escena (resultado, zonas, motivo) y totales; con `csv_path`, también en CSV."""
     rows = [row for row in catalog.report(sensor) if result is None or row['resultado'] == result]
     for row in rows:
         failed = row['resultado'] in ('FALLIDA', 'PENDIENTE') and row['error']
         row['motivo'] = explain(row['error']) if failed else ''
         row['ultimo'] = row['fin'] or ''
     columns = [('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TILE', 'tile'), ('RESULTADO', 'resultado'),
-               ('PROCESOS', 'procesos'), ('INTENTOS', 'intentos'), ('MOTIVO', 'motivo'), ('ÚLTIMO', 'ultimo'),
-               ('L2W', 'l2w'), ('ESCENA', 'escena')]
+               ('ZONAS', 'zonas'), ('INTENTOS', 'intentos'), ('MOTIVO', 'motivo'), ('ÚLTIMO', 'ultimo'), ('ESCENA', 'escena')]
     if not rows:
         print('Sin escenas trabajadas' + (f' con resultado {result}' if result else '') + '.')
     else:
         table(rows, columns)
-        counts = {}
-        for row in rows:
-            counts[row['resultado']] = counts.get(row['resultado'], 0) + 1
+        counts = Counter(row['resultado'] for row in rows)
         print('\n' + ' · '.join(f'{name}: {counts[name]}' for name in RESULTS if name in counts))
         if counts.get('FALLIDA'):
-            print("Las FALLIDA siguen en la cola: 'oceanos run' las reintenta "
-                  "('oceanos cola --quitar ESCENA' para descartarlas).")
+            print("Las FALLIDA siguen en la cola: 'oceanos run' las reintenta ('oceanos cola --quitar ESCENA' para descartarlas).")
+    legacy = catalog.legacy_count()
+    if legacy:
+        print(f"Legado: {legacy} procesos de AOI anteriores, aparte ('oceanos reporte --legado').")
     if csv_path:
-        import csv
-        with Path(csv_path).open('w', newline='', encoding='utf-8') as stream:
-            writer = csv.writer(stream)
-            writer.writerow([title for title, _ in columns])
-            writer.writerows([['' if row[key] is None else row[key] for _, key in columns] for row in rows])
-        print(f'CSV guardado en {csv_path}')
+        write_csv(csv_path, rows, columns)
+
+
+def show_legacy(catalog, csv_path=None):
+    """Procesos de legado (AOI anteriores): se conservan, no entran a la superimagen."""
+    rows = catalog.legacy()
+    columns = [('ID', 'id'), ('AOI', 'aoi'), ('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TIPO', 'tipo'),
+               ('ESTADO', 'estado'), ('L2W', 'l2w'), ('ESCENA', 'escena')]
+    if not rows:
+        print('Sin procesos de legado.')
+        return
+    table(rows, columns)
+    print(f'\n{len(rows)} procesos de legado: se conservan y nunca entran a la superimagen, la cola ni el "ya lo tenemos".')
+    if csv_path:
+        write_csv(csv_path, rows, columns)
 
 
 def show_runs(rows):
@@ -397,7 +380,7 @@ def show_runs(rows):
         return
     table(rows, [('ID', 'id'), ('FECHA ESCENA', 'fecha_utc'), ('SAT', 'satelite'), ('TIPO', 'tipo'), ('ESTADO', 'estado'),
                  ('INICIO', 'inicio'), ('MIN', 'duracion_min'), ('DESCARGA MIN', 'descarga_min'), ('INTENTOS', 'intentos'),
-                 ('ARCHIVOS', 'archivos'), ('ERROR', 'error')])
+                 ('ZONAS OK', 'zonas_ok'), ('ERROR', 'error')])
 
 
 def show_detail(row):
@@ -414,148 +397,238 @@ def show_detail(row):
         print('  '+event)
 
 
+def show_superimagen(catalog, budget):
+    """Productos por zona, sensor y estado, compuestos y disco frente al presupuesto."""
+    rows = [dict(row) for row in catalog.db.execute('SELECT * FROM v_superimagen ORDER BY zona, sensor, estado')]
+    if rows:
+        table(rows, [('ZONA', 'zona'), ('SENSOR', 'sensor'), ('ESTADO', 'estado'), ('ESCENAS', 'escenas'), ('GB', 'gb'),
+                     ('DESDE', 'desde'), ('HASTA', 'hasta')])
+    else:
+        print('Sin productos de escena todavía.')
+    made = Counter((row['tipo'], row['sensor']) for row in catalog.db.execute('SELECT tipo, sensor FROM compuestos'))
+    if made:
+        print('Compuestos: ' + ' · '.join(f'{kind} {sensor} {count}' for (kind, sensor), count in sorted(made.items())))
+    print(f'Disco de la superimagen: {size(superimagen_bytes(catalog.storage))} de {size(budget)}')
+
+
 def show_summary(catalog, result):
-    """Resumen al terminar run: estados, tiempos, descarga y disco ocupado por L1R/L2W."""
-    runs = result['runs']
-    rows = [catalog.process(run) for run in runs]
-    states = {}
-    for row in rows:
-        states[row['estado']] = states.get(row['estado'], 0) + 1
+    """Resumen al terminar el lote: procesos, tiempos, descarga y productos por zona."""
+    rows = [catalog.process(run) for run in result['runs']]
+    states = Counter(row['estado'] for row in rows)
     downloaded = [row for row in rows if row['descarga_min']]
     seconds = sum(row['descarga_min']*60 for row in downloaded)
     volume = sum((row['descarga_mb'] or 0)*1e6 for row in downloaded)
-    retried = [row for row in rows if (row['intentos'] or 0) > 1]
-    print('\n══ Resumen del run ══')
+    print('\n══ Resumen del lote ══')
     print(f"Escenas: {len(rows)} · " + ' · '.join(f'{state} {count}' for state, count in sorted(states.items()))
-          + f' · con reintentos {len(retried)}')
-    print(f"Tiempo total: {duration(result['seconds'])} · descarga {duration(seconds)} "
-          f"({size(volume)}" + (f", {size(volume/seconds)}/s promedio)" if seconds else ')'))
-    for label, usage in (('Generado en este run', catalog.disk(set(runs))), ('Total en storage', catalog.disk())):
-        print(f'{label}: ' + ' · '.join(f"{kind} {size(item['bytes'])} ({item['archivos']} archivos)"
-                                         for kind, item in usage.items()))
+          + f" · fallidas {len(result['failed'])}")
+    print(f"Tiempo total: {duration(result['seconds'])} · descarga {duration(seconds)} ({size(volume)}"
+          + (f", {size(volume/seconds)}/s promedio)" if seconds else ')'))
     if rows:
-        print('Detalle:')
-        for row in rows:
-            minutes = lambda value: duration(value*60) if value is not None else '—'
-            print(f"  {row['id']:>4}  {row['estado']:<12} descarga {minutes(row['descarga_min']):>7} "
-                  f"{size((row['descarga_mb'] or 0)*1e6) if row['descarga_mb'] else '—':>9}  intentos {row['intentos'] or 0}"
-                  f"  total {minutes(row['duracion_min']):>7}  {row['carpeta']}")
+        zones = catalog.zone_results([row['id'] for row in rows])
+        print('Zonas: ' + ' · '.join(f'{state} {count}' + (f' ({size(volume)})' if volume else '')
+                                     for state, (count, volume) in sorted(zones.items())))
+
+
+def mask_fetch():
+    """Descarga de tiles WorldCover en streaming, solo desde el bucket público de ESA."""
+    import requests
+    from .mascara import WORLDCOVER_HOST
+    from .native import fetch
+    session = requests.Session()
+    return lambda url, target: fetch(session, url, Path(target), WORLDCOVER_HOST)
+
+
+def ensure_masks(catalog, config):
+    """Crea las máscaras de tierra que falten para el sensor del perfil."""
+    from .mascara import ensure
+    record = lambda zone, path, info: catalog.record_mask(zone, SENSOR_TAG[config['family']], config['resolution'], path, info)
+    return ensure(catalog.storage, config, mask_fetch(), record)
+
+
+def period_end(config):
+    """Último día (AAAA-MM-DD) incluido en el intervalo del perfil."""
+    return (instant(config['end'])-timedelta(seconds=1)).date().isoformat()
+
+
+def derived_products(catalog, config):
+    """Sargazo diario y compuestos de los meses completos, sin descargar nada; imprime lo hecho."""
+    from . import componer, sargazo
+    zones = list(config['zones'])
+    if any(product == 'fai' for product in config['products']):
+        made = sargazo.update(catalog, config, zones, config['start'][:10], period_end(config))
+        print(f"Sargazo diario {config['family']}: " + (' · '.join(f'{k} {v}' for k, v in sorted(made.items())) or 'sin días'))
+    made = componer.update(catalog, config, zones)
+    print(f"Compuestos {config['family']}: " + (' · '.join(f'{k} {v}' for k, v in sorted(made.items()))
+                                               or 'ningún mes completo todavía'))
+
+
+def local_source(catalog, config, args):
+    """Fuente de un archivo local (--source/--scene), registrada si la escena no se conocía."""
+    if not args.scene or not args.source.is_file():
+        raise ValueError('Se requiere archivo existente y --scene')
+    source = {'provider': 'LOCAL', 'product': args.scene, 'format': LOCAL_FORMATS[config['family']],
+              'local': str(args.source.resolve()), 'sha256': file_hash(args.source),
+              'identity': scene_identity(args.scene), 'metadata': {'identity_origin': 'nombre_del_producto'}}
+    if not eligible(source, config):
+        raise ValueError('Escena fuera del sensor, intervalo o tile/path/row del perfil')
+    if not catalog.db.execute('SELECT 1 FROM escenas WHERE escena=?', (args.scene,)).fetchone():
+        catalog.upsert_scene(source, seen=False)
+    return source
+
+
+def queue_for_run(catalog, config, pipeline, args):
+    """Escenas que procesa `run`: la pedida, o búsqueda + registro de lo nuevo + cola. None con --plan."""
+    if args.version:
+        return [catalog.resolve_scene(args.version)]
+    rows = scene_rows(catalog, pipeline.search(), config)
+    show_query(pipeline.last_query)
+    show_estimate(catalog, config, rows)
+    if args.plan:
+        return None
+    register(catalog, rows, None, config)
+    scenes, outside, available, deferred = catalog.pending(config, force=args.force)
+    if available:
+        print(f'{len(available)} en cola ya estaban completas; marcadas DISPONIBLE.')
+    if deferred:
+        print(f'{len(deferred)} repiten la adquisición de otra en este lote; esperan al siguiente run.')
+    if outside:
+        print(f'{len(outside)} en cola quedan fuera del perfil/intervalo actual y se conservan pendientes.')
+    return scenes
+
+
+def run_sensor(catalog, config, args):
+    """`run` para un sensor; devuelve el número de escenas fallidas."""
+    print(f"\n══ {config['family']} · {config['start'][:10]} → {config['end'][:10]} · zonas: {', '.join(config['zones'])} ══")
+    if not args.plan:
+        ensure_masks(catalog, config)
+    pipeline = Pipeline(catalog, config, args.acolite, progress=Progress())
+    if args.source:
+        pipeline.run(args.scene, source=local_source(catalog, config, args), force=args.force)
+        derived_products(catalog, config)
+        return 0
+    scenes = queue_for_run(catalog, config, pipeline, args)
+    if scenes is None:
+        return 0
+    failed = []
+    if scenes:
+        print(f'Escenas por procesar: {len(scenes)}')
+        if len(scenes) > 1 and args.trabajadores != 1:
+            # Disco para escenas en curso: lo libre del presupuesto de temporales, sin pasar del disco real.
+            free = min(config['budget']-pipeline.used(), disk_free(catalog.storage)-DISK_MARGIN)
+            pipeline.resources = plan(catalog, config, free, args.trabajadores, acolite=args.acolite)
+            pipeline.resources.workers = min(pipeline.resources.workers, len(scenes))
+            print(pipeline.resources.describe())
+        result = pipeline.batch(scenes, force=args.force)
+        show_summary(catalog, result)
+        failed = result['failed']
+    derived_products(catalog, config)
+    return len(failed)
+
+
+def catalog_notice(catalog):
+    """Explica una migración o un catálogo nuevo al abrirlo."""
+    if catalog.migrated:
+        print(f'Catálogo v4 migrado a v5 (respaldo: {catalog.backup.relative_to(catalog.storage)}). '
+              f"{catalog.legacy_count()} procesos de lapargera_v1 quedan como legado ('oceanos reporte --legado').")
+    elif catalog.backup:
+        print(f'Catálogo anterior guardado como {catalog.backup.relative_to(catalog.storage)}; se empezó uno nuevo.')
+
+
+def offline_command(catalog, args):
+    """Comandos que solo leen o mantienen el catálogo; devuelve el código de salida o None si no aplica."""
+    if args.command == 'status':
+        if args.run:
+            show_detail(catalog.run_detail(args.run))
+        else:
+            show_runs(catalog.runs(args.estado, args.ultimas, legacy=args.legado))
+        return 0
+    if args.command == 'recover':
+        result = recover(catalog)
+        print(json.dumps(result, ensure_ascii=False))
+        return 1 if result['limpieza_fallida'] else 0
+    if args.command == 'cleanup':
+        print(cleanup(catalog, args.run))
+        return 0
+    if args.command == 'reporte':
+        if args.legado:
+            show_legacy(catalog, args.csv)
+        else:
+            show_report(catalog, args.resultado, args.csv, args.sensor)
+        return 0
+    if args.command == 'cola':
+        for text in args.quitar or []:
+            catalog.dequeue(catalog.resolve_scene(text))
+        show_queue(catalog)
+        return 0
+    if args.command == 'sync':
+        report = sync(catalog, args.carpeta or args.storage/'importados', hashed=args.hash)
+        for key in ('reaparecidos', 'desaparecidos', 'no_reconocidos', 'duplicados'):
+            for name in report[key]:
+                print(f'  {key}: {name}')
+        print(f"Importados como legado {len(report['importados'])} archivos · ya registrados {report['ya_registrados']}")
+        return 0
+    return None
+
+
+def profile_command(catalog, args):
+    """Comandos que usan el perfil (uno o varios sensores); devuelve el código de salida."""
+    configs = load_profiles(args)
+    if args.command == 'superimagen':
+        show_superimagen(catalog, configs[0]['superimagen_budget'])
+        return 0
+    if args.command in ('search', 'run'):
+        recovered = recover(catalog)
+        if recovered['limpiados'] or recovered['limpieza_fallida']:
+            print('Recuperación:', json.dumps(recovered, ensure_ascii=False))
+    if args.source and len(configs) != 1:
+        raise ValueError('--source requiere --sensor')
+    failed = 0
+    for config in configs:
+        if args.command == 'mascara':
+            for zone, path in ensure_masks(catalog, config).items():
+                print(f'{zone}: {path.relative_to(catalog.storage)}')
+        elif args.command == 'sargazo':
+            from . import sargazo
+            made = sargazo.update(catalog, config, list(config['zones']), config['start'][:10], period_end(config))
+            print(f"{config['family']}: {made or 'sin días con FAI'}")
+        elif args.command == 'componer':
+            from . import componer
+            print(f"{config['family']}: {componer.update(catalog, config, list(config['zones'])) or 'ningún mes completo'}")
+        elif args.command == 'search':
+            pipeline = Pipeline(catalog, config, args.acolite)
+            scenes = pipeline.search()
+            if args.json:
+                print(canonical({'escenas': scenes}))
+                continue
+            rows = scene_rows(catalog, scenes, config)
+            show_versions(rows)
+            show_query(pipeline.last_query)
+            if args.registrar is not None:
+                register(catalog, rows, args.registrar, config)
+        else:
+            failed += run_sensor(catalog, config, args)
+    return 1 if failed else 0
 
 
 def main(argv=None):
     """Ejecuta un subcomando bajo el bloqueo exclusivo del catálogo y devuelve el código de salida."""
     args = parser().parse_args(argv)
+    for name in ('source', 'plan', 'version', 'force', 'trabajadores', 'registrar', 'json', 'legado'):
+        setattr(args, name, getattr(args, name, None))
     try:
         with exclusive(args.storage):
-            if args.command=='prepare':
+            if args.command == 'prepare':
                 print(canonical(prepare(args.acolite)))
                 return 0
             catalog = Catalog(args.storage)
-            if catalog.backup:
-                print(f'Catálogo anterior guardado como {catalog.backup.relative_to(catalog.storage)}; '
-                      "se empezó uno nuevo. Use 'oceanos sync storage/runs' para registrar los L1R/L2W existentes.")
+            catalog_notice(catalog)
             try:
-                if args.command=='status':
-                    if args.run:
-                        show_detail(catalog.run_detail(args.run))
-                    else:
-                        show_runs(catalog.runs(args.estado,args.ultimas))
-                    return 0
-                if args.command=='recover':
-                    result = recover(catalog)
-                    print(json.dumps(result,ensure_ascii=False))
-                    return 1 if result['limpieza_fallida'] else 0
-                if args.command=='cleanup':
-                    print(cleanup(catalog,args.run))
-                    return 0
-                if args.command=='reporte':
-                    show_report(catalog, args.resultado, args.csv, args.sensor)
-                    return 0
-                if args.command=='cola':
-                    for text in args.quitar or []:
-                        catalog.dequeue(catalog.resolve_scene(text))
-                    show_queue(catalog)
-                    return 0
-                if args.command=='sync':
-                    report = sync(catalog,args.carpeta or args.storage/'importados',hashed=args.hash)
-                    for item in report['importados']:
-                        print(f"  proceso {item['proceso']:>4}  {item['tipo']}  {item['archivo']}")
-                    for key in ('reaparecidos','desaparecidos','no_reconocidos','duplicados'):
-                        for name in report[key]:
-                            print(f'  {key}: {name}')
-                    print(f"Importados {len(report['importados'])} archivos · ya registrados {report['ya_registrados']} · "
-                          f"no reconocidos {len(report['no_reconocidos'])} · desaparecidos {len(report['desaparecidos'])}")
-                    return 0
-                # Carga el AOI/perfil
-                config = load_profile(args)
-                pipeline = Pipeline(catalog, config, args.acolite,
-                                    progress=Progress() if args.command in ('run','derive') else None)
-                recovered = recover(catalog)
-                if recovered['limpiados'] or recovered['limpieza_fallida']:
-                    print('Recuperación:',json.dumps(recovered,ensure_ascii=False))
-                # DERIVE o RUN con fuente local requieren archivo existente.
-                if args.command=='derive' or getattr(args,'source',None):
-                    path = args.l1r if args.command=='derive' else args.source
-                    if not getattr(args,'scene',None) or not path.is_file():
-                        raise ValueError('Se requiere archivo existente y --scene')
-                    source = {'provider':'LOCAL','product':args.scene,
-                              'format':'L1R' if args.command=='derive' else ('SAFE' if config['family']=='sentinel2' else 'TAR'),
-                              'local':str(path.resolve()),'sha256':file_hash(path),
-                              'identity':scene_identity(args.scene),'metadata':{'identity_origin':'nombre_del_producto'}}
-                    if not eligible(source,config):
-                        raise ValueError('Escena fuera del sensor, intervalo o tile/path/row del perfil')
-                    # Una escena ya conocida del proveedor conserva su fuente; el archivo local solo se usa aquí.
-                    if not catalog.db.execute('SELECT 1 FROM escenas WHERE escena=?',(args.scene,)).fetchone():
-                        catalog.upsert_scene(source, seen=False)
-                    pipeline.run(args.scene,source=source,local_l1r=path if args.command=='derive' else None,
-                                 force=getattr(args,'force',False))
-                # SEARCH o RUN sin fuente local.
-                elif args.command=='search':
-                    scenes = pipeline.search()
-                    if args.json:
-                        print(canonical({'escenas':scenes}))
-                        return 0
-                    rows = show_versions(catalog,scenes,config)
-                    show_query(pipeline.last_query)
-                    if args.registrar is None:
-                        print("Solo consulta: nada quedó registrado para descarga. "
-                              "Use 'oceanos search --registrar [ESCENA ...]' para que 'oceanos run' las procese.")
-                    else:
-                        register(catalog,rows,args.registrar,config['aoi']['id'])
-                    return 0
-                else:
-                    # RUN: trabaja sobre la cola registrada por search; no vuelve a consultar al proveedor.
-                    if args.version:
-                        scenes = [catalog.resolve_scene(args.version)]
-                    else:
-                        scenes, outside, available, deferred = catalog.pending(config,force=args.force)
-                        if available:
-                            print(f'{len(available)} en cola ya tienen L2W; marcadas DISPONIBLE.')
-                        if deferred:
-                            print(f'{len(deferred)} en cola repiten la adquisición de otra que se procesa ahora; '
-                                  'esperan al siguiente run (si aquella termina bien quedarán DISPONIBLE).')
-                        if outside:
-                            print(f'{len(outside)} en cola quedan fuera del perfil/intervalo actual y se conservan pendientes.')
-                        if not scenes:
-                            print("No hay escenas pendientes. Use 'oceanos search --registrar' para registrarlas.")
-                            return 0
-                        print(f'Escenas por procesar: {len(scenes)}')
-                    if len(scenes) > 1 and args.trabajadores != 1:
-                        # Disco para escenas en curso: lo libre del presupuesto, sin pasar del disco real.
-                        free = min(config['budget']-temporary_bytes(catalog,roots(catalog.storage,args.acolite)),
-                                   disk_free(catalog.storage)-DISK_MARGIN)
-                        pipeline.resources = plan(catalog,config,free,args.trabajadores,acolite=args.acolite)
-                        # No más hilos de escena que escenas: así los núcleos se reparten entre las que corren.
-                        pipeline.resources.workers = min(pipeline.resources.workers,len(scenes))
-                        print(pipeline.resources.describe())
-                    result = pipeline.batch(scenes,force=args.force)
-                    show_summary(catalog,result)
-                    return 1 if result['failed'] else 0
-                return 0
+                code = offline_command(catalog, args)
+                return profile_command(catalog, args) if code is None else code
             finally:
                 catalog.db.close()
     except KeyboardInterrupt:
-        print('Interrumpido; lo parcial se limpiará con recover (automático al iniciar search/run/derive).')
+        print('Interrumpido; lo parcial se limpiará con recover (automático al iniciar run y search).')
         return 130
     except ValueError as error:
         # Validaciones locales (perfil, nombres, rutas): el mensaje no trae datos remotos.
@@ -563,6 +636,6 @@ def main(argv=None):
         return 2
     except Exception as error:
         # No imprimir respuestas remotas ni excepciones con credenciales.
-        print('OCEANOS no completó la operación:',type(error).__name__)
+        print('OCEANOS no completó la operación:', type(error).__name__)
         print('Revise los eventos del catálogo (oceanos status N).')
         return 1

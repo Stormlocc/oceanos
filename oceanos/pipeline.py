@@ -10,12 +10,14 @@ import time
 import tempfile
 import threading
 from pathlib import Path
-from .catalog import Catalog
-from .config import ROOT, canonical, digest, disk_bytes, file_hash, received_bytes
-from .native import identity, eligible, l1_bytes
+from .catalog import Catalog, place, satellite
+from .config import ROOT, canonical, disk_bytes, file_hash, received_bytes
+from .escenas import SENSOR_TAG, describe, verify
+from .mascara import path_for as mask_path
+from .native import identity, eligible, l1_bytes, scene_date, zones_for
 from .validation import validate
 
-STAGES = {'query':'consulta', 'extract':'extracción', 'process':'ACOLITE'}
+STAGES = {'query':'consulta', 'extract':'extracción', 'clouds':'nubes', 'process':'ACOLITE', 'export':'exportación'}
 # Motivos de fallo de descarga (oceanos.native.DownloadError) en palabras; HTTP_5xx se explica aparte.
 REASONS = {'HTTP_401':'credenciales rechazadas (401)', 'HTTP_403':'sin permiso de descarga (403)',
            'HTTP_404':'producto no encontrado (404)', 'HTTP_429':'cuota del proveedor superada (429)',
@@ -26,10 +28,15 @@ REASONS = {'HTTP_401':'credenciales rechazadas (401)', 'HTTP_403':'sin permiso d
            'SIN_URL_DESCARGA':'EarthExplorer no entregó la URL de descarga',
            'DESCARGA_RECHAZADA':'USGS rechazó la descarga',
            'RANGO_INVALIDO':'el servidor respondió un rango que no se pidió',
-           'LOGIN_EARTHEXPLORER':'EarthExplorer no mostró el formulario de inicio de sesión'}
+           'LOGIN_EARTHEXPLORER':'EarthExplorer no mostró el formulario de inicio de sesión',
+           'M2M_SIN_BUNDLE':'USGS M2M no ofrece el Product Bundle de la escena',
+           'M2M_SIN_URL':'USGS M2M no entregó la URL de descarga a tiempo',
+           'AUXILIAR_POR_DEFECTO':'ACOLITE no consiguió los auxiliares MERRA-2 y usó valores por defecto; se reintenta',
+           'PRESUPUESTO_SUPERIMAGEN':'se alcanzó el presupuesto de disco de la superimagen',
+           'SIN_MASCARA':'falta la máscara de tierra de la zona (oceanos mascara)'}
 # Fallos que no se arreglan esperando: se informan sin gastar más intentos.
 FINAL = {'HTTP_401', 'HTTP_403', 'HTTP_404', 'TOKEN_HTTP_401', 'TOKEN_HTTP_400', 'SIN_CREDENCIALES',
-         'REDIRECCION_NO_CONFIABLE'}
+         'REDIRECCION_NO_CONFIABLE', 'PRESUPUESTO_SUPERIMAGEN'}
 # Espera mínima tras superar la cuota del proveedor (429) y máxima: si Retry-After pide más, no se
 # espera; la escena queda FALLIDA para el próximo run (reintentos cortos, ver `retry`).
 QUOTA_WAIT, QUOTA_WAIT_MAX = 30, 60
@@ -59,17 +66,28 @@ DISK_MARGIN = 2e9
 
 
 def roots(storage, acolite):
-    """Carpetas que se miden para el presupuesto de disco: storage, LUT/auxiliares y scratch de ACOLITE."""
-    return [Path(storage), Path(acolite).resolve()/'data', Path(acolite).resolve()/'scratch']
+    """Carpetas del presupuesto de temporales: temporales de storage, LUT/auxiliares y scratch de ACOLITE.
 
-
-def temporary_bytes(catalog, folders):
-    """Bytes que cuentan en el presupuesto: lo medido en `folders` menos los L1R/L2W conservados.
-
-    Los productos científicos registrados (propios e importados) crecen con el estudio y no son
-    temporales; RAW, extracciones, L2R, salidas parciales, LUT y auxiliares sí cuentan.
+    La superimagen tiene su propio presupuesto y el legado (runs, importados) no es temporal.
     """
-    return max(0, disk_bytes(folders)-catalog.persistent_bytes())
+    return [Path(storage)/'temporary', Path(acolite).resolve()/'data', Path(acolite).resolve()/'scratch']
+
+
+def superimagen_bytes(storage):
+    """Bytes ocupados por los productos finales en storage/superimagen."""
+    return disk_bytes([Path(storage)/'superimagen'])
+
+
+def product_estimate(config):
+    """Bytes estimados de los COG de una escena en una zona, antes de tener mediciones.
+
+    Float32 por variable más 10 bandas de calidad, sobre el rectángulo de la zona más grande; la
+    compresión ZSTD y la tierra en NoData lo reducen a la mitad, aproximadamente.
+    """
+    pixels = max(z['grid']['shape_yx'][0]*z['grid']['shape_yx'][1] for z in config['zones'].values())
+    rrs = {'sentinel2': 13, 'landsat': 9, 'olci': 21}[config['family']]
+    layers = rrs + len(config['products']) - 1 + 10
+    return int(pixels*4*layers*0.5)
 
 
 def disk_free(path):
@@ -89,7 +107,7 @@ class Pipeline:
     resources = None
     # Informe de la última consulta al proveedor (sin fuentes), para que el CLI lo explique.
     last_query = None
-    # L2W existente por el que run() no descargó la última escena (su adquisición ya estaba completa).
+    # Verdadero si run() no descargó la última escena porque su adquisición ya estaba completa.
     found = None
 
     def __init__(self, catalog, config, acolite, wait=time.sleep, progress=None, resources=None):
@@ -181,7 +199,7 @@ class Pipeline:
 
     def used(self):
         """Bytes del presupuesto de temporales ya ocupados."""
-        return temporary_bytes(self.catalog, self.roots)
+        return disk_bytes(self.roots)
 
     def check_disk(self):
         """Detiene la etapa si se agotó el presupuesto de temporales o el disco está casi lleno."""
@@ -277,8 +295,8 @@ class Pipeline:
 
     def search(self):
         """Consulta el proveedor del perfil, registra las escenas observadas y devuelve sus nombres."""
-        # Sentinel-2: SAFE desde CDSE. Landsat: TAR desde USGS.
-        provider = 'CDSE' if self.config['family']=='sentinel2' else 'USGS'
+        # Sentinel-2 (SAFE) y OLCI (SEN3) desde CDSE; Landsat (TAR) desde USGS.
+        provider = 'USGS' if self.config['family'] == 'landsat' else 'CDSE'
         attempts = self.config['input']['transient_attempts_total']
         for attempt in range(attempts):
             search = self.catalog.search_start(provider, self.config, attempt+1)
@@ -286,6 +304,8 @@ class Pipeline:
                 # Proceso aislado de ACOLITE para la consulta.
                 response = self.call('query', timeout=900, provider=provider, config=self.config)
                 scenes = [self.catalog.upsert_scene(source) for source in response['sources']]
+                for name, source in zip(scenes, response['sources']):
+                    self.catalog.set_zones(name, zones_for(source, self.config))
                 self.last_query = {'provider':provider,'count':len(response['sources']),
                                    **{k:v for k,v in response.items() if k!='sources'}}
                 self.catalog.search_finish(search, 'OK', self.last_query)
@@ -297,152 +317,188 @@ class Pipeline:
                     raise
                 self.wait(self.config['input']['retry_wait_seconds'][attempt])
 
-    def keys(self, source):
-        """Calcula la clave de resultado (L2W) y la de corrección atmosférica (L1R)."""
-        # Metadata administrativa, fechas de consulta y rutas de salida no cambian ciencia.
-        scientific = {k:v for k,v in self.config['native'].items() if k not in ['l2w_parameters','rgb_rhot','rgb_rhos']}
-        content = {'provider':source['provider'],'product':source['product'],
-                   'format':source['format'],'sha256':source.get('sha256'),
-                   'baseline':source['identity']['baseline']}
-        correction = digest({'source':content,'aoi':self.config['aoi'], 'settings':scientific,
-                             'grid':self.config['grid'],'engine':self.engine})
-        processing = digest({'correction':correction,'products':self.config['products']})
-        return processing, correction
-
-    def skip(self, process, scene, existing):
-        """Cierra un proceso como OMITIDO porque ya existe un L2W verificado equivalente.
-
-        Si se reconoció después de descargar (fuente sin SHA previo), el RAW y la carpeta vacía
-        del proceso se borran en el acto: no ocupan presupuesto ni esperan a `cleanup`.
-        """
-        self.catalog.finish(process, 'OMITIDO', 'TECNICA_OK', metrics=self.metrics)
-        self.notify('OMITIDO', f'Ya existe un L2W equivalente en el proceso {existing["proceso"]}', process, scene)
-        with contextlib.suppress(OSError):
-            # Un fallo de borrado queda como limpieza FALLIDA (cleanup lo registra) sin cambiar el estado.
-            cleanup(self.catalog, process)
-        return process
-
-    def already_available(self, scene):
-        """Ruta del L2W que ya existe para la adquisición de la escena en el AOI del perfil, o None.
-
-        Es la misma regla que usan la cola (`enqueue`/`pending`): se mira por adquisición y región,
-        sin descargar. Evita bajar una escena cuya adquisición se completó después de encolarla
-        (otra versión del producto, `run --escena`, un `sync` posterior).
-        """
+    def zones_pending(self, scene, source, force=False):
+        """Zonas de la escena que faltan en el AOI: las que toca menos las ya terminadas en su adquisición."""
+        touched = zones_for(source, self.config)
+        if force:
+            return touched
         row = self.catalog.db.execute('SELECT adquisicion FROM escenas WHERE escena=?', (scene,)).fetchone()
-        return row and self.catalog.completed(self.config['aoi']['id']).get(row['adquisicion'])
+        done = self.catalog.zones_done(row['adquisicion'], self.config['aoi']['id']) if row else set()
+        return [zone for zone in touched if zone not in done]
 
-    def run(self, scene, source=None, local_l1r=None, force=False):
+    def reuse_raw(self, scene, source, raw):
+        """Mueve a `raw` el archivo ya descargado por un proceso fallido de la misma escena, si su SHA-256 coincide.
+
+        Un proceso que falla después de descargar conserva sus temporales; así reintentar no repite
+        la descarga. Devuelve el resultado de `acquire` o None si no hay nada reutilizable.
+        """
+        if not source.get('sha256'):
+            return None
+        for row in self.catalog.db.execute("SELECT id FROM procesos WHERE escena=? AND estado='FALLIDO' "
+                                           "AND limpieza='APLAZADA' ORDER BY id DESC", (scene,)).fetchall():
+            for archive in (self.catalog.storage/'temporary'/str(row['id'])).glob(source['product'].split('.')[0]+'.*'):
+                if archive.suffix in ('.zip', '.tar') and file_hash(archive) == source['sha256']:
+                    raw.mkdir(parents=True, exist_ok=True)
+                    target = raw/archive.name
+                    archive.replace(target)
+                    self.notify('REUTILIZA_DESCARGA', f"Se usa la descarga del proceso {row['id']}; no se descarga otra vez",
+                                scene=scene)
+                    cleanup(self.catalog, row['id'], force=True)
+                    return {'archive': str(target), 'source': source}
+        return None
+
+    def run(self, scene, source=None, force=False, zones=None):
         """Procesa una escena de principio a fin y devuelve el id del proceso.
 
-        `source` sustituye la fuente del catálogo (archivo local de `run --source`/`derive`).
-        Reutiliza L2W o L1R verificados si existen; si no, adquiere, extrae y procesa. Al
-        terminar valida, registra L1R/L2W y limpia los temporales. Sin `force`, una escena del
-        proveedor cuya adquisición ya tiene L2W no se descarga: queda DISPONIBLE y devuelve None.
+        Descarga una vez, extrae y procesa cada zona pendiente (`zone`). Sin `force`, una escena
+        cuya adquisición ya terminó todas sus zonas no se descarga: queda DISPONIBLE y devuelve
+        None. `source` sustituye la fuente del catálogo (archivo local de `run --source`).
         """
         remote = source is None
         source = source or self.catalog.source(scene)
-        if not eligible(source,self.config):
+        if not eligible(source, self.config):
             raise ValueError('Escena fuera del perfil solicitado')
-        existing = self.found = self.already_available(scene) if remote and not force else None
-        if existing:
-            state = self.catalog.db.execute('SELECT estado FROM escenas WHERE escena=?',(scene,)).fetchone()['estado']
-            if state not in ('PROCESADA','IMPORTADA'):
-                self.catalog.scene_state(scene,'DISPONIBLE')
-            self.notify('DISPONIBLE', f'No se descarga: la adquisición ya tiene L2W en {existing} (use --force para reprocesar)',
-                        scene=scene)
+        # Las zonas de la escena quedan en el catálogo también si llega sin búsqueda (archivo local).
+        self.catalog.set_zones(scene, zones_for(source, self.config))
+        pending = zones or self.zones_pending(scene, source, force)
+        if not pending:
+            self.found = True
+            state = self.catalog.db.execute('SELECT estado FROM escenas WHERE escena=?', (scene,)).fetchone()['estado']
+            if state != 'PROCESADA':
+                self.catalog.scene_state(scene, 'DISPONIBLE')
+            self.notify('DISPONIBLE', 'No se descarga: la adquisición ya está procesada en sus zonas '
+                                      '(use --force para reprocesar)', scene=scene)
             return None
-        result_key, correction_key = self.keys(source)
-        kind = 'DERIVADO' if local_l1r else ('LOCAL' if source.get('local') else 'DESCARGA')
-        process = self.catalog.start(scene, kind, self.config, result_key, correction_key)
+        # Sin espacio para exportar no tiene sentido descargar: la escena queda FALLIDA para otro run.
+        self.check_superimagen_budget()
+        process = self.catalog.start(scene, 'LOCAL' if source.get('local') else 'DESCARGA', self.config)
         self.current_run = process
-        folder = self.catalog.storage/self.catalog.process(process)['carpeta']
         raw = self.catalog.storage/'temporary'/str(process)
-        folder.mkdir(parents=True)
         self.metrics = []
         try:
-            cached = self.catalog.reusable(result_key) if source.get('sha256') and not force else None
-            if cached:
-                return self.skip(process, scene, cached)
-            parent = self.catalog.reusable(correction_key,correction=True) if source.get('sha256') and not force else None
-            if parent:
-                acquired = {'source':source}
-            elif local_l1r:
-                source = {**source,'sha256':file_hash(local_l1r)}
-                acquired = {'input':str(Path(local_l1r).resolve()),'source':source}
-            else:
-                acquired = self.retry(lambda:self.call('acquire',source=source,raw=str(raw)),process,scene)
-                source = acquired['source']
-                self.record_download(process,acquired.get('archive'),source)
-                if remote:
-                    # Guarda el SHA-256 comprobado para reconocer la misma fuente en el futuro.
-                    self.catalog.upsert_scene(source, seen=False)
-            result_key, correction_key = self.keys(source)
-            self.catalog.update(process, clave_resultado=result_key, clave_correccion=correction_key)
-            # Sin SHA verificado no se omite ni se deriva automáticamente.
-            cached = self.catalog.reusable(result_key) if source.get('sha256') and not force else None
-            if cached:
-                return self.skip(process, scene, cached)
-            parent = parent or (self.catalog.reusable(correction_key,correction=True) if source.get('sha256') and not force else None)
-            derive = local_l1r is not None or parent is not None
-            if parent:
-                input_path = self.catalog.storage/parent['ruta']
-                self.catalog.update(process, l1r_padre=parent['proceso'], tipo='DERIVADO')
-                self.notify('REUTILIZA_L1R', f'Se regenera desde el L1R del proceso {parent["proceso"]}', process, scene)
-            elif local_l1r:
-                # Copia propia: resultados externos nunca se borran ni se sobrescriben.
-                input_path = folder/'source_L1R.nc'
-                if Path(local_l1r).stat().st_size + self.used() >= self.config['budget']:
-                    raise RuntimeError('Presupuesto insuficiente para conservar L1R')
-                shutil.copyfile(local_l1r,input_path)
-            elif acquired.get('archive'):
-                extracted = self.call('extract',archive=acquired['archive'],raw=str(raw),
-                                      available=self.config['budget']-self.used())
-                input_path = extracted['input']
-            else:
-                input_path = acquired['input']
-            if derive:
-                validate({'l1r':str(input_path)},self.config)
-            settings = folder/'settings.txt'
-            settings.write_text('\n'.join(k+'='+str(v) for k,v in sorted(self.config['native'].items()))+'\n')
-            result = self.call('process',day=source['identity']['date'][:8],input=str(input_path),
-                               settings=str(settings),output=str(folder),derive=derive)
-            files = result['files']
-            report = validate(files,self.config)
-            # Solo L1R y L2W persisten; L2R se usa para QA y metadata, luego se elimina.
-            for level in ('l1r','l2w'):
-                if parent and level=='l1r':
-                    continue
-                self.catalog.artifact(process,level.upper(),files[level])
-            self.catalog.finish(process,'OK','TECNICA_OK',qa=report,engine=self.engine,
-                                science=result['science_metadata'],settings=result['settings'],
-                                environment=result['environment'],metrics=self.metrics)
-            # Publicación registrada antes de retirar intermediarios propios.
-            retained = {Path(files[k]).resolve() for k in ('l1r','l2w')}
-            for path in sorted(folder.rglob('*'), reverse=True):
-                if path.is_file() and path.resolve() not in retained:
-                    path.unlink()
-                elif path.is_dir() and not any(path.iterdir()):
-                    path.rmdir()
-            disposition = cleanup(self.catalog,process)
-            self.notify('TECNICA_OK', f'L1R y L2W registrados en {self.catalog.process(process)["carpeta"]}; '
-                        f'limpieza {disposition}; validación científica pendiente', process, scene)
+            acquired = self.reuse_raw(scene, source, raw) if remote else None
+            if not acquired:
+                acquired = self.retry(lambda: self.call('acquire', source=source, raw=str(raw)), process, scene)
+                self.record_download(process, acquired.get('archive'), acquired['source'])
+            source = acquired['source']
+            if remote:
+                # Guarda el SHA-256 comprobado: identifica la misma fuente en el futuro y permite reutilizarla.
+                self.catalog.upsert_scene(source, seen=False)
+            extracted = self.call('extract', archive=acquired['archive'], raw=str(raw),
+                                  available=self.config['budget']-self.used())
+            results = {zone: self.zone(process, scene, source, extracted['input'], zone, raw) for zone in pending}
+            self.catalog.finish(process, 'OK', 'TECNICA_OK', engine=self.engine, zones=results, metrics=self.metrics)
+            disposition = cleanup(self.catalog, process)
+            summary = ', '.join(f'{zone} {state}' for zone, state in results.items())
+            self.notify('TECNICA_OK', f'Zonas: {summary}; temporales {disposition.lower()}; '
+                                      'validación científica pendiente', process, scene)
             return process
         except BaseException as error:
-            if self.catalog.process(process)['estado']=='OK':
-                self.catalog.update(process, limpieza='FALLIDA')
-                self.notify('LIMPIEZA_FALLIDA', type(error).__name__, process, scene)
-                return process
-            state = 'INTERRUMPIDO' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'FALLIDO'
+            state = 'INTERRUMPIDO' if isinstance(error, (KeyboardInterrupt, SystemExit)) else 'FALLIDO'
             self.record_download(process)
-            self.catalog.finish(process,state,error=reason(error),metrics=self.metrics)
-            self.say(f'{state}: {explain(reason(error))} (temporales conservados)')
-            if state=='FALLIDO':
+            self.catalog.finish(process, state, error=reason(error), metrics=self.metrics)
+            self.say(f'{state}: {explain(reason(error))}')
+            if state == 'FALLIDO':
                 try:
-                    cleanup(self.catalog,process)
+                    cleanup(self.catalog, process)
                 except OSError:
                     self.notify('LIMPIEZA_FALLIDA', 'Temporales conservados', process, scene)
             raise
+
+    def zone(self, process, scene, source, input_path, name, raw):
+        """Procesa una zona de la escena y devuelve su resultado: OK, NUBOSA o SIN_DATOS.
+
+        Nubes con la máscara del L1 → ACOLITE con la grilla de la zona → validación técnica →
+        auxiliares reales → COG verificados en superimagen/escenas → linaje → borrado de L1R, L2R y
+        L2W. Si algo falla, la excepción sube y los intermedios de la zona quedan en el temporal.
+        """
+        zone, family = self.config['zones'][name], self.config['family']
+        info = source['identity']
+        lineage = {'proceso': process, 'sensor': SENSOR_TAG[family], 'satelite': satellite(info),
+                   'fecha': f"{info['date'][:4]}-{info['date'][4:6]}-{info['date'][6:8]}",
+                   'instante_utc': scene_date(source), 'proveedor_id': source.get('id'), 'sha256': source.get('sha256'),
+                   'checksum_proveedor': source.get('metadata', {}).get('Checksum'), 'baseline': info['baseline'],
+                   'via_descarga': source.get('download_route') or source['provider'], 'acolite': self.engine,
+                   'settings': zone['native']}
+        clouds = self.call('clouds', input=input_path, family=family, zone=zone)
+        if clouds:
+            lineage.update(nubes_pct=clouds['nubes_pct'], nubes_origen=clouds['origen'], cobertura_pct=clouds['cobertura_pct'])
+            outcome = self.cloud_outcome(clouds['cobertura_pct'], clouds['nubes_pct'])
+            if outcome:
+                return self.close_zone(scene, name, outcome, lineage)
+        mask = mask_path(self.catalog.storage, name, family, self.config['resolution'])
+        if not mask.is_file():
+            raise StageError('export', 'SIN_MASCARA')
+        work = raw/name
+        work.mkdir(parents=True, exist_ok=True)
+        settings = work/'settings.txt'
+        settings.write_text('\n'.join(k+'='+str(v) for k, v in sorted(zone['native'].items()))+'\n')
+        result = self.call('process', day=info['date'][:8], input=str(input_path), settings=str(settings),
+                           output=str(work/'acolite'))
+        files = result['files']
+        validate(files, zone['grid'], self.config['products'])
+        auxiliary = self.check_ancillary(result)
+        self.check_superimagen_budget()
+        folder = (Path('superimagen')/'escenas'/name/SENSOR_TAG[family]/
+                  f"{lineage['fecha']}_{place(info)}")
+        target = self.catalog.storage/folder
+        mask_row = self.catalog.mask(name, SENSOR_TAG[family], self.config['resolution'])
+        metadata = describe(source, name, family, self.engine, zone['native'], (mask_row or {}).get('capa', ''))
+        exported = self.call('export', l2r=files['l2r'], l2w=files['l2w'], mask=str(mask), target=str(target),
+                             grid=zone['grid'], metadata=metadata)
+        verify(target, exported['files'])
+        lineage.update(carpeta=str(folder), bytes=exported['bytes'], variables=sorted(exported['files']),
+                       agua_vista_pct=exported['agua_vista_pct'], angulo_glint_deg=exported['angulo_glint_deg'],
+                       auxiliares=auxiliary, mascara=(mask_row or {}).get('capa'))
+        if not clouds:
+            # Sin máscara de nubes en el L1 (OLCI): se mide con los flags de ACOLITE sobre el agua de la zona.
+            lineage.update(nubes_pct=exported['nubes_flags_pct'], nubes_origen='l2_flags',
+                           cobertura_pct=exported['agua_vista_pct'])
+            outcome = self.cloud_outcome(exported['agua_vista_pct'], exported['nubes_flags_pct'])
+            if outcome:
+                shutil.rmtree(target)
+                lineage.update(carpeta=None, bytes=None, variables=None)
+                shutil.rmtree(work)
+                return self.close_zone(scene, name, outcome, lineage)
+        self.catalog.record_product(scene, name, self.config['aoi']['id'], estado='OK', **lineage)
+        # Exportado, verificado y registrado: los NetCDF de la zona ya no hacen falta.
+        shutil.rmtree(work)
+        return 'OK'
+
+    def cloud_outcome(self, coverage, clouds):
+        """SIN_DATOS si la escena no cubre la zona, NUBOSA si supera el máximo de nubes; None si se procesa."""
+        if not coverage:
+            return 'SIN_DATOS'
+        if clouds is not None and clouds > self.config['cloud_zone_max']:
+            return 'NUBOSA'
+        return None
+
+    def close_zone(self, scene, name, outcome, lineage):
+        """Registra una zona que no se exporta (NUBOSA o SIN_DATOS) y devuelve su resultado."""
+        self.catalog.record_product(scene, name, self.config['aoi']['id'], estado=outcome, **lineage)
+        self.notify(outcome, f"{name}: cobertura {lineage.get('cobertura_pct')} %, nubes {lineage.get('nubes_pct')} % "
+                             f"(máximo {self.config['cloud_zone_max']} %)", lineage['proceso'], scene, echo=False)
+        return outcome
+
+    def check_ancillary(self, result):
+        """Auxiliares usados por ACOLITE; StageError si quedaron los valores por defecto.
+
+        Si la descarga de MERRA-2 falla, ACOLITE sigue en silencio con uoz, uwv y presión por
+        defecto. Que los tres coincidan con el default no ocurre con datos reales: la escena queda
+        FALLIDA y el próximo run la reintenta, en vez de pasar a la superimagen.
+        """
+        science = result['science_metadata']
+        used = {key: science.get(key) for key in ('uoz', 'uwv', 'pressure', 'wind')}
+        defaults = result.get('ancillary_defaults') or {}
+        if defaults and all(used[key] is not None and float(used[key]) == float(defaults[key]) for key in defaults):
+            raise StageError('process', 'AUXILIAR_POR_DEFECTO')
+        return used
+
+    def check_superimagen_budget(self):
+        """StageError si exportar otra zona superaría el presupuesto de disco de la superimagen."""
+        expected = self.catalog.product_bytes(SENSOR_TAG[self.config['family']]) or product_estimate(self.config)
+        if superimagen_bytes(self.catalog.storage)+expected > self.config['superimagen_budget']:
+            raise StageError('export', 'PRESUPUESTO_SUPERIMAGEN')
 
     def record_download(self, process, archive=None, source=None):
         """Guarda en el proceso los minutos de la descarga exitosa, sus MB y los intentos.
@@ -467,8 +523,8 @@ class Pipeline:
         """Procesa las escenas y devuelve el resumen del lote.
 
         Con `resources` y más de una escena las reparte entre varios hilos; si no, una a una.
-        Cada escena queda PROCESADA (procesada u omitida por existir) o FALLIDA (se reintenta
-        en el próximo run). Devuelve {'runs': procesos creados, 'failed': escenas fallidas,
+        Cada escena queda PROCESADA, DISPONIBLE (sus zonas ya estaban terminadas) o FALLIDA (se
+        reintenta en el próximo run). Devuelve {'runs': procesos creados, 'failed': escenas fallidas,
         'seconds': duración}.
         """
         started = time.monotonic()
@@ -494,7 +550,7 @@ class Pipeline:
         try:
             self.run(scene,force=force)
             if not self.found:
-                # Sin descarga por existir ya el L2W, run() dejó la escena DISPONIBLE.
+                # Sin descarga porque sus zonas ya estaban terminadas, run() dejó la escena DISPONIBLE.
                 self.catalog.scene_state(scene,'PROCESADA')
         except Exception:
             failed = True
@@ -548,56 +604,36 @@ class Pipeline:
         return [outcomes[index] for index in sorted(outcomes)]
 
 
-def cleanup(catalog, process):
-    """Borra los temporales de un proceso si la política lo permite y devuelve el resultado.
+def cleanup(catalog, process, force=False):
+    """Borra el temporal de un proceso (storage/temporary/<id>) y devuelve HECHA, APLAZADA o NO_APLICA.
 
-    Se borra si L1R y L2W están verificados, si falló con una fuente recuperable (CDSE/USGS: el
-    próximo run la vuelve a descargar, así que lo parcial no sirve), si el proceso fue interrumpido o si se omitió por existir un L2W equivalente
-    (su descarga, si la hubo, no se usa); en otro caso se aplaza.
+    OK, INTERRUMPIDO u OMITIDO se borran: sus productos ya están en la superimagen o lo parcial no
+    se reutiliza. FALLIDO se aplaza: conserva la descarga para que el próximo run no la repita
+    (`Pipeline.reuse_raw`), que lo borra con `force` una vez movido el archivo.
     """
     row = catalog.process(int(process))
     process = row['id']
-    if row['tipo']=='IMPORTADO':
-        # Archivos copiados a mano: no hay temporales propios y nunca se borran.
+    if row['tipo'] == 'IMPORTADO' or row['legado']:
+        # Legado e importados no tienen temporales propios y sus archivos nunca se borran.
         return 'NO_APLICA'
-    source = catalog.source(row['escena'])
-    recoverable = source['provider'] in ('CDSE','USGS') and bool(source.get('id'))
-    exhausted = row['estado']=='FALLIDO' and recoverable
-    kinds = {kind for kind in ('L1R','L2W') if catalog.available(row,kind)}
-    if row['l1r_padre']:
-        parent = catalog.process(row['l1r_padre'])
-        if catalog.available(parent,'L1R'):
-            kinds.add('L1R')
-    complete = row['estado']=='OK' and row['validacion']=='TECNICA_OK' and kinds=={'L1R','L2W'}
-    # Interrumpido (marcado por recover): sus descargas/salidas parciales nunca se reutilizan;
-    # un nuevo run vuelve a adquirir la fuente, así que solo ocupan presupuesto.
-    interrupted = row['estado']=='INTERRUMPIDO'
-    omitted = row['estado']=='OMITIDO'
-    if not complete and not exhausted and not interrupted and not omitted:
+    if row['estado'] == 'FALLIDO' and not force:
         catalog.update(process, limpieza='APLAZADA')
-        catalog.event('LIMPIEZA_APLAZADA','No se cumplen los criterios técnicos, de fallo recuperable ni de interrupción',
-                      process,row['escena'])
+        catalog.event('LIMPIEZA_APLAZADA', 'Se conserva la descarga para reintentar sin descargar otra vez',
+                      process, row['escena'])
         return 'APLAZADA'
-    targets = [('temporary/'+str(process),'temporary')]
-    # Carpeta de un proceso interrumpido u omitido solo si no registró archivos (corte entre registro y cierre).
-    if (interrupted or omitted) and not row['l1r'] and not row['l2w'] and row['carpeta']:
-        targets.append((row['carpeta'],'runs'))
-    for relative, root in targets:
-        target = catalog.storage/relative
-        allowed = (catalog.storage/root).resolve()
-        if target.is_symlink() or not target.resolve().is_relative_to(allowed) or target.resolve()==allowed:
-            raise ValueError('Ruta de limpieza fuera de la carpeta del proceso')
-        try:
-            if target.exists():
-                shutil.rmtree(target)
-        except OSError:
-            catalog.update(process, limpieza='FALLIDA')
-            catalog.event('LIMPIEZA_FALLIDA','No se pudo borrar '+relative,process,row['escena'])
-            raise
+    target = catalog.storage/'temporary'/str(process)
+    allowed = (catalog.storage/'temporary').resolve()
+    if target.is_symlink() or not target.resolve().is_relative_to(allowed) or target.resolve() == allowed:
+        raise ValueError('Ruta de limpieza fuera de la carpeta del proceso')
+    try:
+        if target.exists():
+            shutil.rmtree(target)
+    except OSError:
+        catalog.update(process, limpieza='FALLIDA')
+        catalog.event('LIMPIEZA_FALLIDA', 'No se pudo borrar temporary/'+str(process), process, row['escena'])
+        raise
     catalog.update(process, limpieza='HECHA')
-    reason = ('L1R y L2W verificados' if complete else 'falló; el próximo run vuelve a descargar' if exhausted else
-              'proceso interrumpido' if interrupted else 'omitido por existir un L2W equivalente')
-    catalog.event('LIMPIEZA_HECHA','Temporales borrados: '+reason,process,row['escena'])
+    catalog.event('LIMPIEZA_HECHA', 'Temporales borrados ('+row['estado'].lower()+')', process, row['escena'])
     return 'HECHA'
 
 

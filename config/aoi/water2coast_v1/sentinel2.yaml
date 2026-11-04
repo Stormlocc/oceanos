@@ -1,0 +1,21 @@
+# Sentinel-2 MSI L1C (SAFE desde CDSE) a 10 m: ACOLITE lleva las bandas de 20/60 m a 10 m
+# (s2_target_res=10) y proyecta el L1R a la grilla de la zona antes de la corrección atmosférica.
+sensor_family: sentinel2
+provider: CDSE
+platforms: [S2A, S2B, S2C]
+level: L1C
+resolution_m: 10
+interval_start_utc: "2025-11-01T00:00:00Z"
+interval_end_exclusive_utc: "2026-11-01T00:00:00Z"
+# Tiles por zona, todos en el mismo UTM de la zona (sin reproyectar entre husos). Cobertura medida
+# con las huellas CDSE de diciembre de 2025: 19QFA 94,5 % y 19QFV 31,5 % de Mayagüez; 19QFV 70,9 % y
+# 19QGV 61,5 % de La Parguera; 19QGV 100 % de Ponce; 20QKF 100 % de Fajardo. 19QGA, 19QHA y 20QKE
+# solo repiten cobertura o no tocan el AOI.
+tiles:
+  mayaguez_cabo_rojo: [19QFA, 19QFV]
+  la_parguera_guanica: [19QFV, 19QGV]
+  ponce_guayanilla: [19QGV]
+  fajardo_culebra: [20QKF]
+# Nombres de l2w_parameters de la revisión fijada de ACOLITE (docs/07_superimagen.md).
+products: ["Rrs_*", chl_oc2, chl_oc3, chl_re_gons, chl_ci, ndci, tur_nechad2009, spm_nechad2010,
+           qaa_v6_Kd_490, fai, fait, ndvi]

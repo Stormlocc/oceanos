@@ -1,4 +1,4 @@
-"""Catálogo SQLite legible (esquema v4): escenas, procesos, búsquedas y eventos."""
+"""Catálogo SQLite legible (esquema v5): escenas, procesos, productos por zona, compuestos y eventos."""
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -6,14 +6,18 @@ from pathlib import Path
 from .config import canonical, file_hash
 from .native import acquisition_day, eligible, l1_bytes, scene_date
 
-VERSION = 4
+VERSION = 5
+# AOI anteriores: sus procesos se conservan como legado y nunca cuentan para el AOI nuevo.
+LEGACY_AOIS = ('lapargera_v1',)
+# Resultados de una zona que cierran su procesamiento (OK con productos, o sin nada que guardar).
+TERMINAL = ('OK', 'NUBOSA', 'SIN_DATOS')
 
 # Los comentarios de las columnas quedan guardados en la base y los muestran los visores SQLite.
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS escenas (
  escena TEXT PRIMARY KEY,          -- nombre del producto del proveedor
- sensor TEXT,                      -- sentinel2 | landsat
- satelite TEXT,                    -- S2A, S2B, S2C, L8, L9
+ sensor TEXT,                      -- sentinel2 | landsat | olci
+ satelite TEXT,                    -- S2A, S2B, S2C, L8, L9, S3A, S3B
  fecha_utc TEXT,                   -- AAAA-MM-DD HH:MM de la adquisición
  tile TEXT,                        -- 19QGV (Sentinel-2) o path+row 005048 (Landsat)
  proveedor TEXT,                   -- CDSE | USGS | LOCAL
@@ -23,7 +27,8 @@ CREATE TABLE IF NOT EXISTS escenas (
  registrada TEXT,                  -- cuándo se puso en la cola (search --registrar)
  vista TEXT,                       -- última búsqueda en que apareció
  adquisicion TEXT,                 -- satélite:día:tile; une la escena con L1R/L2W importados
- fuente TEXT                       -- JSON del proveedor necesario para descargar y verificar
+ fuente TEXT,                      -- JSON del proveedor necesario para descargar y verificar
+ zonas TEXT                        -- JSON: zonas del AOI que toca la escena (según el perfil)
 );
 CREATE TABLE IF NOT EXISTS procesos (
  id INTEGER PRIMARY KEY,           -- 1, 2, 3…; también da nombre a la carpeta
@@ -50,7 +55,8 @@ CREATE TABLE IF NOT EXISTS procesos (
  clave_resultado TEXT,             -- reutilización: misma fuente, settings, motor y productos
  clave_correccion TEXT,            -- reutilización de L1R: igual, sin productos
  l1r_bytes INTEGER, l1r_sha256 TEXT, l2w_bytes INTEGER, l2w_sha256 TEXT,
- detalle TEXT DEFAULT '{}'         -- JSON: métricas, validación, ciencia, settings, entorno y perfil
+ detalle TEXT DEFAULT '{}',        -- JSON: métricas, validación, ciencia, settings, entorno y perfil
+ legado INTEGER DEFAULT 0          -- 1: AOI anterior (lapargera_v1, glint apagado); fuera de la superimagen
 );
 CREATE TABLE IF NOT EXISTS busquedas (
  id INTEGER PRIMARY KEY,
@@ -68,7 +74,8 @@ CREATE TABLE IF NOT EXISTS busquedas (
  completitud TEXT,                 -- COMPLETE, INCOMPLETE, UNKNOWN
  tamanos TEXT,                     -- origen de los tamaños: OK, M2M, EARTHEXPLORER, NO_DISPONIBLE
  descartadas TEXT,                 -- JSON [{escena, motivo}]
- error TEXT
+ error TEXT,
+ aoi TEXT                          -- región del perfil buscado
 );
 CREATE TABLE IF NOT EXISTS eventos (
  id INTEGER PRIMARY KEY,
@@ -78,7 +85,63 @@ CREATE TABLE IF NOT EXISTS eventos (
  tipo TEXT,
  mensaje TEXT
 );
+CREATE TABLE IF NOT EXISTS productos_escena (
+ id INTEGER PRIMARY KEY,
+ escena TEXT REFERENCES escenas(escena),
+ proceso INTEGER REFERENCES procesos(id),
+ aoi TEXT,
+ zona TEXT,
+ sensor TEXT,                      -- S2, Landsat, OLCI
+ satelite TEXT,
+ fecha TEXT,                       -- AAAA-MM-DD UTC de la adquisición
+ instante_utc TEXT,
+ estado TEXT,                      -- OK, NUBOSA (nubes sobre el máximo), SIN_DATOS (la escena no cubre la zona)
+ carpeta TEXT,                     -- superimagen/escenas/<zona>/<sensor>/<fecha>_<lugar>
+ bytes INTEGER,
+ variables TEXT,                   -- JSON: COG exportados
+ nubes_pct REAL,                   -- % de nubes sobre la zona
+ nubes_origen TEXT,                -- MSK_CLASSI_B00, QA_PIXEL o l2_flags
+ cobertura_pct REAL,               -- % del polígono de la zona con datos
+ agua_vista_pct REAL,              -- % del agua de la zona dentro de la escena
+ angulo_glint_deg REAL,            -- media sobre el agua de la zona
+ proveedor_id TEXT,                -- Id de CDSE o entityId de USGS
+ sha256 TEXT,                      -- SHA-256 de la descarga
+ checksum_proveedor TEXT,          -- JSON: checksums publicados por el proveedor
+ baseline TEXT,                    -- baseline (S2 N05xx), colección (Landsat 02:T1) o versión (OLCI)
+ via_descarga TEXT,                -- CDSE, M2M o EARTHEXPLORER
+ acolite TEXT,                     -- JSON: revisión y parche de ACOLITE
+ settings TEXT,                    -- JSON: settings nativos usados
+ auxiliares TEXT,                  -- JSON: ozono, vapor, presión y viento usados por ACOLITE
+ mascara TEXT,                     -- capa de tierra y versión
+ fecha_proceso TEXT,
+ UNIQUE(escena, zona, aoi)
+);
+CREATE TABLE IF NOT EXISTS mascaras (
+ zona TEXT, sensor TEXT, resolucion_m INTEGER,
+ ruta TEXT, capa TEXT, sha256 TEXT, tierra_pct REAL, fecha TEXT,
+ PRIMARY KEY(zona, sensor, resolucion_m)
+);
+CREATE TABLE IF NOT EXISTS compuestos (
+ id INTEGER PRIMARY KEY,
+ tipo TEXT,                        -- sargazo_diario, mensual, estacional, anual
+ metodo TEXT,                      -- maximo_fai, mejor_pixel, media_ponderada
+ aoi TEXT, zona TEXT, sensor TEXT,
+ periodo TEXT,                     -- AAAA-MM-DD, AAAA-MM, AAAA-DEF…, AAAA
+ carpeta TEXT,
+ firma TEXT,                       -- SHA-256 de entradas y parámetros: igual firma, nada que rehacer
+ bytes INTEGER,
+ n_escenas INTEGER,
+ fecha_proceso TEXT,
+ detalle TEXT,
+ UNIQUE(tipo, metodo, aoi, zona, sensor, periodo)
+);
+CREATE TABLE IF NOT EXISTS compuesto_escenas (
+ compuesto INTEGER REFERENCES compuestos(id) ON DELETE CASCADE,
+ producto INTEGER REFERENCES productos_escena(id),
+ PRIMARY KEY(compuesto, producto)
+);
 CREATE INDEX IF NOT EXISTS procesos_escena ON procesos(escena);
+CREATE INDEX IF NOT EXISTS productos_zona ON productos_escena(aoi, zona, sensor, fecha);
 CREATE INDEX IF NOT EXISTS procesos_resultado ON procesos(clave_resultado);
 CREATE INDEX IF NOT EXISTS procesos_correccion ON procesos(clave_correccion);
 CREATE INDEX IF NOT EXISTS eventos_proceso ON eventos(proceso);
@@ -99,6 +162,16 @@ CREATE VIEW IF NOT EXISTS v_fallidas AS
  FROM procesos p JOIN escenas e USING (escena)
  WHERE p.estado IN ('FALLIDO','INTERRUMPIDO') AND e.estado NOT IN ('PROCESADA','IMPORTADA')
  GROUP BY e.escena ORDER BY e.fecha_utc;
+CREATE VIEW IF NOT EXISTS v_superimagen AS
+ SELECT aoi, zona, sensor, estado, count(*) AS escenas, round(sum(coalesce(bytes,0))/1e9,2) AS gb,
+        min(fecha) AS desde, max(fecha) AS hasta
+ FROM productos_escena GROUP BY aoi, zona, sensor, estado;
+CREATE VIEW IF NOT EXISTS v_compuestos AS
+ SELECT tipo, metodo, zona, sensor, periodo, n_escenas, round(bytes/1e6,1) AS mb, fecha_proceso, carpeta
+ FROM compuestos ORDER BY tipo, zona, sensor, periodo;
+CREATE VIEW IF NOT EXISTS v_legado AS
+ SELECT p.id, p.aoi, e.fecha_utc, e.satelite, p.tipo, p.estado, p.l1r, p.l2w, p.escena
+ FROM procesos p LEFT JOIN escenas e USING (escena) WHERE p.legado=1 ORDER BY e.fecha_utc;
 CREATE VIEW IF NOT EXISTS v_disco AS
  SELECT CASE tipo WHEN 'IMPORTADO' THEN 'importado' ELSE 'propio' END AS origen,
         count(l1r) AS l1r, round(sum(l1r_mb)/1000.0,2) AS l1r_gb,
@@ -158,24 +231,51 @@ def same_content(old, new):
 class Catalog:
     """Acceso al catálogo SQLite en <storage>/catalog/catalog.sqlite."""
     def __init__(self, storage):
-        """Abre o crea la base. Un catálogo anterior (v1–v3) se guarda como respaldo y se empieza de cero."""
+        """Abre o crea la base.
+
+        Un catálogo v1–v3 se guarda como respaldo y se empieza de cero. Uno v4 se migra en el sitio
+        (después de copiarlo como respaldo) y sus procesos de AOI anteriores quedan como legado.
+        """
         self.storage = Path(storage).resolve()
         folder = self.storage/'catalog'
         folder.mkdir(parents=True, exist_ok=True)
         path = folder/'catalog.sqlite'
-        self.backup = None
+        self.backup, self.migrated = None, False
         self.db = self.connect(path)
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
         old_tables = self.db.execute("SELECT count(*) FROM sqlite_master WHERE name='ejecuciones'").fetchone()[0]
         if version > VERSION:
             raise ValueError('Versión de catálogo no soportada')
+        moment = f'{datetime.now(timezone.utc):%Y%m%d_%H%M%S}'
         if version in (1, 2, 3) or old_tables:
             self.db.close()
-            self.backup = folder/f"catalog_v{version}_respaldo_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.sqlite"
+            self.backup = folder/f"catalog_v{version}_respaldo_{moment}.sqlite"
             path.rename(self.backup)
             self.db = self.connect(path)
+        elif version == 4:
+            self.backup = folder/f'catalog_v4_respaldo_{moment}.sqlite'
+            with sqlite3.connect(self.backup) as copy:
+                self.db.backup(copy)
+            self.migrate_v4()
+            self.migrated = True
         self.db.executescript(SCHEMA)
         self.db.execute(f'PRAGMA user_version={VERSION}')
+
+    def migrate_v4(self):
+        """Agrega zonas y legado y deja las escenas libres para el AOI nuevo.
+
+        El estado de cola de una escena (PROCESADA, IMPORTADA…) venía del AOI anterior: con el AOI
+        nuevo la misma escena debe poder procesarse por zona. Sus procesos quedan como legado.
+        """
+        with self.db:
+            self.db.execute('ALTER TABLE escenas ADD COLUMN zonas TEXT')
+            self.db.execute('ALTER TABLE procesos ADD COLUMN legado INTEGER DEFAULT 0')
+            self.db.execute('ALTER TABLE busquedas ADD COLUMN aoi TEXT')
+            marks = ','.join('?'*len(LEGACY_AOIS))
+            count = self.db.execute(f'UPDATE procesos SET legado=1 WHERE aoi IN ({marks})', LEGACY_AOIS).rowcount
+            self.db.execute("UPDATE escenas SET estado='NUEVA', registrada=NULL")
+        self.event('LEGADO', f"{count} procesos de {', '.join(LEGACY_AOIS)} (glint apagado) quedan como legado: "
+                             'se conservan y no entran a la superimagen')
 
     @staticmethod
     def connect(path):
@@ -264,26 +364,29 @@ class Catalog:
                              + (text if not found else ', '.join(found[:5])))
         return found[0]
 
-    def enqueue(self, scenes, region=None):
+    def set_zones(self, scene, zones):
+        """Guarda las zonas del AOI que toca la escena (las decide el perfil al buscar)."""
+        with self.db:
+            self.db.execute('UPDATE escenas SET zonas=? WHERE escena=?', (canonical(sorted(zones)), scene))
+
+    def enqueue(self, scenes, done=None):
         """Pone escenas en la cola (estado PENDIENTE) y devuelve (registradas, omitidas {escena: motivo}).
 
-        Las ya procesadas o importadas no se reactivan. Una adquisición (satélite:día:tile) entra
-        una sola vez: se omite si ya tiene L2W en `region` o si otra escena suya ya está en la cola;
-        entre varias versiones del mismo producto (reprocesos del proveedor) entra la más reciente.
-        Así `run` nunca descarga algo que ya tenemos.
+        `done` son las adquisiciones ya completas en el AOI (`completed`). Una adquisición
+        (satélite:día:tile) entra una sola vez: se omite si ya está completa o si otra escena suya
+        ya está en la cola; entre varias versiones del mismo producto (reprocesos del proveedor)
+        entra la más reciente. El estado heredado de la escena no cuenta: una escena del AOI
+        anterior se procesa de nuevo para el AOI vigente. Así `run` nunca descarga algo que ya tenemos.
         """
-        done = self.completed(region) if region else {}
+        done = done or {}
         rows = [self.db.execute('SELECT escena, adquisicion, estado FROM escenas WHERE escena=?', (scene,)).fetchone()
                 for scene in dict.fromkeys(scenes)]
         queued, skipped, taken = [], {}, {}
         # Más reciente primero: el nombre lleva baseline (N05xx) e instante de generación.
         for row in sorted((row for row in rows if row), key=lambda row: row['escena'], reverse=True):
             scene, acquisition = row['escena'], row['adquisicion']
-            if row['estado'] in ('PROCESADA', 'IMPORTADA'):
-                skipped[scene] = 'ya procesada' if row['estado'] == 'PROCESADA' else 'ya importada'
-                continue
             if acquisition in done:
-                skipped[scene] = 'su adquisición ya tiene L2W'
+                skipped[scene] = 'su adquisición ya está procesada en todas sus zonas'
                 continue
             other = taken.get(acquisition) or self.db.execute(
                 "SELECT escena FROM escenas WHERE adquisicion=? AND escena!=? AND estado IN ('PENDIENTE','FALLIDA')",
@@ -315,52 +418,66 @@ class Catalog:
     def report(self, sensor=None):
         """Una fila por escena trabajada (en cola alguna vez o con procesos): resultado y último proceso.
 
-        Resultado: OK (L2W propio), IMPORTADA, DISPONIBLE (la adquisición ya tenía L2W), FALLIDA
-        (el próximo run la reintenta) o PENDIENTE. Incluye intentos de descarga, motivo del último
-        fallo y la ruta del L2W, ordenadas por fecha.
+        Resultado: OK, DISPONIBLE (la adquisición ya estaba completa), FALLIDA (el próximo run la
+        reintenta) o PENDIENTE, con intentos de descarga, motivo del último fallo y el resultado de
+        cada zona. Los procesos de legado no cuentan (ver `legacy`).
         """
         rows = self.db.execute('''SELECT e.escena, e.sensor, e.satelite, e.fecha_utc, e.tile, e.estado,
               p.id AS proceso, p.estado AS proceso_estado, p.intentos, p.error, p.fin, p.descarga_min,
-              (SELECT count(*) FROM procesos q WHERE q.escena=e.escena AND q.tipo!='IMPORTADO') AS procesos,
-              (SELECT l2w FROM procesos q WHERE q.escena=e.escena AND q.l2w IS NOT NULL ORDER BY q.id DESC LIMIT 1) AS l2w
-            FROM escenas e LEFT JOIN procesos p ON p.id=(SELECT max(id) FROM procesos q WHERE q.escena=e.escena)
+              (SELECT count(*) FROM procesos q WHERE q.escena=e.escena AND q.legado=0) AS procesos,
+              (SELECT group_concat(z.zona || ':' || z.estado, ' ') FROM productos_escena z WHERE z.escena=e.escena) AS zonas
+            FROM escenas e LEFT JOIN procesos p ON p.id=(SELECT max(id) FROM procesos q WHERE q.escena=e.escena AND q.legado=0)
             WHERE (e.registrada IS NOT NULL OR p.id IS NOT NULL) AND (? IS NULL OR e.sensor=?)
             ORDER BY e.fecha_utc''', (sensor, sensor)).fetchall()
         names = {'PROCESADA': 'OK'}
         return [{**dict(row), 'resultado': names.get(row['estado'], row['estado'])} for row in rows]
 
-    def completed(self, region):
-        """Adquisiciones con L2W presente para la región (propias o importadas); solo comprueba existencia y tamaño."""
-        rows = self.db.execute('''SELECT p.id, p.l2w, p.l2w_bytes, e.adquisicion FROM procesos p
-            JOIN escenas e USING (escena) WHERE p.l2w IS NOT NULL AND p.archivos='PRESENTES'
-            AND p.estado IN ('OK','IMPORTADO') AND p.aoi=?''', (region,)).fetchall()
+    def legacy(self):
+        """Procesos de AOI anteriores (legado): se conservan aparte y nunca entran a la superimagen."""
+        return [dict(row) for row in self.db.execute('SELECT * FROM v_legado')]
+
+    def completed(self, region, zones=None):
+        """Adquisiciones que ya no hay que descargar para la región: {adquisición: zonas terminadas}.
+
+        Una adquisición está completa cuando todas las zonas que toca (o las de `zones`) tienen
+        resultado terminal (OK, NUBOSA o SIN_DATOS). El legado nunca cuenta: sus L2W no son productos
+        de la superimagen.
+        """
+        finished = {}
+        for row in self.db.execute(f'''SELECT e.adquisicion, z.zona FROM productos_escena z JOIN escenas e USING (escena)
+                                        WHERE z.aoi=? AND z.estado IN {TERMINAL}''', (region,)):
+            finished.setdefault(row['adquisicion'], set()).add(row['zona'])
         done = {}
-        for row in rows:
-            path = self.storage/row['l2w']
-            if path.is_file() and path.stat().st_size == row['l2w_bytes']:
-                done[row['adquisicion']] = row['l2w']
-            else:
-                self.missing(row['id'])
+        for row in self.db.execute('SELECT adquisicion, zonas FROM escenas WHERE zonas IS NOT NULL'):
+            needed = set(json.loads(row['zonas']))
+            needed = needed & set(zones) if zones else needed
+            if needed and needed <= finished.get(row['adquisicion'], set()):
+                done[row['adquisicion']] = 'superimagen: '+', '.join(sorted(needed))
         return done
+
+    def zones_done(self, acquisition, region):
+        """Zonas de una adquisición con resultado terminal en la región (cualquier versión del producto)."""
+        return {row['zona'] for row in self.db.execute(f'''SELECT z.zona FROM productos_escena z JOIN escenas e USING (escena)
+            WHERE e.adquisicion=? AND z.aoi=? AND z.estado IN {TERMINAL}''', (acquisition, region))}
 
     def pending(self, config, force=False):
         """Escenas de la cola por procesar (PENDIENTE o FALLIDA) dentro del perfil.
 
-        Las que ya tienen L2W pasan a DISPONIBLE, salvo con `force`. De una misma adquisición se
+        Las ya completas pasan a DISPONIBLE, salvo con `force`. De una misma adquisición se
         procesa una sola escena por run (la más reciente); las demás esperan en la cola y el
         siguiente run las marca DISPONIBLE si aquella termina bien. Devuelve
         (por procesar, fuera del perfil, ya disponibles, aplazadas por repetir adquisición).
         """
-        done = {} if force else self.completed(config['aoi']['id'])
+        done = {} if force else self.completed(config['aoi']['id'], config['zones'])
         ready, outside, available, deferred, taken = [], [], [], [], set()
         rows = self.db.execute("SELECT escena, adquisicion, fuente FROM escenas "
                                "WHERE estado IN ('PENDIENTE','FALLIDA') ORDER BY fecha_utc, escena DESC").fetchall()
         for row in rows:
-            if row['adquisicion'] in done:
+            if not eligible(json.loads(row['fuente']), config):
+                outside.append(row['escena'])
+            elif row['adquisicion'] in done:
                 self.scene_state(row['escena'], 'DISPONIBLE')
                 available.append(row['escena'])
-            elif not eligible(json.loads(row['fuente']), config):
-                outside.append(row['escena'])
             elif row['adquisicion'] in taken:
                 deferred.append(row['escena'])
             else:
@@ -373,10 +490,30 @@ class Catalog:
     def search_start(self, provider, config, attempt):
         """Registra un intento de búsqueda EN_CURSO y devuelve su id."""
         with self.db:
-            cursor = self.db.execute('''INSERT INTO busquedas(fecha,proveedor,sensor,satelites,desde,hasta,intento,estado)
-                VALUES(?,?,?,?,?,?,?,'EN_CURSO')''', (stamp(), provider, config['family'], ','.join(config['search']['platforms']),
-                config['start'][:19].replace('T', ' '), config['end'][:19].replace('T', ' '), attempt))
+            cursor = self.db.execute('''INSERT INTO busquedas(fecha,proveedor,sensor,satelites,desde,hasta,intento,estado,aoi)
+                VALUES(?,?,?,?,?,?,?,'EN_CURSO',?)''', (stamp(), provider, config['family'], ','.join(config['search']['platforms']),
+                config['start'][:19].replace('T', ' '), config['end'][:19].replace('T', ' '), attempt, config['aoi']['id']))
         return cursor.lastrowid
+
+    def searched(self, region, sensor, first, last):
+        """Indica si búsquedas OK de la región y el sensor cubren todo [first, last) ('AAAA-MM-DD HH:MM:SS').
+
+        Sin esa cobertura no se sabe si faltan escenas del periodo, y su compuesto no está completo.
+        """
+        reached = first
+        for row in self.db.execute("SELECT desde, hasta FROM busquedas WHERE aoi=? AND sensor=? AND estado='OK' "
+                                   "ORDER BY desde", (region, sensor)):
+            if row['desde'] > reached:
+                break
+            reached = max(reached, row['hasta'])
+        return reached >= last
+
+    def unfinished(self, region, sensor, zone, first, last):
+        """Escenas del sensor en [first, last) que tocan la zona y aún no tienen resultado terminal en ella."""
+        rows = self.db.execute("SELECT escena, adquisicion, zonas FROM escenas WHERE sensor=? AND fecha_utc>=? "
+                               "AND fecha_utc<? AND zonas IS NOT NULL", (sensor, first[:16], last[:16])).fetchall()
+        return [row['escena'] for row in rows
+                if zone in json.loads(row['zonas']) and zone not in self.zones_done(row['adquisicion'], region)]
 
     def search_finish(self, search, state, report=None, error=None):
         """Cierra una búsqueda con su resultado (report de native.query) o su error."""
@@ -391,15 +528,13 @@ class Catalog:
     # ---------- procesos ----------
 
     def start(self, scene, kind, config, result_key=None, correction_key=None):
-        """Crea un proceso EN_CURSO con su carpeta legible (runs/0007_S2B_2026-02-15) y devuelve su id."""
-        row = self.db.execute('SELECT satelite, fecha_utc FROM escenas WHERE escena=?', (scene,)).fetchone()
+        """Crea un proceso EN_CURSO y devuelve su id; sus intermedios van en temporary/<id>."""
         with self.db:
             cursor = self.db.execute('''INSERT INTO procesos(escena,aoi,tipo,estado,inicio,validacion,limpieza,
-                clave_resultado,clave_correccion,detalle) VALUES(?,?,?,'EN_CURSO',?,'PENDIENTE','PENDIENTE',?,?,?)''',
-                (scene, config['aoi']['id'], kind, stamp(), result_key, correction_key, canonical({'perfil': config})))
+                clave_resultado,clave_correccion,detalle,legado) VALUES(?,?,?,'EN_CURSO',?,'PENDIENTE','PENDIENTE',?,?,?,?)''',
+                (scene, config['aoi']['id'], kind, stamp(), result_key, correction_key, canonical({'perfil': config}),
+                 int(config['aoi']['id'] in LEGACY_AOIS)))
             process = cursor.lastrowid
-            folder = f"runs/{process:04d}_{row['satelite']}_{row['fecha_utc'][:10]}"
-            self.db.execute('UPDATE procesos SET carpeta=? WHERE id=?', (folder, process))
         self.event('INICIO', f'Proceso {kind.lower()} de {scene}', process, scene)
         return process
 
@@ -464,33 +599,107 @@ class Catalog:
             self.missing(row['id'])
         return ok
 
-    def reusable(self, key, correction=False):
-        """Proceso OK con salida verificada reutilizable: L2W por clave_resultado o L1R por clave_correccion."""
-        column, kind = ('clave_correccion', 'L1R') if correction else ('clave_resultado', 'L2W')
-        rows = self.db.execute(f'''SELECT * FROM procesos WHERE {column}=? AND estado='OK'
-            AND validacion='TECNICA_OK' AND {kind.lower()} IS NOT NULL ORDER BY id DESC''', (key,)).fetchall()
-        for row in rows:
-            if self.available(row, kind):
-                return {'proceso': row['id'], 'ruta': row[kind.lower()]}
-        return None
-
-    def persistent_bytes(self):
-        """Bytes de los L1R/L2W presentes que se conservan (propios e importados)."""
-        return self.db.execute("SELECT coalesce(sum(coalesce(l1r_bytes,0)+coalesce(l2w_bytes,0)),0) FROM procesos "
-                               "WHERE archivos='PRESENTES'").fetchone()[0]
-
     def failed_attempts(self, process):
         """Intentos de descarga fallidos registrados para un proceso."""
         return self.db.execute("SELECT count(*) FROM eventos WHERE proceso=? AND tipo='INTENTO_FALLIDO'",
                                (process,)).fetchone()[0]
 
-    def runs(self, state=None, last=None):
-        """Lista procesos en orden cronológico, opcionalmente por estado o solo los últimos N."""
+    def runs(self, state=None, last=None, legacy=False):
+        """Lista procesos en orden cronológico (los del AOI vigente o, con `legacy`, los de legado)."""
         rows = self.db.execute('''SELECT p.id, e.fecha_utc, e.satelite, p.tipo, p.estado, p.inicio, p.duracion_min,
-            p.descarga_min, p.intentos, p.error, p.l2w, p.archivos, p.escena FROM procesos p
-            LEFT JOIN escenas e USING (escena) WHERE ? IS NULL OR p.estado=? ORDER BY p.id DESC LIMIT ?''',
-            (state, state, -1 if last is None else last)).fetchall()
+            p.descarga_min, p.intentos, p.error, p.l2w, p.archivos, p.escena,
+            (SELECT count(*) FROM productos_escena z WHERE z.proceso=p.id AND z.estado='OK') AS zonas_ok
+            FROM procesos p LEFT JOIN escenas e USING (escena) WHERE (? IS NULL OR p.estado=?) AND p.legado=?
+            ORDER BY p.id DESC LIMIT ?''', (state, state, int(legacy), -1 if last is None else last)).fetchall()
         return [dict(r) for r in reversed(rows)]
+
+    def legacy_count(self):
+        """Número de procesos de legado (para avisar que existen sin mezclarlos)."""
+        return self.db.execute('SELECT count(*) FROM procesos WHERE legado=1').fetchone()[0]
+
+    # ---------- superimagen ----------
+
+    def record_product(self, scene, zone, aoi, **columns):
+        """Crea o reemplaza el resultado de una escena en una zona (una fila por escena, zona y AOI)."""
+        columns = {key: canonical(value) if isinstance(value, (dict, list)) else value for key, value in columns.items()}
+        columns['fecha_proceso'] = stamp()
+        with self.db:
+            row = self.db.execute('SELECT id FROM productos_escena WHERE escena=? AND zona=? AND aoi=?',
+                                  (scene, zone, aoi)).fetchone()
+            if row:
+                self.db.execute('UPDATE productos_escena SET '+','.join(f'{k}=?' for k in columns)+' WHERE id=?',
+                                (*columns.values(), row['id']))
+                return row['id']
+            cursor = self.db.execute(f"INSERT INTO productos_escena(escena,zona,aoi,{','.join(columns)}) "
+                                     f"VALUES(?,?,?{',?'*len(columns)})", (scene, zone, aoi, *columns.values()))
+            return cursor.lastrowid
+
+    def zone_results(self, processes):
+        """{estado: (cantidad, bytes)} de los productos por zona creados por los procesos dados."""
+        marks = ','.join('?'*len(processes))
+        return {row[0]: (row[1], row[2]) for row in self.db.execute(
+            f'SELECT estado, count(*), coalesce(sum(bytes),0) FROM productos_escena WHERE proceso IN ({marks}) '
+            'GROUP BY estado', list(processes))}
+
+    def products(self, aoi, zone, sensor, first, last):
+        """Productos OK de una zona y sensor con fecha en [first, last] (AAAA-MM-DD), por fecha."""
+        return [dict(row) for row in self.db.execute(
+            '''SELECT * FROM productos_escena WHERE aoi=? AND zona=? AND sensor=? AND estado='OK'
+               AND fecha BETWEEN ? AND ? ORDER BY fecha, instante_utc, id''', (aoi, zone, sensor, first, last))]
+
+    def product_dates(self, aoi, sensor, first, last):
+        """(zona, fecha) con productos OK del sensor en [first, last]."""
+        return [(row['zona'], row['fecha']) for row in self.db.execute(
+            '''SELECT DISTINCT zona, fecha FROM productos_escena WHERE aoi=? AND sensor=? AND estado='OK'
+               AND fecha BETWEEN ? AND ? ORDER BY zona, fecha''', (aoi, sensor, first, last))]
+
+    def product_bytes(self, sensor):
+        """Mediana de bytes de los productos OK de un sensor (para estimar disco), o None."""
+        values = [row[0] for row in self.db.execute(
+            "SELECT bytes FROM productos_escena WHERE sensor=? AND estado='OK' AND bytes ORDER BY bytes", (sensor,))]
+        return values[len(values)//2] if values else None
+
+    def record_mask(self, zone, sensor, resolution, path, info):
+        """Registra la máscara de tierra de una zona, sensor y resolución, con la capa y su versión."""
+        path = Path(path).resolve()
+        with self.db:
+            self.db.execute('INSERT OR REPLACE INTO mascaras VALUES(?,?,?,?,?,?,?,?)',
+                            (zone, sensor, resolution, str(path.relative_to(self.storage)), info['capa'],
+                             file_hash(path), info.get('tierra_pct'), stamp()))
+
+    def mask(self, zone, sensor, resolution):
+        """Fila de la máscara de tierra registrada, o None."""
+        row = self.db.execute('SELECT * FROM mascaras WHERE zona=? AND sensor=? AND resolucion_m=?',
+                              (zone, sensor, resolution)).fetchone()
+        return dict(row) if row else None
+
+    def composite(self, kind, method, aoi, zone, sensor, period):
+        """Fila de un compuesto (o mapa diario de sargazo), o None."""
+        row = self.db.execute('SELECT * FROM compuestos WHERE tipo=? AND metodo=? AND aoi=? AND zona=? AND sensor=? '
+                              'AND periodo=?', (kind, method, aoi, zone, sensor, period)).fetchone()
+        return dict(row) if row else None
+
+    def record_composite(self, kind, method, aoi, zone, sensor, period, folder, signature, size, members, detail):
+        """Crea o reemplaza un compuesto con su lista de productos de escena (linaje) y devuelve su id."""
+        with self.db:
+            self.db.execute('DELETE FROM compuestos WHERE tipo=? AND metodo=? AND aoi=? AND zona=? AND sensor=? AND periodo=?',
+                            (kind, method, aoi, zone, sensor, period))
+            cursor = self.db.execute('''INSERT INTO compuestos(tipo,metodo,aoi,zona,sensor,periodo,carpeta,firma,bytes,
+                n_escenas,fecha_proceso,detalle) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (kind, method, aoi, zone, sensor, period, folder, signature, size, len(members), stamp(), canonical(detail)))
+            self.db.executemany('INSERT INTO compuesto_escenas VALUES(?,?)', [(cursor.lastrowid, m) for m in members])
+        return cursor.lastrowid
+
+    def composite_members(self, composite):
+        """Ids de productos de escena que entraron en un compuesto."""
+        return [row[0] for row in self.db.execute('SELECT producto FROM compuesto_escenas WHERE compuesto=? '
+                                                  'ORDER BY producto', (composite,))]
+
+    def composites(self, kind, aoi, zone, sensor, method=None):
+        """Compuestos de un tipo (p. ej. todos los mensuales de una zona y sensor), por periodo."""
+        return [dict(row) for row in self.db.execute(
+            'SELECT * FROM compuestos WHERE tipo=? AND aoi=? AND zona=? AND sensor=? AND (? IS NULL OR metodo=?) '
+            'ORDER BY periodo', (kind, aoi, zone, sensor, method, method))]
 
     def run_detail(self, process):
         """Un proceso con sus columnas, métricas y eventos (id numérico, p. ej. 7 o 0007)."""

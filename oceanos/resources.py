@@ -20,24 +20,29 @@ RESERVE_FRACTION, RESERVE_MINIMUM = 0.1, 1.5*GB
 CPUS_VARIABLE, RAM_VARIABLE = 'OCEANOS_CPUS', 'OCEANOS_RAM_GB'
 CGROUP = Path('/sys/fs/cgroup')
 # Picos RSS por etapa sin historial. ACOLITE: catálogo v3, 14 escenas Sentinel-2 (≈4,7 GB) y máximo
-# de los ensayos Landsat (6,57 GB). Descargas: streaming propio (oceanos.native.fetch), unos MB;
-# 0,4 GB cubre cargar ACOLITE en el proceso aislado.
-PEAKS = {'sentinel2': {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'process': 4.8*GB},
-         'landsat': {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'process': 6.6*GB}}
+# de los ensayos Landsat (6,57 GB); ahora recorta cada zona, así que son cotas holgadas hasta medir.
+# OLCI (EFR, 21 bandas a 300 m) se estima como Landsat. Descargas: streaming propio
+# (oceanos.native.fetch), unos MB; 0,4 GB cubre cargar ACOLITE en el proceso aislado. Nubes y
+# exportación leen una variable a la vez sobre la grilla de la zona (Fajardo a 10 m: 15 Mpx).
+COMMON = {'query': 1.0*GB, 'acquire': 0.4*GB, 'extract': 1.2*GB, 'clouds': 0.8*GB, 'export': 1.5*GB}
+PEAKS = {'sentinel2': {**COMMON, 'process': 4.8*GB},
+         'landsat': {**COMMON, 'process': 6.6*GB},
+         'olci': {**COMMON, 'process': 6.6*GB}}
 # Disco por escena en curso: RAW, extraído, salidas y auxiliares (3,42 GB medidos).
 SCENE_DISK = 3.5*GB
-# Descargas simultáneas por familia: una cuenta gratuita de CDSE admite 4 conexiones a la vez
+# Descargas simultáneas por familia: una cuenta gratuita de CDSE (S2 y OLCI) admite 4 conexiones a la vez
 # (documentation.dataspace.copernicus.eu/Quotas.html; con más, CDSE rechaza la descarga). USGS no
 # documenta un límite; con la descarga en streaming la RAM ya no lo acota, así que se usa el mismo
 # tope prudente de 4. OCEANOS_DESCARGAS lo cambia (p. ej. una cuenta CDSE con más cuota).
-DOWNLOADS = {'sentinel2': 4, 'landsat': 4}
+DOWNLOADS = {'sentinel2': 4, 'landsat': 4, 'olci': 4}
 DOWNLOADS_VARIABLE = 'OCEANOS_DESCARGAS'
 # Prioridad al admitir: lo más avanzado primero, para liberar RAM y disco antes de descargar más.
-PRIORITY = {'process': 0, 'extract': 1, 'acquire': 2, 'query': 3}
+PRIORITY = {'export': 0, 'process': 1, 'clouds': 2, 'extract': 3, 'acquire': 4, 'query': 5}
 # Carpeta de LUT por sensor que ACOLITE prepara la primera vez (acolite/data/LUT/<familia>/<sensor>).
-LUT_SENSORS = {'S2A': 'S2A_MSI', 'S2B': 'S2B_MSI', 'S2C': 'S2C_MSI', 'L8': 'L8_OLI', 'L9': 'L9_OLI'}
+LUT_SENSORS = {'S2A': 'S2A_MSI', 'S2B': 'S2B_MSI', 'S2C': 'S2C_MSI', 'L8': 'L8_OLI', 'L9': 'L9_OLI',
+               'S3A': 'S3A_OLCI', 'S3B': 'S3B_OLCI'}
 THREADS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS')
-NAMES = {'acquire': 'descarga', 'extract': 'extracción', 'process': 'ACOLITE'}
+NAMES = {'acquire': 'descarga', 'extract': 'extracción', 'process': 'ACOLITE', 'export': 'exportación'}
 
 
 def first_line(path):

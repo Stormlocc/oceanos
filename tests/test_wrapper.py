@@ -7,9 +7,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock
 from oceanos.catalog import Catalog
-from oceanos.config import ROOT, ACOLITE, profile, exclusive
-from oceanos.native import scene_identity, eligible, query, extract
+from oceanos.config import ACOLITE, PROFILE, profile, exclusive
+from oceanos.native import scene_identity, eligible, extract
 from oceanos.pipeline import Pipeline, cleanup, recover
+from sin_red import setUpModule, tearDownModule  # noqa: F401  (sin red en las pruebas)
 
 SCENE='S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE'
 # Intervalo fijo de las pruebas: independiente del intervalo de trabajo del YAML.
@@ -25,7 +26,7 @@ class CatalogTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(self.temp.name)
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
 
     def tearDown(self):
         self.cat.db.close()
@@ -34,24 +35,19 @@ class CatalogTests(unittest.TestCase):
     def scene(self, data=None):
         return self.cat.upsert_scene(data or source())
 
-    def files(self, process, kinds=('L1R','L2W')):
-        folder=self.cat.storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True,exist_ok=True)
-        for kind in kinds:
-            path=folder/(kind+'.nc');path.write_bytes(kind.encode());self.cat.artifact(process,kind,path)
-        return folder
-
     def test_status_lists_processes_filters_and_detail(self):
         name=self.scene()
         first=self.cat.start(name,'DESCARGA',self.config);self.cat.finish(first,'FALLIDO',error='TimeoutError')
-        second=self.cat.start(name,'DESCARGA',self.config);self.files(second,('L2W',))
+        second=self.cat.start(name,'DESCARGA',self.config)
         self.cat.finish(second,'OK','TECNICA_OK',metrics=[{'stage':'process','seconds':1,'ok':True}])
+        self.cat.record_product(name,'ponce_guayanilla','water2coast_v1',proceso=second,estado='OK',sensor='S2')
         self.assertEqual((first,second),(1,2))
-        self.assertEqual(self.cat.process(second)['carpeta'],'runs/0002_S2B_2026-08-04')
+        self.assertIsNone(self.cat.process(second)['carpeta'])
         rows=self.cat.runs()
-        self.assertEqual([r['id'] for r in rows],[1,2])
-        self.assertEqual((rows[1]['satelite'],rows[1]['l2w']),('S2B','runs/0002_S2B_2026-08-04/L2W.nc'))
+        self.assertEqual([(r['id'],r['satelite'],r['zonas_ok']) for r in rows],[(1,'S2B',0),(2,'S2B',1)])
         self.assertEqual([(r['id'],r['error']) for r in self.cat.runs('FALLIDO')],[(1,'TimeoutError')])
         self.assertEqual([r['id'] for r in self.cat.runs(last=1)],[2])
+        self.assertEqual(self.cat.runs(legacy=True),[])
         detail=self.cat.run_detail('0002')
         self.assertEqual(detail['metricas'][0]['stage'],'process');self.assertNotIn('detalle',detail)
         self.assertTrue(detail['eventos'][0].endswith('INICIO: Proceso descarga de '+SCENE))
@@ -80,57 +76,30 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.cat.resolve_scene('S2B_MSIL1C')
         with self.assertRaises(ValueError): self.cat.resolve_scene('nada')
 
-    def test_administrative_metadata_keeps_processing_key(self):
-        runner=object.__new__(Pipeline);runner.config=self.config;runner.engine={'revision':'test'}
-        a=source(sha256='abc');b=source(sha256='abc');b['metadata']['PublicationDate']='later'
-        self.assertEqual(runner.keys(a),runner.keys(b))
-        b['sha256']='different'
-        self.assertNotEqual(runner.keys(a),runner.keys(b))
-
-    def test_new_products_keep_correction_key(self):
-        runner=object.__new__(Pipeline);runner.config=self.config;runner.engine={}
-        old=runner.keys(source(sha256='abc'))
-        runner.config={**self.config,'products':['fai'],'native':{**self.config['native'],'l2w_parameters':'fai'}}
-        new=runner.keys(source(sha256='abc'))
-        self.assertEqual(old[1],new[1]);self.assertNotEqual(old[0],new[0])
-
-    def test_missing_or_changed_artifact_does_not_skip(self):
-        process=self.cat.start(self.scene(),'DESCARGA',self.config,'work','correction')
-        folder=self.files(process,('L2W',))
-        self.cat.finish(process,'OK','TECNICA_OK')
-        self.assertEqual(self.cat.reusable('work')['proceso'],process)
-        (folder/'L2W.nc').write_bytes(b'modified')
-        self.assertIsNone(self.cat.reusable('work'))
-        self.assertEqual(self.cat.process(process)['archivos'],'FALTAN')
-
     def raw(self, process):
         raw=self.cat.storage/'temporary'/str(process);raw.mkdir(parents=True);(raw/'partial.zip').touch()
         return raw
-
-    def test_interruption_retains_sources_until_cleanup(self):
-        process=self.cat.start(self.scene(),'DESCARGA',self.config)
-        raw=self.raw(process)
-        work=self.cat.storage/self.cat.process(process)['carpeta'];work.mkdir(parents=True);(work/'partial_L1R.nc').touch()
-        self.assertEqual(cleanup(self.cat,process),'APLAZADA')
-        self.assertTrue((raw/'partial.zip').exists())
-        self.assertEqual(self.cat.recover(),1)
-        self.assertTrue((raw/'partial.zip').exists())
-        self.assertEqual(cleanup(self.cat,process),'HECHA')
-        self.assertFalse(raw.exists());self.assertFalse(work.exists())
-        self.assertEqual(self.cat.process(process)['estado'],'INTERRUMPIDO')
-
-    def test_interrupted_cleanup_keeps_registered_artifacts(self):
-        process=self.cat.start(self.scene(),'DESCARGA',self.config)
-        folder=self.files(process,('L1R',));raw=self.raw(process)
-        self.cat.recover()
-        self.assertEqual(cleanup(self.cat,process),'HECHA')
-        self.assertFalse(raw.exists());self.assertTrue((folder/'L1R.nc').exists())
 
     def interrupted(self, state=None):
         process=self.cat.start(self.scene(),'DESCARGA',self.config)
         raw=self.raw(process)
         if state: self.cat.finish(process,state)
         return process,raw
+
+    def test_interruption_is_cleaned_by_recover(self):
+        process,raw=self.interrupted()
+        self.assertEqual(self.cat.recover(),1)
+        self.assertEqual(cleanup(self.cat,process),'HECHA')
+        self.assertFalse(raw.exists())
+        self.assertEqual(self.cat.process(process)['estado'],'INTERRUMPIDO')
+
+    def test_failed_process_keeps_download_until_reused(self):
+        process,raw=self.interrupted('FALLIDO')
+        self.assertEqual(cleanup(self.cat,process),'APLAZADA')
+        self.assertTrue((raw/'partial.zip').exists())
+        self.assertEqual(cleanup(self.cat,process,force=True),'HECHA')
+        self.assertFalse(raw.exists())
+        self.assertEqual(self.cat.process(process)['estado'],'FALLIDO')
 
     def test_recover_cleans_hard_stop_and_ctrl_c(self):
         hard,hard_raw=self.interrupted()
@@ -145,29 +114,28 @@ class CatalogTests(unittest.TestCase):
 
     def test_recover_continues_when_cleanup_fails(self):
         locked,locked_raw=self.interrupted()
-        escape,_=self.interrupted()
-        self.cat.update(escape,carpeta='../outside')
         with patch('oceanos.pipeline.shutil.rmtree',side_effect=OSError):
             result=recover(self.cat)
-        self.assertEqual(sorted(result['limpieza_fallida']),[locked,escape])
-        for process in (locked,escape):
-            self.assertEqual(self.cat.process(process)['limpieza'],'FALLIDA')
+        self.assertEqual(result['limpieza_fallida'],[locked])
+        self.assertEqual(self.cat.process(locked)['limpieza'],'FALLIDA')
         self.assertTrue(locked_raw.exists())
         self.assertEqual(recover(self.cat)['limpiados'],[locked])
         self.assertFalse(locked_raw.exists())
 
     def test_cleanup_rejects_escape_and_preserves_success(self):
-        process,_=self.interrupted('INTERRUMPIDO')
-        self.cat.update(process,carpeta='../outside')
+        process=self.cat.start(self.scene(),'DESCARGA',self.config);self.cat.finish(process,'INTERRUMPIDO')
+        outside=Path(self.temp.name)/'outside';outside.mkdir();(outside/'keep').touch()
+        (self.cat.storage/'temporary').mkdir();(self.cat.storage/'temporary'/str(process)).symlink_to(outside)
         with self.assertRaises(ValueError): cleanup(self.cat,process)
-        ok=self.cat.start(self.scene(),'DESCARGA',self.config);self.files(ok)
+        self.assertTrue((outside/'keep').exists())
+        ok=self.cat.start(self.scene(),'DESCARGA',self.config);self.raw(ok)
         self.cat.finish(ok,'OK','TECNICA_OK')
         self.assertEqual(cleanup(self.cat,ok),'HECHA')
         self.assertEqual(self.cat.process(ok)['estado'],'OK')
 
     def test_cleanup_failure_does_not_repeat_processing(self):
         process=self.cat.start(self.scene(),'DESCARGA',self.config)
-        self.raw(process);self.files(process)
+        self.raw(process)
         self.cat.finish(process,'OK','TECNICA_OK')
         with patch('oceanos.pipeline.shutil.rmtree',side_effect=OSError):
             with self.assertRaises(OSError): cleanup(self.cat,process)
@@ -180,40 +148,6 @@ class CatalogTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 with exclusive(self.cat.storage): pass
 
-    def test_l1r_reuse_before_download(self):
-        # Un L1R validado y checksum comparable basta: la red no debe llamarse.
-        data=source(sha256='local-sha');name=self.scene(data)
-        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config;runner.engine={}
-        runner.acolite=ACOLITE;runner.roots=[];runner.wait=lambda _:None;runner.metrics=[]
-        _,correction=runner.keys(data)
-        parent=self.cat.start(name,'DESCARGA',self.config,'old-products',correction)
-        l1r=self.files(parent,('L1R',))/'L1R.nc'
-        self.cat.finish(parent,'OK','TECNICA_OK')
-        calls=[]
-        def fake(operation,**args):
-            calls.append(operation)
-            self.assertTrue(args['derive'])
-            out=Path(args['output']);result=out/'new_L2W.nc';result.write_bytes(b'L2W')
-            intermediate=out/'transient_L2R.nc';intermediate.write_bytes(b'L2R')
-            return {'files':{'l1r':str(l1r),'l2r':str(intermediate),'l2w':str(result)},'science_metadata':{},'settings':{},'environment':{}}
-        runner.call=fake
-        report={'variables':{'l1r':[],'l2r':[],'l2w':[]},'grid':{},'technical':'PASSED','scientific':'PENDING'}
-        with patch('oceanos.pipeline.validate',return_value=report):
-            process=runner.run(name)
-        row=self.cat.process(process)
-        self.assertEqual(calls,['process'])
-        self.assertEqual((row['tipo'],row['l1r_padre'],row['l1r'],row['estado']),('DERIVADO',parent,None,'OK'))
-        folder=self.cat.storage/row['carpeta']
-        self.assertEqual(sorted(p.name for p in folder.iterdir()),['new_L2W.nc'])
-
-    def test_failed_recoverable_source_is_cleaned_after_retries(self):
-        process,raw=self.interrupted()
-        for attempt in range(3): self.cat.event('INTENTO_FALLIDO',f'intento {attempt+1}',process)
-        self.cat.finish(process,'FALLIDO')
-        self.assertEqual(cleanup(self.cat,process),'HECHA')
-        self.assertFalse(raw.exists())
-        self.assertEqual(self.cat.process(process)['estado'],'FALLIDO')
-
     def test_old_catalog_is_backed_up_and_views_work(self):
         import sqlite3
         folder=Path(self.temp.name)/'old';(folder/'catalog').mkdir(parents=True)
@@ -221,18 +155,39 @@ class CatalogTests(unittest.TestCase):
         db.execute('CREATE TABLE ejecuciones(id TEXT)');db.execute('PRAGMA user_version=3');db.commit();db.close()
         cat=Catalog(folder)
         self.assertTrue(cat.backup.name.startswith('catalog_v3_respaldo_') and cat.backup.exists())
-        tables={r[0] for r in cat.db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view')")}
-        self.assertEqual(tables,{'escenas','procesos','busquedas','eventos','v_resumen','v_cola','v_descargas','v_fallidas','v_disco'})
-        for view in ('v_resumen','v_cola','v_descargas','v_fallidas','v_disco'):
+        self.assertFalse(cat.migrated)
+        views=[r[0] for r in cat.db.execute("SELECT name FROM sqlite_master WHERE type='view'")]
+        self.assertTrue({'v_superimagen','v_compuestos','v_legado','v_cola'} <= set(views))
+        for view in views:
             cat.db.execute(f'SELECT * FROM {view}').fetchall()
-        self.assertEqual(cat.db.execute('PRAGMA user_version').fetchone()[0],4)
+        self.assertEqual(cat.db.execute('PRAGMA user_version').fetchone()[0],5)
         cat.db.close()
         self.assertIsNone(Catalog(folder).backup)
+
+    def test_v4_catalog_is_migrated_with_backup_and_legacy(self):
+        name=self.scene();self.cat.enqueue([name])
+        legacy=self.cat.start(name,'DESCARGA',{'aoi':{'id':'lapargera_v1'}});self.cat.finish(legacy,'OK','TECNICA_OK')
+        db=self.cat.db
+        for (view,) in db.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall():
+            db.execute(f'DROP VIEW {view}')
+        db.execute('DROP INDEX productos_zona')
+        for table in ('compuesto_escenas','compuestos','productos_escena','mascaras'):
+            db.execute(f'DROP TABLE {table}')
+        for table,column in (('escenas','zonas'),('procesos','legado'),('busquedas','aoi')):
+            db.execute(f'ALTER TABLE {table} DROP COLUMN {column}')
+        db.execute('PRAGMA user_version=4');db.commit();db.close()
+        self.cat=Catalog(self.temp.name)
+        self.assertTrue(self.cat.migrated and self.cat.backup.name.startswith('catalog_v4_respaldo_'))
+        self.assertEqual(self.cat.process(legacy)['legado'],1)
+        self.assertEqual(self.cat.legacy_count(),1)
+        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'NUEVA')
+        self.assertEqual(self.cat.runs(),[])
+        self.assertEqual([r['id'] for r in self.cat.legacy()],[legacy])
 
 
 class AdapterTests(unittest.TestCase):
     def setUp(self):
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
 
     def test_date_boundaries(self):
         def dated(date):
@@ -241,30 +196,46 @@ class AdapterTests(unittest.TestCase):
         self.assertFalse(eligible(dated('20260821T000000'),self.config))
         self.assertFalse(eligible(dated('20260731T235959'),self.config))
 
-    def test_unsupported_product_rejected_before_network(self):
-        with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/project.yaml',['chl_oc4'])
-        with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/landsat.yaml',['ndci'])
-        self.assertIsNone(self.config['cloud'])
-
-    def test_products_have_single_source(self):
-        self.assertEqual(self.config['native']['l2w_parameters'],'Rrs_*,tur_nechad2009,chl_oc3,ndci,fai,ndvi')
-        override=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',[' fai','ndvi','fai'])
-        self.assertEqual(override['native']['l2w_parameters'],'fai,ndvi')
+    def test_products_outside_the_sensor_profile_are_rejected(self):
+        with self.assertRaises(ValueError): profile(PROFILE,'sentinel2',['chl_oc4'])
+        with self.assertRaises(ValueError): profile(PROFILE,'landsat',['ndci'])
+        with self.assertRaises(ValueError): profile(PROFILE,'sentinel2',['fai',''])
+        override=profile(PROFILE,'sentinel2',[' fai','ndvi','fai'])
         self.assertEqual(override['products'],['fai','ndvi'])
-        with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/project.yaml',['fai',''])
+        for zone in override['zones'].values():
+            self.assertEqual(zone['native']['l2w_parameters'],'fai,ndvi')
 
-    def test_native_settings_derived_from_yaml(self):
-        native=self.config['native']
-        self.assertEqual(native['region_name'],'lapargera_v1')
-        self.assertEqual(native['limit'],'17.83506768071816,-67.09176880642183,18.047432637275,-66.40241185767644')
-        self.assertNotIn('output_projection',native)
-        landsat=profile(ROOT/'config/aoi/lapargera_v1/landsat.yaml')['native']
-        self.assertEqual(landsat['limit'],native['limit'])
-        self.assertEqual(landsat['output_projection_xrange'],'701980,775330')
-        self.assertEqual(landsat['output_projection_yrange'],'1997360,1972960')
-        self.assertEqual(landsat['output_projection_resolution'],'10,10')
-        self.assertEqual(landsat['dsf_tile_dimensions'],'600,600')
-        self.assertEqual(landsat['reproject_before_ac'],'True')
+    def test_zone_settings_project_to_aligned_zone_grid(self):
+        self.assertEqual(list(self.config['zones']),['mayaguez_cabo_rojo','la_parguera_guanica','ponce_guayanilla','fajardo_culebra'])
+        fajardo=self.config['zones']['fajardo_culebra']
+        native,grid=fajardo['native'],fajardo['grid']
+        self.assertEqual((grid['epsg'],grid['resolution_m']),(32620,10))
+        self.assertTrue(all(value%10==0 for value in grid['xrange_m']+grid['yrange_m']))
+        self.assertEqual(native['region_name'],'fajardo_culebra')
+        self.assertEqual((native['output_projection_epsg'],native['reproject_before_ac'],native['output_projection_resampling_method']),
+                         ('32620','True','nearest'))
+        self.assertEqual((native['dsf_residual_glint_correction'],native['glint_write_rhog_ref']),('True','True'))
+        self.assertEqual(fajardo['places'],['20QKF'])
+        landsat=profile(PROFILE,'landsat',start='2026-08-01',end='2026-08-15')
+        self.assertEqual(landsat['zones']['fajardo_culebra']['grid']['resolution_m'],30)
+        self.assertTrue(all(v%30==0 for v in landsat['zones']['ponce_guayanilla']['grid']['xrange_m']))
+        self.assertEqual(profile(PROFILE,'olci')['zones']['ponce_guayanilla']['grid']['resolution_m'],300)
+
+    def test_zone_selection(self):
+        config=profile(PROFILE,'sentinel2',start=START,end=END,zones=['ponce_guayanilla'])
+        self.assertEqual(list(config['zones']),['ponce_guayanilla'])
+        with self.assertRaises(ValueError): profile(PROFILE,'sentinel2',zones=['culebrita'])
+
+    def test_scene_is_assigned_to_zones_by_tile_and_footprint(self):
+        from oceanos.native import zones_for
+        self.assertEqual(zones_for(source(),self.config),['la_parguera_guanica','ponce_guayanilla'])
+        ponce=self.config['zones']['ponce_guayanilla']['wkt']
+        from osgeo import ogr
+        footprint=json.loads(ogr.CreateGeometryFromWkt(ponce).Centroid().Buffer(0.01).ExportToJson())
+        self.assertEqual(zones_for(source(footprint=footprint),self.config),['ponce_guayanilla'])
+        other=source(identity={**scene_identity(SCENE),'tile':'19QHA'})
+        self.assertEqual(zones_for(other,self.config),[])
+        self.assertFalse(eligible(other,self.config))
 
     def test_archive_traversal_is_rejected_before_native_extraction(self):
         import zipfile
@@ -287,7 +258,7 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaises(TimeoutError): runner.search()
             self.assertEqual(providers,['CDSE']*3)
             self.assertEqual(waits,[10,30])
-            self.assertEqual(cat.db.execute("SELECT count(*) FROM busquedas WHERE estado='FALLIDA'").fetchone()[0],3)
+            self.assertEqual(cat.db.execute("SELECT count(*) FROM busquedas WHERE estado='FALLIDA' AND aoi='water2coast_v1'").fetchone()[0],3)
             cat.db.close()
 
     def test_native_patch_preserves_default_return_and_exposes_metadata(self):
@@ -306,20 +277,8 @@ class AdapterTests(unittest.TestCase):
         with patch('requests.get',return_value=response({'error':'bad'})):
             with self.assertRaises(ValueError): ac.api.cdse.query(scene=SCENE,verbosity=0)
 
-    def test_l1r_regeneration_uses_full_native_chain_without_reprojection(self):
-        from oceanos.native import process
-        with tempfile.TemporaryDirectory() as tmp:
-            paths={level:str(Path(tmp)/(level+'.nc')) for level in ('l1r','l2r','l2w')}
-            for path in paths.values(): Path(path).touch()
-            config=Path(tmp)/'settings.txt';config.write_text('l2w_parameters=fai\n')
-            ac=Mock();ac.acolite.settings.read.return_value={'l2w_parameters':['fai']}
-            ac.acolite.acolite_run.return_value={0:{k:[v] for k,v in paths.items()}}
-            result=process(ac,paths['l1r'],config,Path(tmp)/'out',derive=True)
-            self.assertEqual(result,paths)
-            settings=ac.acolite.acolite_run.call_args.args[0]
-            self.assertFalse(settings['output_projection'])
-            self.assertFalse(settings['reproject_before_ac'])
-            ac.acolite.acolite_l2w.assert_not_called()
+
+GRID={'epsg':32619,'resolution_m':10,'xrange_m':[0,20],'yrange_m':[20,0],'shape_yx':[2,2],'geotransform':[0,10,0,20,0,-10]}
 
 
 class ValidationTests(unittest.TestCase):
@@ -328,7 +287,7 @@ class ValidationTests(unittest.TestCase):
         import numpy as np
         from pyproj import CRS
         self.temp=tempfile.TemporaryDirectory()
-        self.config={'grid':{'xrange_m':[0,20],'yrange_m':[20,0], 'pixel_size_xy_m':[10,-10]},'epsg':32619,'products':['Rrs_*','chl_oc3']}
+        self.products=['Rrs_*','chl_oc3']
         self.files={}
         for level in ['l2r','l2w']:
             path=Path(self.temp.name)/(level+'.nc');self.files[level]=str(path)
@@ -346,7 +305,7 @@ class ValidationTests(unittest.TestCase):
 
     def test_all_masked_is_technical_success_but_science_pending(self):
         from oceanos.validation import validate
-        report=validate(self.files,self.config)
+        report=validate(self.files,GRID,self.products)
         self.assertEqual(report['technical'],'PASSED')
         self.assertEqual(report['scientific'],'PENDING')
         self.assertEqual(report['finite_pixels']['chl_oc3']['count'],0)
@@ -355,18 +314,26 @@ class ValidationTests(unittest.TestCase):
         import netCDF4
         from oceanos.validation import validate
         with netCDF4.Dataset(self.files['l2w'],'a') as ds: ds['x'][:]=[10,20]
-        with self.assertRaises(ValueError): validate(self.files,self.config)
+        with self.assertRaises(ValueError): validate(self.files,GRID,self.products)
+
+    def test_other_projection_rejected(self):
+        from oceanos.validation import validate
+        with self.assertRaises(ValueError): validate(self.files,{**GRID,'epsg':32620},self.products)
 
     def test_missing_requested_product_rejected(self):
         from oceanos.validation import validate
-        self.config['products'].append('ndci')
-        with self.assertRaises(ValueError): validate(self.files,self.config)
+        with self.assertRaises(ValueError): validate(self.files,GRID,self.products+['ndci'])
+
+    def test_fai_is_not_satisfied_by_fait(self):
+        from oceanos.validation import product_variables
+        self.assertEqual(product_variables('fai',['fait','FAI']),['FAI'])
+        self.assertEqual(product_variables('tur_nechad2009',['TUR_Nechad2009_665']),['TUR_Nechad2009_665'])
 
     def test_incomplete_rrs_wildcard_rejected(self):
         import netCDF4
         from oceanos.validation import validate
         with netCDF4.Dataset(self.files['l2r'],'a') as ds: ds.createVariable('rhos_560','f4',('y','x'))[:]=0
-        with self.assertRaises(ValueError): validate(self.files,self.config)
+        with self.assertRaises(ValueError): validate(self.files,GRID,self.products)
 
 
 
@@ -375,11 +342,11 @@ L1R='S2B_MSI_2026_08_04_15_08_03_T19QGV_lapargera_v1_L1R.nc'
 
 
 class QueueSyncTests(unittest.TestCase):
-    """Importación por nombre, cola de search→run, tiempos de descarga y resumen."""
+    """Legado importado por nombre, cola de run, tiempos de descarga y resumen."""
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(self.temp.name)
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
         self.imports=self.cat.storage/'importados';self.imports.mkdir()
 
     def tearDown(self):
@@ -387,7 +354,9 @@ class QueueSyncTests(unittest.TestCase):
         self.temp.cleanup()
 
     def scene(self, data=None):
-        return self.cat.upsert_scene(data or source())
+        name=self.cat.upsert_scene(data or source())
+        self.cat.set_zones(name,['la_parguera_guanica','ponce_guayanilla'])
+        return name
 
     def named(self, date):
         name=SCENE.replace('20260804T150719',date)
@@ -398,6 +367,10 @@ class QueueSyncTests(unittest.TestCase):
         runner.engine={};runner.metrics=[];runner.wait=lambda _:None
         return runner
 
+    def finish_zones(self, scene, zones=('la_parguera_guanica','ponce_guayanilla'), state='OK'):
+        for zone in zones:
+            self.cat.record_product(scene,zone,'water2coast_v1',estado=state,sensor='S2',fecha='2026-08-04')
+
     def test_output_name_matches_provider_acquisition(self):
         from oceanos.native import output_identity, acquisition_day
         info=output_identity(L2W)
@@ -407,32 +380,31 @@ class QueueSyncTests(unittest.TestCase):
         self.assertEqual(landsat['acquisition_key'],acquisition_day(scene_identity('LC09_L1TP_004047_20260805_20260806_02_T1')))
         with self.assertRaises(ValueError): output_identity('notas.nc')
 
-    def test_sync_registers_by_name_and_is_idempotent(self):
+    def test_sync_registers_legacy_that_never_counts_as_done(self):
         from oceanos.sync import sync
-        name=self.scene()
+        name=self.scene();self.cat.enqueue([name])
         (self.imports/L2W).write_bytes(b'l2w');(self.imports/L1R).write_bytes(b'l1r');(self.imports/'otro.nc').write_bytes(b'x')
         report=sync(self.cat,self.imports)
         self.assertEqual(sorted(i['tipo'] for i in report['importados']),['L1R','L2W'])
         self.assertEqual(report['no_reconocidos'],['importados/otro.nc'])
         process=report['importados'][0]['proceso']
         row=self.cat.process(process)
-        self.assertEqual((row['tipo'],row['estado'],row['validacion'],row['escena'],row['carpeta'],row['limpieza']),
-                         ('IMPORTADO','IMPORTADO','SIN_VERIFICAR',name,'importados','NO_APLICA'))
+        self.assertEqual((row['tipo'],row['estado'],row['validacion'],row['escena'],row['carpeta'],row['limpieza'],row['legado']),
+                         ('IMPORTADO','IMPORTADO','SIN_VERIFICAR',name,'importados','NO_APLICA',1))
         self.assertIsNone(row['l2w_sha256'])
-        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'IMPORTADA')
-        self.assertIn('S2B:20260804:19QGV',self.cat.completed('lapargera_v1'))
-        self.assertEqual(self.cat.completed('otra_region'),{})
+        # El legado no saca la escena de la cola ni cuenta como "ya lo tenemos".
+        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'PENDIENTE')
+        self.assertEqual(self.cat.completed('water2coast_v1'),{})
+        self.assertEqual(self.cat.completed('lapargera_v1'),{})
+        self.assertEqual([r['id'] for r in self.cat.legacy()],[process])
         again=sync(self.cat,self.imports)
         self.assertEqual((again['importados'],again['ya_registrados']),([],2))
         (self.imports/L2W).unlink()
         self.assertEqual(sync(self.cat,self.imports)['desaparecidos'],['importados/'+L2W])
-        self.assertEqual(self.cat.completed('lapargera_v1'),{})
         (self.imports/L2W).write_bytes(b'l2w')
         self.assertEqual(sync(self.cat,self.imports)['reaparecidos'],['proceso 1 (importados)'])
         self.assertEqual(cleanup(self.cat,process),'NO_APLICA')
         self.assertTrue((self.imports/L2W).exists())
-        # Importado sin verificar: nunca se reutiliza como salida científica.
-        self.assertIsNone(self.cat.reusable(None))
 
     def test_sync_late_l1r_completes_same_process(self):
         from oceanos.sync import sync
@@ -453,7 +425,7 @@ class QueueSyncTests(unittest.TestCase):
         (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
         name=self.scene()
         self.assertEqual([r[0] for r in self.cat.db.execute('SELECT escena FROM escenas')],[name])
-        self.assertEqual((self.cat.process(1)['escena'],self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0]),(name,'IMPORTADA'))
+        self.assertEqual(self.cat.process(1)['escena'],name)
 
     def test_sync_adopts_runs_with_readable_names(self):
         from oceanos.sync import sync
@@ -461,33 +433,38 @@ class QueueSyncTests(unittest.TestCase):
         (old/L2W).write_bytes(b'l2w');(old/L1R).write_bytes(b'l1r')
         report=sync(self.cat,self.cat.storage/'runs',hashed=True)
         row=self.cat.process(1)
-        self.assertEqual((row['carpeta'],row['l2w']),('runs/0001_S2B_2026-08-04','runs/0001_S2B_2026-08-04/'+L2W))
+        folder="runs/0001_S2B_2026-08-04"
+        self.assertEqual((row['carpeta'],row['l2w'],row['legado']),(folder,folder+'/'+L2W,1))
         self.assertTrue(row['l2w_sha256'])
-        self.assertEqual(sorted(p.name for p in (self.cat.storage/'runs').iterdir()),['0001_S2B_2026-08-04'])
         self.assertEqual(sorted(p.name for p in (self.cat.storage/row['carpeta']).iterdir()),[L1R,L2W])
         self.assertEqual(len(report['importados']),2)
         self.assertEqual(sync(self.cat,self.cat.storage/'runs')['ya_registrados'],2)
 
     def test_sync_rejects_folders_outside_or_reserved(self):
         from oceanos.sync import sync
-        (self.cat.storage/'temporary').mkdir()
-        for folder in (self.cat.storage/'temporary',self.cat.storage/'catalog',self.cat.storage,Path(tempfile.gettempdir())):
+        for folder in ('temporary','catalog','superimagen','auxiliares'):
+            (self.cat.storage/folder).mkdir(exist_ok=True)
+        for folder in (self.cat.storage/'temporary',self.cat.storage/'catalog',self.cat.storage/'superimagen',
+                       self.cat.storage,Path(tempfile.gettempdir())):
             with self.assertRaises(ValueError): sync(self.cat,folder)
 
-    def test_queue_pending_skips_available_and_out_of_profile(self):
-        from oceanos.sync import sync
+    def test_queue_pending_skips_completed_zones_and_out_of_profile(self):
         inside=self.scene();later=self.named('20260809T150719');outside=self.named('20260901T150719')
         self.cat.enqueue([inside,later,outside])
-        (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
-        self.cat.scene_state(inside,'PENDIENTE')
+        self.finish_zones(inside)
         ready,out,available,deferred=self.cat.pending(self.config)
         self.assertEqual((ready,out,available,deferred),([later],[outside],[inside],[]))
         self.assertEqual({i['escena']:i['estado'] for i in self.cat.queue()}[inside],'DISPONIBLE')
-        self.cat.scene_state(later,'PROCESADA');self.cat.enqueue([later])
-        self.assertEqual({i['escena']:i['estado'] for i in self.cat.queue()}[later],'PROCESADA')
         self.cat.dequeue(outside)
         self.assertNotIn(outside,[i['escena'] for i in self.cat.queue()])
         self.assertEqual(self.cat.pending(self.config,force=True)[2],[])
+
+    def test_one_zone_left_keeps_the_acquisition_pending(self):
+        name=self.scene();self.cat.enqueue([name])
+        self.finish_zones(name,['ponce_guayanilla'],'NUBOSA')
+        self.assertEqual(self.cat.pending(self.config)[0],[name])
+        only_ponce=profile(PROFILE,'sentinel2',start=START,end=END,zones=['ponce_guayanilla'])
+        self.assertEqual(self.cat.pending(only_ponce)[2],[name])
 
     def test_batch_updates_scene_states_and_returns_summary(self):
         ok=self.scene();bad=self.named('20260809T150719')
@@ -516,18 +493,36 @@ class QueueSyncTests(unittest.TestCase):
         row=self.cat.process(process)
         self.assertEqual((row['descarga_min'],row['descarga_mb'],row['intentos']),(2.01,4.2,2))
 
-    def test_run_uses_queue_without_searching(self):
+    def cli_run(self, argv, pipeline):
         from oceanos import cli
-        pipeline=Mock()
-        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.profile',return_value=self.config):
-            with patch('sys.stdout'):
-                self.assertEqual(cli.main(['--storage',self.temp.name,'run']),0)
-        pipeline.search.assert_not_called();pipeline.batch.assert_not_called()
-        name=self.scene();self.cat.enqueue([name])
+        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.ensure_masks') as masks, \
+             patch('oceanos.cli.derived_products') as derived,patch('sys.stdout'):
+            code=cli.main(['--storage',self.temp.name,'--sensor','sentinel2','--start',START,'--end',END]+argv)
+        return code,masks,derived
+
+    def test_plan_searches_without_registering_or_downloading(self):
+        name=self.scene()
+        pipeline=Mock(last_query=None);pipeline.search.return_value=[name]
+        code,masks,derived=self.cli_run(['run','--plan'],pipeline)
+        self.assertEqual(code,0)
+        pipeline.search.assert_called_once();pipeline.batch.assert_not_called()
+        masks.assert_not_called();derived.assert_not_called()
+        self.assertEqual(self.cat.queue(),[])
+
+    def test_run_searches_registers_processes_and_derives(self):
+        name=self.scene()
+        pipeline=Mock(last_query=None);pipeline.search.return_value=[name]
         pipeline.batch.return_value={'runs':[],'failed':[],'seconds':1}
-        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.profile',return_value=self.config):
-            with patch('sys.stdout'):
-                self.assertEqual(cli.main(['--storage',self.temp.name,'run']),0)
+        code,masks,derived=self.cli_run(['run'],pipeline)
+        self.assertEqual(code,0)
+        masks.assert_called_once();derived.assert_called_once()
+        pipeline.batch.assert_called_once_with([name],force=False)
+        self.assertEqual([i['escena'] for i in self.cat.queue()],[name])
+
+    def test_run_with_scene_does_not_search(self):
+        name=self.scene()
+        pipeline=Mock(last_query=None);pipeline.batch.return_value={'runs':[],'failed':[],'seconds':1}
+        self.cli_run(['run','--escena','20260804'],pipeline)
         pipeline.search.assert_not_called()
         pipeline.batch.assert_called_once_with([name],force=False)
 
@@ -535,20 +530,22 @@ class QueueSyncTests(unittest.TestCase):
         from oceanos import cli
         name=self.scene();pipeline=Mock(last_query=None);pipeline.search.return_value=[name]
         for argv,queued in ((['search'],0),(['search','--registrar'],1)):
-            with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.profile',return_value=self.config):
-                with patch('sys.stdout'):
-                    self.assertEqual(cli.main(['--storage',self.temp.name]+argv),0)
+            with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('sys.stdout'):
+                self.assertEqual(cli.main(['--storage',self.temp.name,'--sensor','sentinel2','--start',START,'--end',END]+argv),0)
             self.assertEqual(len(self.cat.queue()),queued)
 
-    def test_search_table_shows_date_size_and_scene(self):
+    def test_search_table_shows_date_size_zones_and_scene(self):
         import io, contextlib
         from oceanos import cli
         name=self.scene(source(metadata={'ContentLength':582984789,'ContentDate':{'Start':'2026-08-04T15:07:19Z'}}))
         out=io.StringIO()
         with contextlib.redirect_stdout(out):
-            rows=cli.show_versions(self.cat,[name],self.config)
-        self.assertEqual((rows[0]['fecha_utc'],rows[0]['tamano'],rows[0]['estado']),('2026-08-04 15:07','583.0 MB','NUEVA'))
-        self.assertIn(SCENE,out.getvalue())
+            rows=cli.scene_rows(self.cat,[name],self.config)
+            cli.show_versions(rows)
+            cli.show_estimate(self.cat,self.config,rows)
+        self.assertEqual((rows[0]['fecha_utc'],rows[0]['tamano'],rows[0]['estado'],rows[0]['zonas']),
+                         ('2026-08-04 15:07','583.0 MB','NUEVA','la_parguera_guanica,ponce_guayanilla'))
+        self.assertIn(SCENE,out.getvalue());self.assertIn('2 productos de zona',out.getvalue())
 
     def test_progress_without_terminal_prints_periodic_lines(self):
         import io
@@ -564,50 +561,54 @@ class QueueSyncTests(unittest.TestCase):
 
 
 class SelectionTests(unittest.TestCase):
-    """--sensor y --satelite en search/run, y ayudas con valores válidos."""
+    """--sensor, --satelite y --zona en search/run, y ayudas con valores válidos."""
     def test_satellite_filter_restricts_profile_platforms(self):
-        config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END,satellites=['S2C'])
+        config=profile(PROFILE,'sentinel2',start=START,end=END,satellites=['S2C'])
         self.assertEqual(config['search']['platforms'],['S2C'])
         self.assertFalse(eligible(source(),config))
-        with self.assertRaises(ValueError): profile(ROOT/'config/aoi/lapargera_v1/project.yaml',satellites=['L8'])
+        with self.assertRaises(ValueError): profile(PROFILE,'sentinel2',satellites=['L8'])
 
     def test_landsat_platform_is_checked(self):
         name='LC09_L1TP_005048_20260805_20260806_02_T1'
         data={'provider':'USGS','product':name,'format':'TAR','identity':scene_identity(name),'metadata':{}}
-        landsat=ROOT/'config/aoi/lapargera_v1/landsat.yaml'
-        self.assertTrue(eligible(data,profile(landsat)))
-        self.assertFalse(eligible(data,profile(landsat,satellites=['L8'])))
+        self.assertTrue(eligible(data,profile(PROFILE,'landsat')))
+        self.assertFalse(eligible(data,profile(PROFILE,'landsat',satellites=['L8'])))
 
-    def test_sensor_and_satellite_accepted_before_or_after_command(self):
+    def test_sensor_satellite_and_zone_accepted_before_or_after_command(self):
         from oceanos import cli
         for argv in (['--sensor','landsat','--satelite','l9','search'],['search','--sensor','landsat','--satelite','LC09']):
             args=cli.parser().parse_args(argv)
             self.assertEqual((args.sensor,args.satelite),('landsat',['L9']))
-            self.assertEqual(cli.load_profile(args)['search']['platforms'],['L9'])
-        args=cli.parser().parse_args(['--satelite','S2B','run','--start','2026-08-01','--end','2026-08-15'])
+            self.assertEqual([c['search']['platforms'] for c in cli.load_profiles(args)],[['L9']])
+        args=cli.parser().parse_args(['--satelite','S2B','run','--start','2026-08-01','--end','2026-08-15','--zona','ponce_guayanilla'])
         self.assertEqual((args.satelite,args.start,args.sensor),(['S2B'],'2026-08-01',None))
-        self.assertEqual(cli.load_profile(args)['family'],'sentinel2')
+        configs=cli.load_profiles(args)
+        self.assertEqual([(c['family'],list(c['zones'])) for c in configs],[('sentinel2',['ponce_guayanilla'])])
+        self.assertEqual([c['family'] for c in cli.load_profiles(cli.parser().parse_args(['run']))],
+                         ['sentinel2','landsat','olci'])
         with self.assertRaises(ValueError):
-            cli.load_profile(cli.parser().parse_args(['search','--sensor','landsat','--satelite','S2B']))
+            cli.load_profiles(cli.parser().parse_args(['search','--sensor','landsat','--satelite','S2B']))
 
     def test_invalid_values_are_rejected_with_options(self):
         import io, contextlib
         from oceanos import cli
         for argv,hint in ((['search','--satelite','S2D'],'S2A, S2B, S2C'),(['--start','2026-13-01','search'],'AAAA-MM-DD'),
-                          (['--products','chl_oc4','search'],'chl_oc3'),(['search','--sensor','modis'],'sentinel2')):
+                          (['search','--sensor','modis'],'sentinel2')):
             err=io.StringIO()
             with contextlib.redirect_stderr(err), self.assertRaises(SystemExit): cli.parser().parse_args(argv)
             self.assertIn(hint,err.getvalue())
+        with self.assertRaises(ValueError) as caught: profile(PROFILE,'sentinel2',['chl_oc4'])
+        self.assertIn('chl_oc3',str(caught.exception))
 
 
 LANDSAT='LC09_L1TP_005048_20260805_20260806_02_T1'
-NEIGHBOR='LC08_L1TP_005047_20260813_20260814_02_T1'
+NEIGHBOR='LC08_L1TP_006048_20260813_20260814_02_T1'
 
 
 class UsgsQueryTests(unittest.TestCase):
     """Información de search para Landsat: tamaño, completitud, descartes y fecha."""
     def setUp(self):
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/landsat.yaml')
+        self.config=profile(PROFILE,'landsat',start='2026-08-01',end='2026-08-21')
 
     def ac(self, names):
         ac=Mock();ac.config={'EARTHEXPLORER_api':'https://m2m.example/api'}
@@ -628,7 +629,7 @@ class UsgsQueryTests(unittest.TestCase):
         self.assertEqual(native.l1_bytes(result['sources'][0]),912_345_678)
         self.assertEqual(result['completeness'],'UNKNOWN');self.assertEqual(result['returned'],3)
         reasons={e['product']:e['reason'] for e in result['excluded_by_profile']}
-        self.assertIn('path/row 005/047 (perfil 005/048)',reasons[NEIGHBOR])
+        self.assertIn('path/row 006/048 fuera de los path/row de las zonas',reasons[NEIGHBOR])
         self.assertIn('L1TP',reasons['LC09_L1GT_005048_20260805_20260806_02_T2'])
         self.assertEqual(native.scene_date(result['sources'][0]),'2026-08-05 14:57')
 
@@ -698,9 +699,10 @@ class UsgsQueryTests(unittest.TestCase):
         out=io.StringIO()
         with contextlib.redirect_stdout(out):
             cli.show_query({'provider':'USGS','count':1,'returned':2,'completeness':'UNKNOWN','sizes':'NO_DISPONIBLE:HTTP_403,LOGIN_EARTHEXPLORER',
-                            'provider_counts':None,'excluded_by_profile':[{'product':NEIGHBOR,'reason':'path/row 005/047 (perfil 005/048)'}]})
+                            'provider_counts':None,'excluded_by_profile':[{'product':NEIGHBOR,'reason':'path/row 006/048 fuera'}]})
         text=out.getvalue()
-        for expected in ('2 escenas devueltas, 1 cumplen','desconocida','Descartadas por el perfil (1)',NEIGHBOR,'rol MACHINE'):
+        for expected in ('2 escenas devueltas, 1 cumplen','desconocida','Descartadas por el perfil (1): 1 por path/row 006/048',
+                         'USGS no los entregó'):
             self.assertIn(expected,text)
 
 
@@ -709,7 +711,7 @@ class ParallelTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(self.temp.name)
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
 
     def tearDown(self):
         self.cat.db.close()
@@ -891,12 +893,14 @@ class ParallelTests(unittest.TestCase):
     def test_run_plans_workers_from_option(self):
         import io, contextlib
         from oceanos import cli
-        names=[self.named('20260804T150719'),self.named('20260809T150719')];self.cat.enqueue(names)
-        pipeline=Mock();pipeline.batch.return_value={'runs':[],'failed':[],'seconds':1}
+        names=[self.named('20260804T150719'),self.named('20260809T150719')]
+        pipeline=Mock(last_query=None);pipeline.search.return_value=names;pipeline.used.return_value=0
+        pipeline.batch.return_value={'runs':[],'failed':[],'seconds':1}
         out=io.StringIO()
-        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.profile',return_value=self.config):
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(cli.main(['--storage',self.temp.name,'run','--trabajadores','2']),0)
+        with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.ensure_masks'), \
+             patch('oceanos.cli.derived_products'),contextlib.redirect_stdout(out):
+            self.assertEqual(cli.main(['--storage',self.temp.name,'--sensor','sentinel2','--start',START,'--end',END,
+                                       'run','--trabajadores','2']),0)
         self.assertEqual(pipeline.resources.workers,2)
         self.assertIn('Paralelo: 2 escena(s) a la vez',out.getvalue())
         err=io.StringIO()
@@ -949,7 +953,7 @@ class DownloadTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.raw=Path(self.temp.name)/'raw';self.raw.mkdir()
         self.cat=Catalog(Path(self.temp.name)/'storage')
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
 
     def tearDown(self):
         self.cat.db.close();self.temp.cleanup()
@@ -997,7 +1001,7 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(result['source']['sha256'],digests['sha256'])
         with patch('oceanos.native.cdse_download',return_value=(archive,{**digests,'md5':'otro'})):
             with self.assertRaises(ValueError): acquire(Mock(),data,self.raw)
-        ac=Mock();ac.shared.auth.return_value=None
+        ac=Mock();ac.shared.auth.return_value=None;ac.api.earthexplorer.auth.return_value=None
         with self.assertRaises(DownloadError) as caught:
             acquire(ac,{'provider':'USGS','id':'e','dataset':'d','product':'p'},self.raw)
         self.assertEqual(caught.exception.reason,'SIN_CREDENCIALES')
@@ -1048,22 +1052,26 @@ class DownloadTests(unittest.TestCase):
         self.assertTrue(rate is None or rate >= 0)
         self.assertEqual(state['measure'],'part')
 
-    def test_budget_counts_only_temporaries_and_free_disk(self):
-        from oceanos.pipeline import temporary_bytes, DISK_MARGIN
+    def test_budgets_for_temporaries_and_superimagen(self):
+        from oceanos.pipeline import DISK_MARGIN, StageError, superimagen_bytes
         storage=self.cat.storage
-        process=self.cat.start(self.cat.upsert_scene(source()),'DESCARGA',self.config)
-        folder=storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
-        l2w=folder/'L2W.nc';l2w.write_bytes(b'x'*5000);self.cat.artifact(process,'L2W',l2w)
+        (storage/'superimagen'/'escenas').mkdir(parents=True);(storage/'superimagen'/'escenas'/'b.tif').write_bytes(b'x'*5000)
         temp=storage/'temporary'/'9';temp.mkdir(parents=True);(temp/'raw.zip').write_bytes(b'x'*700)
-        catalog_size=sum(p.stat().st_size for p in (storage/'catalog').rglob('*') if p.is_file())
-        self.assertEqual(temporary_bytes(self.cat,[storage]),700+catalog_size)
-        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.roots=[storage];runner.config={'budget':10**9}
+        runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.roots=[storage/'temporary'];runner.config={'budget':10**9}
+        self.assertEqual((runner.used(),superimagen_bytes(storage)),(700,5000))
         runner.check_disk()
         with patch('oceanos.pipeline.disk_free',return_value=DISK_MARGIN-1):
             with self.assertRaises(RuntimeError) as caught: runner.check_disk()
         self.assertEqual(str(caught.exception),'Disco casi lleno')
         runner.config={'budget':500}
         with self.assertRaises(RuntimeError): runner.check_disk()
+        # La superimagen tiene su propio presupuesto: con lo medido por escena, no se exporta si no cabe.
+        runner.config={**self.config,'superimagen_budget':6000}
+        self.cat.record_product(self.cat.upsert_scene(source()),'ponce_guayanilla','water2coast_v1',estado='OK',sensor='S2',bytes=900)
+        runner.check_superimagen_budget()
+        runner.config['superimagen_budget']=5500
+        with self.assertRaises(StageError) as caught: runner.check_superimagen_budget()
+        self.assertEqual(caught.exception.reason,'PRESUPUESTO_SUPERIMAGEN')
 
     def test_first_acolite_runs_alone_only_without_luts(self):
         from oceanos.resources import luts_ready
@@ -1116,7 +1124,7 @@ class NoRepeatTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(Path(self.temp.name)/'storage')
-        self.config=profile(ROOT/'config/aoi/lapargera_v1/project.yaml',start=START,end=END)
+        self.config=profile(PROFILE,'sentinel2',start=START,end=END)
         self.imports=self.cat.storage/'importados';self.imports.mkdir()
         self.raw=Path(self.temp.name)/'raw';self.raw.mkdir()
 
@@ -1125,7 +1133,9 @@ class NoRepeatTests(unittest.TestCase):
 
     def version(self, generated, date='20260804T150719', baseline='N0512'):
         name=SCENE.replace('20260804T150719',date).replace('20260804T182348',generated).replace('N0512',baseline)
-        return self.cat.upsert_scene({**source(),'product':name,'identity':scene_identity(name)})
+        name=self.cat.upsert_scene({**source(),'product':name,'identity':scene_identity(name)})
+        self.cat.set_zones(name,['la_parguera_guanica','ponce_guayanilla'])
+        return name
 
     def runner(self):
         runner=object.__new__(Pipeline);runner.catalog=self.cat;runner.config=self.config;runner.engine={}
@@ -1133,21 +1143,24 @@ class NoRepeatTests(unittest.TestCase):
         runner.progress=None;runner.resources=None
         return runner
 
-    def test_queue_takes_one_version_per_acquisition_and_skips_existing_l2w(self):
-        from oceanos.sync import sync
+    def finish_zones(self, scene, state='OK'):
+        for zone in ('la_parguera_guanica','ponce_guayanilla'):
+            self.cat.record_product(scene,zone,'water2coast_v1',estado=state,sensor='S2',fecha='2026-08-04')
+
+    def test_queue_takes_one_version_per_acquisition_and_skips_completed(self):
         old=self.version('20260804T182348');new=self.version('20260901T101010',baseline='N0600')
         other=self.version('20260809T182348',date='20260809T150719')
-        queued,skipped=self.cat.enqueue([old,new,other],self.config['aoi']['id'])
+        queued,skipped=self.cat.enqueue([old,new,other])
         # Reproceso del proveedor: misma adquisición, entra solo la versión más reciente.
         self.assertEqual((sorted(queued),list(skipped)),(sorted([new,other]),[old]))
         self.assertIn(new,skipped[old])
         # Un registro posterior no duplica la adquisición que ya está en la cola.
-        self.assertEqual(self.cat.enqueue([old],self.config['aoi']['id'])[0],[])
-        # Con L2W importado de otra computadora, la adquisición no vuelve a la cola.
-        self.cat.dequeue(new);(self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
-        queued,skipped=self.cat.enqueue([old,new],self.config['aoi']['id'])
+        self.assertEqual(self.cat.enqueue([old])[0],[])
+        # Con todas sus zonas terminadas (aunque sea en otra versión), la adquisición no vuelve a la cola.
+        self.cat.dequeue(new);self.finish_zones(old,'NUBOSA')
+        queued,skipped=self.cat.enqueue([old,new],self.cat.completed('water2coast_v1'))
         self.assertEqual(queued,[])
-        self.assertEqual(set(skipped.values()),{'ya importada','su adquisición ya tiene L2W'})
+        self.assertEqual(set(skipped.values()),{'su adquisición ya está procesada en todas sus zonas'})
 
     def test_pending_defers_repeated_acquisition(self):
         old=self.version('20260804T182348');new=self.version('20260901T101010',baseline='N0600')
@@ -1155,35 +1168,21 @@ class NoRepeatTests(unittest.TestCase):
         ready,_,_,deferred=self.cat.pending(self.config)
         self.assertEqual((ready,deferred),([new],[old]))
 
-    def test_run_does_not_download_an_acquisition_that_already_has_l2w(self):
-        from oceanos.sync import sync
+    def test_run_does_not_download_an_acquisition_with_all_zones_done(self):
         scene=self.version('20260804T182348');self.cat.enqueue([scene])
-        (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
-        self.cat.scene_state(scene,'PENDIENTE')
+        self.finish_zones(scene)
         runner=self.runner();calls=[]
         runner.call=lambda operation,**args: calls.append(operation) or (_ for _ in ()).throw(RuntimeError('red'))
         with patch('builtins.print'):
             result=runner.batch([scene])
-        processes=self.cat.db.execute("SELECT count(*) FROM procesos WHERE tipo!='IMPORTADO'").fetchone()[0]
+        processes=self.cat.db.execute('SELECT count(*) FROM procesos').fetchone()[0]
         self.assertEqual((calls,processes,result['runs'],result['failed']),([],0,[],[]))
         self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas WHERE escena=?',(scene,)).fetchone()[0],'DISPONIBLE')
         self.assertEqual(list(self.cat.storage.glob('temporary/*')),[])
         # Con --force sí se intenta (aquí la red falla a propósito).
-        with patch('builtins.print'), self.assertRaises(Exception):
+        with patch('builtins.print'), patch.object(Pipeline,'check_superimagen_budget'), self.assertRaises(Exception):
             runner.run(scene,force=True)
         self.assertEqual(calls[0],'acquire')
-
-    def test_skip_after_download_deletes_raw_and_empty_folder(self):
-        scene=self.version('20260804T182348')
-        process=self.cat.start(scene,'DESCARGA',self.config)
-        folder=self.cat.storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
-        raw=self.cat.storage/'temporary'/str(process);raw.mkdir(parents=True);(raw/'scene.zip').write_bytes(b'zip')
-        runner=self.runner()
-        with patch('builtins.print'):
-            runner.skip(process,scene,{'proceso':99})
-        row=self.cat.process(process)
-        self.assertEqual((row['estado'],row['limpieza']),('OMITIDO','HECHA'))
-        self.assertFalse(raw.exists());self.assertFalse(folder.exists())
 
     def test_fetch_resumes_cut_download_with_range(self):
         import hashlib, requests
@@ -1221,20 +1220,26 @@ class NoRepeatTests(unittest.TestCase):
             # El servidor manda el archivo entero (200) y se escribe desde cero, sin mezclar pedazos.
             self.assertEqual(target.read_bytes(),provider.body)
 
-    def test_usgs_download_streams_bundle_from_earthexplorer(self):
-        import threading, hashlib
+    def usgs_server(self, m2m):
+        """Servidor local que imita M2M (si `m2m`) y EarthExplorer; devuelve (ac, hits, body, cerrar)."""
+        import threading
         from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-        from oceanos.native import usgs_download, bundle_ids
         body=b't'*2_500_000;hits=[]
         button=('<button class="btn btn-secondary secondaryDownloadButton" title="Download Product" '
                 'data-entityId="LC90050482026217LGN00" data-productId="5e81f14f92acf9ef">Product Bundle 2.38 MiB</button>')
+        options=[{'entityId':'LC90050482026217LGN00','id':'p1','available':True,
+                  'productName':'Landsat Collection 2 Level-1 Product Bundle'}]
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args): pass
             def reply(self, data, kind='text/html'):
                 self.send_response(200);self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(data)))
                 self.end_headers();self.wfile.write(data)
             def do_POST(self):
-                self.rfile.read(int(self.headers.get('Content-Length') or 0));hits.append(self.path);self.reply(b'ok')
+                self.rfile.read(int(self.headers.get('Content-Length') or 0));hits.append(self.path)
+                if not self.path.startswith('/api/') or not m2m:
+                    return self.reply(b'ok')
+                data={'download-options':options,'download-request':{'availableDownloads':[{'url':base+'/bundle'}]}}
+                self.reply(json.dumps({'data':data.get(self.path.rsplit('/',1)[1])}).encode(),'application/json')
             def do_GET(self):
                 hits.append(self.path)
                 if self.path=='/ers/login': self.reply(b'<input name="csrf" value="c1">')
@@ -1243,23 +1248,45 @@ class NoRepeatTests(unittest.TestCase):
                 else: self.reply(body,'application/x-tar')
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler);base=f'http://127.0.0.1:{server.server_address[1]}'
         threading.Thread(target=server.serve_forever,daemon=True).start()
-        ac=Mock();ac.config={'EARTHEXPLORER_ers':base+'/ers','EARTHEXPLORER_download':base+'/download'}
+        ac=Mock();ac.config={'EARTHEXPLORER_ers':base+'/ers','EARTHEXPLORER_download':base+'/download',
+                             'EARTHEXPLORER_api':base+'/api'}
         ac.shared.auth.return_value=('usuario','clave');ac.api.earthexplorer.auth.return_value='token'
+        return ac,hits,body,lambda: (server.shutdown(),server.server_close())
+
+    def test_usgs_download_uses_m2m_download_request(self):
+        import hashlib
+        from oceanos.native import usgs_download
+        ac,hits,body,close=self.usgs_server(m2m=True)
         data={'provider':'USGS','id':'LC90050482026217LGN00','dataset':'landsat_ot_c2_l1','product':'LC09_L1TP_005048_20260805_20260806_02_T1'}
         try:
             with patch('oceanos.native.USGS_DOMAIN','127.0.0.1'):
-                path,digests=usgs_download(ac,data,self.raw)
+                path,digests,route=usgs_download(ac,data,self.raw)
         finally:
-            server.shutdown();server.server_close()
-        self.assertEqual((path.name,path.read_bytes()),(data['product']+'.tar',body))
+            close()
+        self.assertEqual((route,path.read_bytes(),digests['sha256']),('M2M',body,hashlib.sha256(body).hexdigest()))
+        self.assertEqual([h for h in hits if h.startswith('/api/')],
+                         ['/api/download-options','/api/download-request','/api/download-order-remove','/api/logout'])
+        self.assertNotIn('/ers/login',hits)
+
+    def test_usgs_download_falls_back_to_earthexplorer(self):
+        import hashlib
+        from oceanos.native import usgs_download, bundle_ids
+        ac,hits,body,close=self.usgs_server(m2m=False)
+        data={'provider':'USGS','id':'LC90050482026217LGN00','dataset':'landsat_ot_c2_l1','product':'LC09_L1TP_005048_20260805_20260806_02_T1'}
+        try:
+            with patch('oceanos.native.USGS_DOMAIN','127.0.0.1'):
+                path,digests,route=usgs_download(ac,data,self.raw)
+        finally:
+            close()
+        self.assertEqual((route,path.name,path.read_bytes()),('EARTHEXPLORER',data['product']+'.tar',body))
         self.assertEqual(digests['sha256'],hashlib.sha256(body).hexdigest())
         # Una sola transferencia del bundle (la nativa pide dos) y cierre de sesión EROS.
         self.assertEqual(hits.count('/bundle'),1)
         self.assertIn('/download/5e81f14f92acf9ef/LC90050482026217LGN00/EE/',hits);self.assertEqual(hits[-1],'/ers/logout')
         ac.api.earthexplorer.download.assert_not_called()
-        self.assertIsNone(bundle_ids(button,'OTRA'))
+        self.assertIsNone(bundle_ids('<button data-entityId="X" data-productId="1">','OTRA'))
         # Una URL de descarga fuera de USGS no se sigue.
-        from oceanos.native import DownloadError, trusted_host
+        from oceanos.native import trusted_host
         self.assertFalse(trusted_host('https://evilusgs.gov/x','usgs.gov'))
         self.assertTrue(trusted_host('https://landsatlook.usgs.gov/x','usgs.gov'))
 
@@ -1268,7 +1295,9 @@ class NoRepeatTests(unittest.TestCase):
         from oceanos import cli
         ok=self.version('20260804T182348');bad=self.version('20260809T182348',date='20260809T150719')
         self.cat.enqueue([ok,bad])
-        first=self.cat.start(ok,'DESCARGA',self.config);self.files_ok(first);self.cat.finish(first,'OK','TECNICA_OK')
+        first=self.cat.start(ok,'DESCARGA',self.config);self.cat.finish(first,'OK','TECNICA_OK')
+        self.cat.record_product(ok,'ponce_guayanilla','water2coast_v1',proceso=first,estado='OK')
+        self.cat.record_product(ok,'la_parguera_guanica','water2coast_v1',proceso=first,estado='NUBOSA')
         self.cat.scene_state(ok,'PROCESADA')
         second=self.cat.start(bad,'DESCARGA',self.config);self.cat.downloaded(second,None,None,3)
         self.cat.finish(second,'FALLIDO',error='HTTP_429');self.cat.scene_state(bad,'FALLIDA')
@@ -1279,15 +1308,10 @@ class NoRepeatTests(unittest.TestCase):
         self.assertIn('cuota del proveedor superada (429)',text);self.assertIn('OK: 1 · FALLIDA: 1',text)
         rows=list(csv.DictReader(path.open(encoding='utf-8')))
         self.assertEqual([(r['RESULTADO'],r['INTENTOS']) for r in rows],[('OK',''),('FALLIDA','3')])
-        self.assertTrue(rows[0]['L2W'].endswith('L2W.nc'))
+        self.assertEqual(sorted(rows[0]['ZONAS'].split()),['la_parguera_guanica:NUBOSA','ponce_guayanilla:OK'])
         with contextlib.redirect_stdout(io.StringIO()) as only:
             cli.show_report(self.cat,'FALLIDA')
         self.assertNotIn(ok,only.getvalue())
-
-    def files_ok(self, process):
-        folder=self.cat.storage/self.cat.process(process)['carpeta'];folder.mkdir(parents=True)
-        for kind in ('L1R','L2W'):
-            path=folder/(kind+'.nc');path.write_bytes(kind.encode());self.cat.artifact(process,kind,path)
 
     def test_two_acolite_of_the_same_day_do_not_run_together(self):
         from oceanos.resources import Resources, PEAKS, GB

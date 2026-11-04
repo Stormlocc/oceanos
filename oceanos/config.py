@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = '80da0c0c681d9597fd4b7737837d6a3e61907b33'
 # Instalación activa; prepare aplica el parche de catálogo sobre esta revisión.
 ACOLITE = Path.home()/'acolite'
-PRODUCTS = {'Rrs_*', 'tur_nechad2009', 'chl_oc3', 'ndci', 'fai', 'ndvi'}
+# Perfil por defecto: AOI Water2Coast. lapargera_v1 queda solo como registro del legado.
+PROFILE = ROOT/'config/aoi/water2coast_v1'
+SENSORS = ('sentinel2', 'landsat', 'olci')
+PLATFORMS = {'sentinel2': ('S2A', 'S2B', 'S2C'), 'landsat': ('L8', 'L9'), 'olci': ('S3A', 'S3B')}
 # Settings nativos fijos de OCEANOS. La retención depende del catálogo, nunca de borrado nativo;
 # rgb_* evita mapas RGB no solicitados (los GeoTIFF ya están desactivados por defecto).
 FIXED = {'delete_extracted_input': 'False', 'l1r_delete_netcdf': 'False',
@@ -53,92 +56,116 @@ def pair(values):
     return ','.join(str(value) for value in values)
 
 
-def native_settings(common, selected, landsat, requested):
-    """Settings de ACOLITE derivados de los YAML; lo no declarado conserva los defaults de la revisión fijada."""
-    limit = common['grid']['limit_south_west_north_east']
-    if len(limit) != 4:
-        raise ValueError('grid.limit_south_west_north_east requiere sur, oeste, norte, este')
-    # Convención ACOLITE: limit S,W,N,E produce un recorte rectangular.
-    native = {'region_name': common['aoi']['id'], 'limit': pair(limit),
-              'l2w_parameters': ','.join(requested), **FIXED}
-    if landsat:
-        grid = selected['grid']
-        if grid['reproject_stage'] != 'L1R_antes_de_AC':
-            raise ValueError('Landsat solo admite reproject_stage L1R_antes_de_AC')
-        # Proyectar L1R antes de AC evita que el proyector final descarte l2_flags.
-        resolution = grid['output_resolution_m']
-        native.update(output_projection='True', reproject_before_ac='True',
-                      output_projection_metres='True',
-                      output_projection_epsg=str(grid['epsg']),
-                      output_projection_resolution=pair([resolution, resolution]),
-                      output_projection_xrange=pair(grid['xrange_m']),
-                      output_projection_yrange=pair(grid['yrange_m']),
-                      output_projection_resolution_align='False',
-                      output_projection_resampling_method=grid['resampling'],
-                      dsf_tile_dimensions=pair(selected['acolite']['dsf_tile_dimensions']))
+def setting(value):
+    """Valor de setting ACOLITE como texto (booleanos con mayúscula inicial, listas con comas)."""
+    if isinstance(value, bool):
+        return str(value)
+    return pair(value) if isinstance(value, (list, tuple)) else str(value)
+
+
+def zone_settings(zone, grid, common, products):
+    """Settings de ACOLITE de una zona: recorte, productos, glint y proyección del L1R a la grilla de la zona.
+
+    Proyectar el L1R antes de la corrección (`reproject_before_ac`) deja L1R, L2R y L2W en la
+    grilla de la zona y conserva l2_flags, que el proyector final de ACOLITE no escribe. Con la
+    grilla alineada a la resolución nativa y `nearest`, en Sentinel-2 y Landsat es un recorte sin
+    mezclar píxeles. Lo no declarado conserva el default de la revisión fijada.
+    """
+    from .zonas import limit
+    native = {'region_name': zone, 'limit': pair(limit(grid)), 'l2w_parameters': ','.join(products), **FIXED,
+              'output_projection': 'True', 'reproject_before_ac': 'True', 'output_projection_metres': 'True',
+              'output_projection_epsg': str(grid['epsg']),
+              'output_projection_resolution': pair([grid['resolution_m']]*2),
+              'output_projection_xrange': pair(grid['xrange_m']), 'output_projection_yrange': pair(grid['yrange_m']),
+              # Los rangos ya están alineados: con True ACOLITE los realinea y cambia la forma en un píxel.
+              'output_projection_resolution_align': 'False', 'output_projection_resampling_method': 'nearest'}
+    native.update({key: setting(value) for key, value in (common.get('acolite') or {}).items()})
     return native
 
 
-def requested_products(selected, landsat, override=None):
-    """Única fuente de productos: --products si se indicó; si no, el YAML del perfil."""
-    requested = override or (selected['products'] if landsat else selected['products']['active'])
-    # Sin duplicados y en el orden pedido.
-    requested = list(dict.fromkeys(product.strip() for product in requested))
+def requested_products(selected, override=None):
+    """Productos del sensor: --products (subconjunto del perfil) o la lista del YAML, sin duplicados."""
+    available = list(dict.fromkeys(selected['products']))
+    requested = list(dict.fromkeys(product.strip() for product in override)) if override else available
     if not requested or '' in requested:
         raise ValueError('Lista de productos vacía o con elementos vacíos')
-    unsupported = set(requested) - PRODUCTS
-    if unsupported:
-        raise ValueError('Productos no soportados (OC4 excluido): ' + ', '.join(sorted(unsupported)))
-    if landsat and 'ndci' in requested:
-        raise ValueError('NDCI solo está disponible para Sentinel-2')
+    foreign = [product for product in requested if product not in available]
+    if foreign:
+        raise ValueError(f"Productos no disponibles para {selected['sensor_family']}: {', '.join(foreign)}; "
+                         f"opciones: {', '.join(available)}")
     return requested
 
 
-def profile(path, products=None, start=None, end=None, satellites=None):
-    """Carga un perfil YAML junto con project.yaml y devuelve la configuración normalizada.
+def chosen(values, available, label):
+    """Restringe una lista del perfil a los valores pedidos; error si se pide algo ajeno."""
+    if not values:
+        return list(available)
+    foreign = [value for value in values if value not in available]
+    if foreign:
+        raise ValueError(f"{label} {', '.join(foreign)} no disponible; opciones: {', '.join(available)}")
+    return [value for value in available if value in values]
 
-    `products`, `start` y `end` sustituyen a los valores del YAML si se indican; `satellites`
-    (S2A/S2B/S2C o L8/L9) restringe las plataformas del perfil.
+
+def search_places(selected, zones):
+    """Tiles (S2) o path/row (Landsat) de las zonas elegidas; OLCI no usa ninguno."""
+    places = selected.get('tiles') or selected.get('path_rows') or {}
+    return sorted({place for zone in zones for place in places.get(zone, [])})
+
+
+def union_limit(limits):
+    """Rectángulo (sur, oeste, norte, este) que contiene los `limit` de todas las zonas."""
+    return [min(l[0] for l in limits), min(l[1] for l in limits), max(l[2] for l in limits), max(l[3] for l in limits)]
+
+
+def profile_sensors(directory=PROFILE):
+    """Sensores del perfil en el orden en que `run` los procesa."""
+    return list(yaml.safe_load((Path(directory)/'project.yaml').read_text())['sensors'])
+
+
+def profile(directory=PROFILE, sensor='sentinel2', products=None, start=None, end=None, satellites=None, zones=None):
+    """Carga project.yaml y el perfil del sensor y devuelve la configuración normalizada.
+
+    `products`, `start` y `end` sustituyen a los valores del YAML; `satellites` y `zones`
+    restringen las plataformas y las zonas del perfil. Comprueba el SHA-256 del AOI.
     """
-    path = Path(path).resolve()
-    # Abre el AOI/perfil de project.yaml por defecto
-    common = yaml.safe_load((path.parent/'project.yaml').read_text())
-    # Abre el AOI/perfil de un nuevo .yaml
-    selected = yaml.safe_load(path.read_text())
-    # Satelite y familia de sensores
-    landsat = selected.get('sensor_family') == 'landsat'
-    search = selected if landsat else selected['search']
-    if satellites:
-        family = 'landsat' if landsat else 'sentinel2'
-        foreign = [s for s in satellites if s not in search['platforms']]
-        if foreign:
-            raise ValueError(f"Satélite {', '.join(foreign)} no disponible en el perfil {family}; "
-                             f"opciones: {', '.join(search['platforms'])}")
-        search = {**search, 'platforms': [p for p in search['platforms'] if p in satellites]}
-    requested = requested_products(selected, landsat, products)
-    # Fechas de inicio y fin del intervalo de búsqueda
-    first = instant(start or search['interval_start_utc'])
-    last = instant(end or search['interval_end_exclusive_utc'])
-    if landsat and any((d.hour,d.minute,d.second,d.microsecond)!=(0,0,0,0) for d in (first,last)):
-        raise ValueError('Landsat MVP requiere límites diarios a las 00:00 UTC')
+    from .zonas import grid, read_zones
+    directory = Path(directory).resolve()
+    common = yaml.safe_load((directory/'project.yaml').read_text())
+    if sensor not in common['sensors']:
+        raise ValueError(f"Sensor {sensor} no disponible en el perfil; opciones: {', '.join(common['sensors'])}")
+    selected = yaml.safe_load((directory/common['sensors'][sensor]).read_text())
+    geometry = directory/common['aoi']['geometry']
+    if file_hash(geometry) != common['aoi']['geometry_sha256']:
+        raise ValueError('Cambió el AOI: actualizar su revisión antes de ejecutar o crear un nuevo perfil')
+    first = instant(start or selected['interval_start_utc'])
+    last = instant(end or selected['interval_end_exclusive_utc'])
     if first >= last:
         raise ValueError('Intervalo vacío o invertido')
-    # Geometría del AOI
-    geometry = path.parent/common['aoi']['geometry']
-    if file_hash(geometry) != common['aoi']['geometry_sha256']:
-        raise ValueError('Cambió el AOI: actualizar su revisión antes de ejecutar, crear un nuevo perfil o usar --start/--end')
-    # Settings nativos de ACOLITE generados desde los YAML
-    native = native_settings(common, selected, landsat, requested)
-    cloud = search['cloud_cover']
-    maximum = cloud['maximum_percent'] if cloud['enabled'] else None
-    if cloud['enabled'] and (maximum is None or not 0 <= maximum <= 100):
-        raise ValueError('Umbral de nubosidad inválido')
-    return {'aoi': common['aoi'], 'family': 'landsat' if landsat else 'sentinel2',
-            'search': search, 'start': first.isoformat(), 'end': last.isoformat(),
-            'cloud': maximum, 'products': sorted(set(requested)), 'native': native,
-            'grid': common['grid']['candidate_native_grid'], 'epsg': common['grid']['epsg'],
-            'limit': common['grid']['limit_south_west_north_east'],
-            'input': common['input'], 'budget': common['storage']['temporary_budget_bytes']}
+    if sensor == 'landsat' and any((d.hour, d.minute, d.second, d.microsecond) != (0, 0, 0, 0) for d in (first, last)):
+        raise ValueError('Landsat requiere límites diarios a las 00:00 UTC')
+    requested = requested_products(selected, products)
+    shapes = read_zones(geometry, common['aoi']['name_field'])
+    names = chosen(zones, list(common['zones']), 'Zona')
+    resolution = selected['resolution_m']
+    configured = {}
+    for name in names:
+        zone = common['zones'][name]
+        if zone['name'] not in shapes:
+            raise ValueError(f"La zona {zone['name']} no está en {geometry.name}")
+        zone_grid = grid(shapes[zone['name']], zone['epsg'], resolution)
+        configured[name] = {'name': zone['name'], 'epsg': zone['epsg'], 'wkt': shapes[zone['name']], 'grid': zone_grid,
+                            'native': zone_settings(name, zone_grid, common, requested),
+                            'places': (selected.get('tiles') or selected.get('path_rows') or {}).get(name)}
+    search = {**{k: v for k, v in selected.items() if k not in ('products', 'tiles', 'path_rows')},
+              'platforms': chosen(satellites, selected['platforms'], 'Satélite'), 'places': search_places(selected, names)}
+    return {'aoi': common['aoi'], 'family': sensor, 'profile': str(directory), 'search': search,
+            'start': first.isoformat(), 'end': last.isoformat(), 'products': requested, 'resolution': resolution,
+            'zones': configured,
+            'limit': union_limit([[float(v) for v in z['native']['limit'].split(',')] for z in configured.values()]),
+            'cloud_zone_max': common['cloud_cover']['maximum_percent_per_zone'], 'input': common['input'],
+            'budget': common['storage']['temporary_budget_bytes'],
+            'superimagen_budget': common['storage']['superimagen_budget_bytes'],
+            'superimagen': common['superimagen'], 'sensors': list(common['sensors'])}
 
 
 @contextlib.contextmanager

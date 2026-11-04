@@ -60,7 +60,20 @@ def scene_identity(name):
         return {'family': 'landsat', 'platform': fields[0], 'date': fields[3],
                 'path': int(fields[2][:3]), 'row': int(fields[2][3:]),
                 'baseline': ':'.join(fields[4:]), 'acquisition_key': ':'.join(fields[:1]+fields[2:4])}
+    match = OLCI_NAME.fullmatch(name)
+    if match:
+        # Sin tiles: la pasada se identifica por órbita relativa y hora de inicio (al minuto), común
+        # a las versiones NR y NT del mismo producto.
+        place = f"R{match['orbit']}T{match['start'][9:13]}"
+        return {'family': 'olci', 'platform': match['platform'], 'date': match['start'], 'tile': place,
+                'baseline': f"{match['timeliness']}_{match['baseline']}",
+                'acquisition_key': ':'.join([match['platform'], match['start'][:8], place])}
     raise ValueError('Identificador de escena no soportado')
+
+
+# S3A_OL_1_EFR____<inicio>_<fin>_<creación>_<duración>_<ciclo>_<órbita>_<marco>_<centro>_<plataforma>_<NR|NT>_<versión>.SEN3
+OLCI_NAME = re.compile(r'(?P<platform>S3[AB])_OL_1_EFR____(?P<start>\d{8}T\d{6})_\d{8}T\d{6}_\d{8}T\d{6}_'
+                       r'\d{4}_\d{3}_(?P<orbit>\d{3})_[\d_]{4}_\w{3}_\w_(?P<timeliness>NR|NT|ST)_(?P<baseline>\d{3})(\.SEN3)?')
 
 
 # Nombre de salida ACOLITE: <sensor>_<AAAA_MM_DD_HH_MM_SS>_<tile o path/row>[_<región>]_<L1R|L2W>.nc
@@ -117,19 +130,48 @@ def exclusion(source, config):
     if not instant(config['start']) <= date < instant(config['end']):
         return f"fecha {date:%Y-%m-%d} fuera del intervalo {config['start'][:10]} a {config['end'][:10]} (fin excluido)"
     search = config['search']
-    if info['family'] == 'sentinel2':
-        if info['tile'] != search['tile']:
-            return f"tile {info['tile']} (perfil {search['tile']})"
-        platform = info['platform']
-    else:
-        if (info['path'], info['row']) != (search['wrs_path'], search['wrs_row']):
-            return (f"path/row {info['path']:03d}/{info['row']:03d} (perfil {search['wrs_path']:03d}/{search['wrs_row']:03d}): "
-                    "toca el rectángulo del AOI pero no es la escena configurada")
+    platform = info['platform']
+    if info['family'] == 'sentinel2' and info['tile'] not in search['places']:
+        return f"tile {info['tile']} fuera de los tiles de las zonas ({', '.join(search['places'])})"
+    if info['family'] == 'landsat':
+        place = '{:03d}{:03d}'.format(info['path'], info['row'])
+        if place not in search['places']:
+            return (f"path/row {place[:3]}/{place[3:]} fuera de los path/row de las zonas "
+                    f"({', '.join(search['places'])}): toca el rectángulo del AOI pero no es una escena configurada")
         # Perfil Landsat usa L8/L9; la identidad de USGS, LC08/LC09.
         platform = 'L'+info['platform'][-1]
-    if platform not in search.get('platforms', [platform]):
+    if platform not in search['platforms']:
         return f"satélite {platform} no seleccionado (perfil {', '.join(search['platforms'])})"
+    if not zones_for(source, config):
+        return 'su huella no toca ninguna de las zonas elegidas'
     return None
+
+
+def footprint_wkt(source):
+    """Huella de la escena en WKT (GeoJSON de CDSE o de USGS), o None si el proveedor no la dio."""
+    footprint = source.get('footprint') or source.get('metadata', {}).get('GeoFootprint')
+    if not footprint:
+        return None
+    from osgeo import ogr
+    return ogr.CreateGeometryFromJson(json.dumps(footprint)).ExportToWkt()
+
+
+def zones_for(source, config):
+    """Zonas del perfil que procesa la escena: las de su tile o path/row cuya huella toca la zona.
+
+    OLCI no tiene tiles: entra en toda zona que su huella cubra. Sin huella (archivo local) se
+    confía en el tile o path/row.
+    """
+    from .zonas import coverage
+    info, wkt = source['identity'], footprint_wkt(source)
+    place = info.get('tile') if info['family'] != 'landsat' else '{:03d}{:03d}'.format(info['path'], info['row'])
+    found = []
+    for name, zone in config['zones'].items():
+        if zone['places'] is not None and place not in zone['places']:
+            continue
+        if wkt is None or coverage(wkt, zone['wkt']) > 0:
+            found.append(name)
+    return found
 
 
 def eligible(source, config):
@@ -184,7 +226,8 @@ def usgs_search(ac, dataset, roi, start, end, cloud, level=1, page=USGS_PAGE):
                     names = [m['value'] for m in result.get('metadata', [])
                              if 'Product Identifier' in m['fieldName'] and m['fieldName'].endswith(str(level))]
                     found.append({'entity': result['entityId'], 'product': names[0] if names else None,
-                                  'dataset': dataset, 'metadata': result.get('metadata', [])})
+                                  'dataset': dataset, 'metadata': result.get('metadata', []),
+                                  'footprint': result.get('spatialCoverage')})
                 stats = {'totalHits': data.get('totalHits'), 'totalHitsAccuracy': data.get('totalHitsAccuracy'),
                          'recordsReturned': len(found), 'pages': number}
                 following = data.get('nextRecord')
@@ -317,18 +360,27 @@ def query(ac, provider, config):
     tile/path-row, satélite, intervalo o tipo de producto).
     """
     first, last = instant(config['start']), instant(config['end'])
-    cloud = config['cloud']
+    # Sin filtro de nubes del proveedor: la nubosidad de la escena entera no dice cuánta cae sobre
+    # cada zona; se mide por zona con la máscara del L1 (oceanos.escenas.cloud_fraction).
+    cloud = None
     sources, unsupported = [], []
     stats, sizes = None, 'OK'
     if provider == 'CDSE':
-        _, names, metadata = ac.api.cdse.query(collection='SENTINEL-2', level=1,
-            roi=config['limit'], tile=config['search']['tile'], cloud_cover=cloud,
+        olci = config['family'] == 'olci'
+        # Sin tile: una consulta por el rectángulo de todas las zonas; el perfil filtra los tiles después.
+        _, names, metadata = ac.api.cdse.query(collection='SENTINEL-3' if olci else 'SENTINEL-2', level=1,
+            sensor='OLCI' if olci else None, roi=config['limit'], cloud_cover=cloud,
             start_date=(first-timedelta(seconds=1)).replace(tzinfo=None).isoformat(),
             end_date=(last-timedelta(days=1)).replace(tzinfo=None).isoformat(),
             attributes=True, return_metadata=True, verbosity=0)
         for name, meta in zip(names, metadata):
-            sources.append({'provider': 'CDSE', 'product': name, 'format': 'SAFE',
-                            'id': meta['Id'], 'identity': scene_identity(name), 'metadata': meta})
+            try:
+                info = scene_identity(name)
+            except ValueError:
+                unsupported.append({'product': name, 'reason': 'producto no soportado'})
+                continue
+            sources.append({'provider': 'CDSE', 'product': name, 'format': 'SEN3' if olci else 'SAFE',
+                            'id': meta['Id'], 'identity': info, 'metadata': meta})
         # La función nativa sigue @odata.nextLink hasta agotar los resultados.
         completeness = 'COMPLETE'
     else:
@@ -344,7 +396,8 @@ def query(ac, provider, config):
                 continue
             selected = {m['fieldName']: m['value'] for m in attrs if any(k in m['fieldName'].lower() for k in ['identifier','date','time','cloud','path','row','processing','collection'])}
             sources.append({'provider':'USGS','product':name,'format':'TAR','id':item['entity'],
-                            'dataset':item['dataset'],'identity':info,'metadata':selected})
+                            'dataset':item['dataset'],'identity':info,'metadata':selected,
+                            'footprint':item.get('footprint')})
         completeness = usgs_completeness(stats)
         wanted = [s for s in sources if eligible(s, config)]
         entities = [s['id'] for s in wanted]
@@ -533,18 +586,114 @@ def cdse_download(ac, source, raw):
 
 # Hosts aceptados para la descarga USGS (earthexplorer.usgs.gov, landsatlook.usgs.gov, dds.cr.usgs.gov…).
 USGS_DOMAIN = 'usgs.gov'
+# M2M puede tardar en preparar un pedido: se consulta download-retrieve cada 15 s, hasta 20 veces.
+M2M_RETRIEVE_WAIT, M2M_RETRIEVE_TRIES = 15, 20
+# Fallos de M2M que no se arreglan pasando a EarthExplorer: se informan tal cual.
+M2M_FINAL = {'REDIRECCION_NO_CONFIABLE', 'CONEXION', 'TIEMPO_AGOTADO'}
+
+
+def m2m_call(session, ac, endpoint, payload):
+    """POST a un endpoint de M2M y devuelve su campo `data`; los errores salen como DownloadError."""
+    import requests
+    try:
+        response = session.post(ac.config['EARTHEXPLORER_api']+'/'+endpoint, data=json.dumps(payload), timeout=(30, 120))
+    except requests.Timeout:
+        raise DownloadError('TIEMPO_AGOTADO') from None
+    except requests.RequestException:
+        raise DownloadError('CONEXION') from None
+    if response.status_code != 200:
+        raise http_error(response)
+    try:
+        body = response.json()
+    except ValueError:
+        raise DownloadError('M2M_RESPUESTA_INVALIDA') from None
+    if body.get('errorCode'):
+        # Solo el código de USGS (p. ej. DOWNLOAD_ERROR); el mensaje no se guarda.
+        raise DownloadError('M2M_'+str(body['errorCode']))
+    return body.get('data')
+
+
+def m2m_bundle(options, entity):
+    """Opción de descarga del Product Bundle disponible para la entidad (Level-1 si hay varias), o None."""
+    bundles = [option for option in options or [] if option.get('entityId') == entity and option.get('available')
+               and 'Product Bundle' in (option.get('productName') or '')]
+    return next((b for b in bundles if 'Level-1' in b['productName']), bundles[0] if bundles else None)
+
+
+def m2m_url(ac, session, source, wait=None):
+    """URL de descarga del Product Bundle por M2M: download-options → download-request → download-retrieve.
+
+    Si USGS aún prepara el archivo, consulta download-retrieve hasta M2M_RETRIEVE_TRIES veces. Al
+    terminar retira el pedido (download-order-remove) para no acumular pedidos abiertos en la cuenta.
+    """
+    import time
+    wait = wait or time.sleep
+    bundle = m2m_bundle(m2m_call(session, ac, 'download-options',
+                                 {'datasetName': source['dataset'], 'entityIds': [source['id']]}), source['id'])
+    if not bundle:
+        raise DownloadError('M2M_SIN_BUNDLE')
+    label = 'oceanos_'+source['id']
+    try:
+        request = m2m_call(session, ac, 'download-request',
+                           {'downloads': [{'entityId': source['id'], 'productId': bundle['id']}], 'label': label}) or {}
+        urls = [item['url'] for item in request.get('availableDownloads') or [] if item.get('url')]
+        for _ in range(M2M_RETRIEVE_TRIES if not urls and request.get('preparingDownloads') else 0):
+            wait(M2M_RETRIEVE_WAIT)
+            retrieved = m2m_call(session, ac, 'download-retrieve', {'label': label}) or {}
+            urls = [item['url'] for item in retrieved.get('available') or [] if item.get('url')]
+            if urls:
+                break
+    finally:
+        with contextlib.suppress(Exception):
+            m2m_call(session, ac, 'download-order-remove', {'label': label})
+    if not urls:
+        raise DownloadError('M2M_SIN_URL')
+    return urls[0]
+
+
+def safe_usgs_url(ac, url):
+    """Devuelve la URL si es de un host de USGS con el mismo esquema que la API; si no, DownloadError."""
+    if urlparse(url).scheme != urlparse(ac.config['EARTHEXPLORER_api']).scheme or not trusted_host(url, USGS_DOMAIN):
+        raise DownloadError('REDIRECCION_NO_CONFIABLE')
+    return url
 
 
 def usgs_download(ac, source, raw):
-    """Descarga el TAR (Product Bundle L1) de una escena Landsat en streaming y devuelve (ruta, {md5, sha256}).
+    """Descarga el TAR (Product Bundle L1) de una escena Landsat y devuelve (ruta, {md5, sha256}, vía).
 
-    Sigue los pasos de ac.api.earthexplorer.download (sesión EROS, botón 'Download Product' de la
-    página de opciones y URL de descarga de /download/<producto>/<entidad>/EE/), pero escribe a
-    disco mientras recibe: la nativa pide el archivo dos veces y lo acumula en memoria (≈3,3 GB
-    de RAM). Si se corta queda el `.part`, que el siguiente intento reanuda (ver `fetch`).
+    Vía principal: M2M (`download-request`), la API oficial de USGS. Si M2M no entrega una URL
+    (sin permiso, sin bundle, pedido que no se prepara), se usa la página de EarthExplorer como
+    respaldo. En ambas el archivo se escribe en streaming y un `.part` cortado se reanuda (`fetch`).
     """
     import requests
     target = Path(raw)/(source['product']+'.tar')
+    url = None
+    token = ac.api.earthexplorer.auth(netrc_machine='earthexplorer_token')
+    if token:
+        with requests.Session() as session:
+            session.headers['X-Auth-Token'] = token
+            try:
+                url = safe_usgs_url(ac, m2m_url(ac, session, source))
+            except DownloadError as error:
+                if error.reason in M2M_FINAL:
+                    raise
+            finally:
+                with contextlib.suppress(Exception):
+                    session.post(ac.config['EARTHEXPLORER_api']+'/logout', timeout=30)
+    if url:
+        with requests.Session() as session:
+            return target, fetch(session, url, target, USGS_DOMAIN), 'M2M'
+    return target, earthexplorer_download(ac, source, target), 'EARTHEXPLORER'
+
+
+def earthexplorer_download(ac, source, target):
+    """Respaldo de M2M: descarga el bundle desde la página de opciones de EarthExplorer y devuelve {md5, sha256}.
+
+    Sigue los pasos de ac.api.earthexplorer.download (sesión EROS, botón 'Download Product' de la
+    página de opciones y URL de /download/<producto>/<entidad>/EE/), pero escribe a disco mientras
+    recibe: la nativa pide el archivo dos veces y lo acumula en memoria (≈3,3 GB de RAM).
+    """
+    import requests
     with requests.Session() as session:
         try:
             failure = eros_login(ac, session)
@@ -572,11 +721,10 @@ def usgs_download(ac, source, raw):
                 raise DownloadError('TIEMPO_AGOTADO') from None
             except requests.RequestException:
                 raise DownloadError('CONEXION') from None
-            digests = fetch(session, url, target, USGS_DOMAIN)
+            return fetch(session, url, target, USGS_DOMAIN)
         finally:
             with contextlib.suppress(Exception):
                 session.post(ac.config['EARTHEXPLORER_ers']+'/logout', timeout=30)
-    return target, digests
 
 
 def acquire(ac, source, raw):
@@ -592,7 +740,9 @@ def acquire(ac, source, raw):
     elif source['provider'] == 'CDSE':
         archive, digests = cdse_download(ac, source, raw)
     else:
-        archive, digests = usgs_download(ac, source, raw)
+        archive, digests, route = usgs_download(ac, source, raw)
+        # Vía usada (M2M o el respaldo EarthExplorer): queda en el linaje de la escena.
+        source = {**source, 'download_route': route}
     sha = digests.get('sha256') or file_hash(archive)
     if source.get('sha256') and sha != source['sha256']:
         raise ValueError('La fuente cambió después de registrarse')
@@ -628,20 +778,11 @@ def extract(ac, archive, raw, available):
     return {'input':str(bundle)}
 
 
-def process(ac, input_path, settings, output, derive=False):
-    """Ejecuta ACOLITE y devuelve las rutas de L1R, L2R y L2W.
-
-    Con `derive=True` parte de un L1R ya alineado y no vuelve a reproyectar ni recortar.
-    """
+def process(ac, input_path, settings, output):
+    """Ejecuta ACOLITE con los settings de una zona y devuelve las rutas de L1R, L2R y L2W."""
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    if derive:
-        # El L1R retenido ya está alineado. No volver a remuestrear ni recortar.
-        overrides = ac.acolite.settings.read(str(settings))
-        overrides.update(output_projection=False, reproject_before_ac=False, l1r_crop=False)
-        result = ac.acolite.acolite_run(overrides, inputfile=str(input_path), output=str(output))
-    else:
-        result = ac.acolite.acolite_run(str(settings), inputfile=str(input_path), output=str(output))
+    result = ac.acolite.acolite_run(str(settings), inputfile=str(input_path), output=str(output))
     if not result or len(result) != 1:
         raise ValueError('ACOLITE no produjo una escena única')
     record = next(iter(result.values()))

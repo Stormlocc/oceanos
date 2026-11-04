@@ -1,0 +1,75 @@
+# Perfil OCEANOS del AOI Water2Coast (superimagen). ACOLITE no lee este archivo: oceanos/config.py
+# lo traduce a settings nativos por zona. Decisiones y fuentes: docs/07_superimagen.md.
+schema_version: 2
+profile_version: 1
+status: candidate
+
+aoi:
+  id: water2coast_v1
+  geometry: AOI_Water2Coast.zip
+  geometry_sha256: fda896f5a5418a4898168d7248f9cb5e4ae7c6046e22a70bbd3258dd7d186e9a
+  name_field: Name
+  objective: calidad_del_agua_y_sargazo
+
+# Una grilla por zona y sensor, en el UTM de la zona y alineada a múltiplos de la resolución
+# nativa del sensor (oceanos/zonas.py). No se hereda nada de lapargera_v1.
+zones:
+  mayaguez_cabo_rojo: {name: Mayaguez Cabo Rojo, epsg: 32619}
+  la_parguera_guanica: {name: La Parguera Guanica, epsg: 32619}
+  ponce_guayanilla: {name: Ponce Guayanilla, epsg: 32619}
+  fajardo_culebra: {name: Fajardo Culebra, epsg: 32620}
+
+# Perfil de cada sensor, en el orden en que `run` los procesa.
+sensors:
+  sentinel2: sentinel2.yaml
+  landsat: landsat.yaml
+  olci: olci.yaml
+
+# Settings de ACOLITE comunes a todos los sensores (además de los de cada sensor).
+acolite:
+  # Glint: corrección residual con las bandas SWIR y escritura de la glint de referencia por píxel.
+  dsf_residual_glint_correction: true
+  glint_write_rhog_ref: true
+
+# Nubes medidas sobre cada zona con la máscara del propio producto L1 (S2 MSK_CLASSI, Landsat
+# QA_PIXEL); si no hay máscara (OLCI), con los flags de ACOLITE. Por encima se omite la zona.
+cloud_cover:
+  maximum_percent_per_zone: 50
+
+input:
+  # Reintentos cortos: lo que no se consigue queda FALLIDA en el reporte y el próximo run lo reintenta.
+  transient_attempts_total: 3
+  retry_wait_seconds: [10, 30]
+
+storage:
+  # GB decimales. Temporales: crudo, extracción, L1R/L2R/L2W y auxiliares mientras se procesa.
+  temporary_budget_bytes: 50000000000
+  # Productos finales en storage/superimagen (escenas, calidad_agua, sargazo, mascaras).
+  superimagen_budget_bytes: 100000000000
+
+superimagen:
+  land_mask:
+    # ESA WorldCover 10 m v200 (2021). Tierra = toda clase distinta de agua permanente (80);
+    # el manglar (95) cuenta como tierra. 0 es "sin dato" (mar abierto fuera de la cobertura).
+    source: ESA_WorldCover
+    version: v200
+    year: 2021
+    water_classes: [80, 0]
+    margin_pixels: 2
+  glint:
+    # rhog_ref de ACOLITE (reflectancia de glint en SWIR, donde el agua no aporta señal).
+    full_weight_max: 0.005
+    discard_above: 0.02
+    # ACOLITE no corrige la glint donde rhos(1600 nm) > glint_mask_rhos_threshold: esos píxeles se descartan.
+    rhos_mask_threshold: 0.05
+    # Sentinel-3 OLCI no tiene SWIR: se usa el ángulo de glint geométrico (Digital Earth Australia).
+    minimum_glint_angle_deg: 20
+  sargassum:
+    # Bits de l2_flags que descartan un píxel de FAI/NDVI: 1 cirrus, 2 TOA alto (nubes), 4 fuera de escena.
+    # El bit 0 (SWIR alto) no se usa: lo activa el propio sargazo flotante.
+    discard_flag_bits: [1, 2, 4]
+  composite:
+    # Bits de l2_flags que descartan un píxel en los compuestos de calidad de agua: 0 SWIR alto (no
+    # agua o glint sin corregir), 1 cirrus, 2 TOA alto (nubes), 3 Rrs negativa, 4 fuera de escena.
+    # El 5 (píxel mixto) solo informa.
+    discard_flag_bits: [0, 1, 2, 3, 4]

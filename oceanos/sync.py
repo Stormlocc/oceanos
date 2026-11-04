@@ -1,9 +1,8 @@
 """Sincroniza en el catálogo L1R/L2W copiados a mano, guiándose solo por el nombre del archivo."""
-import shutil
 from pathlib import Path
 from .native import output_identity
 
-RESERVED = ('catalog', 'temporary')
+RESERVED = ('catalog', 'temporary', 'superimagen', 'auxiliares')
 
 
 def scene_for(catalog, identity):
@@ -19,6 +18,12 @@ def scene_for(catalog, identity):
         catalog.upsert_scene({'provider': 'LOCAL', 'product': name, 'format': 'ACOLITE', 'identity': info,
                               'metadata': {'identity_origin': 'nombre_de_salida_acolite'}}, seen=False)
     return name
+
+
+def readable_folder(catalog, process, scene):
+    """Nombre legible de una carpeta adoptada en storage/runs: runs/0007_S2B_2026-02-15."""
+    row = catalog.db.execute('SELECT satelite, fecha_utc FROM escenas WHERE escena=?', (scene,)).fetchone()
+    return f"runs/{process:04d}_{row['satelite']}_{row['fecha_utc'][:10]}"
 
 
 def adopt(catalog, container, target):
@@ -41,9 +46,9 @@ def sync(catalog, folder, hashed=False):
     """Registra en el catálogo los L1R/L2W de `folder` (dentro de storage) que aún no estén.
 
     No abre los NetCDF: escena, fecha, tile y región salen del nombre. Cada par L1R/L2W queda
-    como un proceso IMPORTADO (validación SIN_VERIFICAR, SHA-256 solo con `hashed`) y la escena
-    como IMPORTADA: indica que la adquisición ya está disponible para que `run` no la descargue,
-    pero nunca se reutiliza como L1R padre ni se borra. En `storage/runs` cada subcarpeta se
+    como un proceso IMPORTADO de legado (validación SIN_VERIFICAR, SHA-256 solo con `hashed`): se
+    conserva y se lista aparte, pero no cambia el estado de la escena ni cuenta como "ya lo
+    tenemos": la superimagen solo usa sus propios productos por zona. En `storage/runs` cada subcarpeta se
     adopta con nombre legible (0001_S2B_2026-01-06). Es idempotente: lo registrado se omite, lo
     que desapareció se marca FALTAN y lo que reaparece con el mismo tamaño vuelve a PRESENTES.
     """
@@ -101,17 +106,16 @@ def sync(catalog, folder, hashed=False):
                                                   "AND carpeta=? AND aoi IS ?", (scene, carpeta, region)).fetchone()
         process = existing['id'] if existing else catalog.start(scene, 'IMPORTADO', {'aoi': {'id': region}})
         if container:
-            target = adopt(catalog, container, catalog.process(process)['carpeta'])
+            target = adopt(catalog, container, readable_folder(catalog, process, scene))
             files = {level: target/path.name for level, path in files.items()}
             carpeta = str(target.relative_to(catalog.storage))
         for level, path in sorted(files.items()):
             catalog.artifact(process, level, path, hashed=hashed)
             report['importados'].append({'archivo': str(path.relative_to(catalog.storage)), 'tipo': level,
                                          'escena': scene, 'proceso': process})
-        catalog.update(process, carpeta=carpeta, limpieza='NO_APLICA')
+        catalog.update(process, carpeta=carpeta, limpieza='NO_APLICA', legado=1)
         if not existing:
             catalog.finish(process, 'IMPORTADO', 'SIN_VERIFICAR')
-        catalog.scene_state(scene, 'IMPORTADA')
         catalog.event('IMPORTADO', f'{len(files)} archivo(s) en {carpeta} ({key}, región {region})', process, scene)
     # Registrados dentro de esta carpeta que ya no están en disco.
     for name, (row, kind) in known.items():

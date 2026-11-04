@@ -1,0 +1,23 @@
+# Landsat 8/9 OLI L1TP Collection 2 Tier 1 (bundle TAR desde USGS M2M) a 30 m nativos: sin
+# remuestreo a 10 m. ACOLITE proyecta el L1R a la grilla de 30 m de la zona antes de la corrección.
+sensor_family: landsat
+provider: USGS
+platforms: [L8, L9]
+dataset: landsat_ot_c2_l1
+collection: 2
+level: L1TP
+tier: T1
+resolution_m: 30
+interval_start_utc: "2025-11-01T00:00:00Z"
+interval_end_exclusive_utc: "2026-11-01T00:00:00Z"
+# Path/row WRS-2 por zona. Cobertura medida con las huellas USGS de diciembre de 2025: 005047
+# 94,7 % y 005048 94,9 % de Mayagüez; 005048 100 % de La Parguera y de Ponce; 004047 100 % de
+# Fajardo. 004048 y 006047 solo repiten cobertura o no tocan el AOI.
+path_rows:
+  mayaguez_cabo_rojo: ["005047", "005048"]
+  la_parguera_guanica: ["005048"]
+  ponce_guayanilla: ["005048"]
+  fajardo_culebra: ["004047"]
+# OLI no tiene red-edge (sin chl_re_gons ni ndci) y ACOLITE no configura chl_oc2 para OLI: se usa
+# chl_oc2f (Franz et al. 2015), el OC2 que la revisión fijada trae para L8/L9.
+products: ["Rrs_*", chl_oc2f, chl_oc3, chl_ci, tur_nechad2009, spm_nechad2010, qaa_v6_Kd_490, fai, fait, ndvi]
