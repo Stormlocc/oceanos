@@ -6,3 +6,6 @@ __pycache__/
 /storage/
 *.egg-info/
 .pytest_cache/
+
+# Worktrees de Claude Code (copias locales de trabajo, no van al repositorio).
+/.claude/worktrees/
