@@ -481,6 +481,9 @@ def queue_for_run(catalog, config, pipeline, args):
     if args.version:
         return [catalog.resolve_scene(args.version)]
     rows = scene_rows(catalog, pipeline.search(), config)
+    if args.plan:
+        # Antes de bajar, la lista completa: qué se descargaría (NUEVA/PENDIENTE/FALLIDA) y qué ya está.
+        show_versions(rows)
     show_query(pipeline.last_query)
     show_estimate(catalog, config, rows)
     if args.plan:

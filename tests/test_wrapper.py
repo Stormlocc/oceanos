@@ -498,8 +498,10 @@ class QueueSyncTests(unittest.TestCase):
 
     def cli_run(self, argv, pipeline):
         from oceanos import cli
+        import io, contextlib
+        self.out=io.StringIO()
         with patch('oceanos.cli.Pipeline',return_value=pipeline),patch('oceanos.cli.ensure_masks') as masks, \
-             patch('oceanos.cli.derived_products') as derived,patch('sys.stdout'):
+             patch('oceanos.cli.derived_products') as derived,contextlib.redirect_stdout(self.out):
             code=cli.main(['--storage',self.temp.name,'--sensor','sentinel2','--start',START,'--end',END]+argv)
         return code,masks,derived
 
@@ -511,6 +513,8 @@ class QueueSyncTests(unittest.TestCase):
         pipeline.search.assert_called_once();pipeline.batch.assert_not_called()
         masks.assert_not_called();derived.assert_not_called()
         self.assertEqual(self.cat.queue(),[])
+        # Antes de bajar se ve la lista de escenas, no solo el total.
+        self.assertIn(name,self.out.getvalue());self.assertIn('Por descargar: 1 escenas',self.out.getvalue())
 
     def test_run_searches_registers_processes_and_derives(self):
         name=self.scene()
