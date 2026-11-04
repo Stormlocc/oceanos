@@ -22,10 +22,10 @@ Actualizado: 4 de noviembre de 2026 (versión 0.4.0). AOI vigente: `water2coast_
   - `run` único;
   - Landsat por M2M;
   - OLCI;
-  - presupuesto de 100 GB.
+  - presupuesto de 120 GB.
 
   Usa el catálogo SQLite v5 y tiene 96 pruebas sin red.
-- **Ensayo real pendiente:** diciembre de 2025 y enero de 2026 en las 4 zonas, con la calibración de los umbrales de glint ([06](06_pendientes.md)).
+- **Ensayo real:** enero de 2026 en las 4 zonas (decisión del 04-11-2026), con la calibración de los umbrales de glint ([06](06_pendientes.md)).
 - **Legado:** las 14 adquisiciones Sentinel-2 de `lapargera_v1` se conservan en `storage/runs/0001_…` a `0014_…`, fuera de la superimagen.
 
 Credenciales en `~/.netrc`, nunca en el repositorio ni en el catálogo.

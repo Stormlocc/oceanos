@@ -13,9 +13,9 @@ cd /home/antho/projects/oceanos
 alias oceanos='/home/antho/.local/bin/micromamba run -p /home/antho/micromamba/envs/acolite python -m oceanos'
 
 oceanos prepare                                        # una vez: verificar ACOLITE y aplicar el parche
-oceanos run --plan --start 2025-12-01 --end 2026-02-01 # qué se descargaría y cuánto disco ocuparía
-oceanos run --start 2025-12-01 --end 2026-02-01        # todo: buscar, descargar, ACOLITE, escenas, sargazo, compuestos
-oceanos superimagen                                    # productos por zona y sensor, y disco frente a 100 GB
+oceanos run --plan --start 2026-01-01 --end 2026-02-01 # qué se descargaría y cuánto disco ocuparía
+oceanos run --start 2026-01-01 --end 2026-02-01        # todo: buscar, descargar, ACOLITE, escenas, sargazo, compuestos
+oceanos superimagen                                    # productos por zona y sensor, y disco frente a 120 GB
 oceanos reporte                                        # resultado por escena y zona, con motivo (--csv archivo.csv)
 ```
 

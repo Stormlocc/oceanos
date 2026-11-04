@@ -45,7 +45,8 @@ storage:
   # GB decimales. Temporales: crudo, extracción, L1R/L2R/L2W y auxiliares mientras se procesa.
   temporary_budget_bytes: 50000000000
   # Productos finales en storage/superimagen (escenas, calidad_agua, sargazo, mascaras).
-  superimagen_budget_bytes: 100000000000
+  # 120 GB decididos por el usuario el 04-11-2026, tras medir 615 MB por producto S2 de zona.
+  superimagen_budget_bytes: 120000000000
 
 superimagen:
   land_mask:

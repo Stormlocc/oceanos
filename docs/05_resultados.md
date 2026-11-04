@@ -87,13 +87,15 @@ Desde la migración a v5 (superimagen) esos 14 procesos quedan con `legado=1`: s
 | 12 | 56 % | 1,2·10⁻⁴ |
 | 10 | 47 % | 4,9·10⁻⁴ |
 
-Con 12 bits, 12 meses de S2 quedarían en ~160 GB: sigue por encima del presupuesto. Hace falta decidir el formato o el presupuesto.
+Con 12 bits, 12 meses de S2 quedarían en ~160 GB: sigue por encima del presupuesto.
+
+**Decisión del usuario (04-11-2026):** trabajar solo con **enero de 2026** y subir el presupuesto de la superimagen a **120 GB**. Se mantiene Float32 completo.
 
 Plan (requisitos de los investigadores):
 
 1. `oceanos run --plan --start 2025-12-01 --end 2026-02-01` para S2 y Landsat: lista de escenas, tamaño de descarga y disco estimado, antes de bajar.
 2. Procesar primero un subconjunto pequeño y verificar las conexiones de MERRA-2, LUT y WorldCover; después dic–ene en las 4 zonas.
-3. Medir el tamaño real por escena y por mes frente a los 100 GB.
+3. Medir el tamaño real por escena y por mes frente a los 120 GB.
 4. Histograma de `rhog_ref` por zona y sensor: calibrar `full_weight_max` (0,005) y `discard_above` (0,02) y registrar aquí el valor final y su justificación ([umbrales](07_superimagen.md#umbrales-de-glint-origen-y-calibración)).
 5. Compuestos mensuales de diciembre de 2025 y enero de 2026 con los dos métodos lado a lado.
 6. Después, OLCI en el mismo periodo.

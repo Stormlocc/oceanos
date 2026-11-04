@@ -167,7 +167,7 @@ Los cortes se calibran con los histogramas de `rhog_ref` por zona y sensor de di
 
 ## Disco
 
-- **Presupuesto propio:** 100 GB para `storage/superimagen` (`storage.superimagen_budget_bytes`). Los temporales siguen con su presupuesto de 50 GB.
+- **Presupuesto propio:** 120 GB para `storage/superimagen` (subido de 100 GB por el usuario el 04-11-2026, tras medir la primera escena) (`storage.superimagen_budget_bytes`). Los temporales siguen con su presupuesto de 50 GB.
 - **Estimación:** antes de descargar, `run --plan` muestra la lista de escenas, cuántos productos de zona se exportarán y cuánto ocuparán: la mediana medida de cada zona o, si la zona aún no tiene, los bytes por píxel medidos en el sensor por el tamaño de su grilla; sin mediciones, Float32 por capa con un 50 % de compresión.
 - **Al acercarse al límite:** si la estimación supera el presupuesto, `run` avisa. Antes de cada descarga y de cada exportación se comprueba que quepa otro producto; si no, la escena queda `FALLIDA` con `PRESUPUESTO_SUPERIMAGEN`, sin descargar.
 

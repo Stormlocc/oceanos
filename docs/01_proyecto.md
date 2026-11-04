@@ -28,7 +28,8 @@ Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github
   - S2 y Landsat: Rrs, OC2/OC3, Gons (solo S2), CI, NDCI (solo S2), turbidez y SPM de Nechad, Kd490 por QAA, FAI, FAIT y NDVI.
   - OLCI: Rrs, OC4, CI, NDCI, Nechad y Kd490.
 - Persisten **la superimagen y el catálogo SQLite**. Crudo, extracción, L1R, L2R y L2W se borran tras exportar y verificar.
-- Presupuestos: 100 GB para la superimagen y 50 GB para los temporales.
+- Presupuestos: 120 GB para la superimagen y 50 GB para los temporales.
+- **Periodo de trabajo actual: enero de 2026** (decisión del 04-11-2026, por disco). Los 12 meses quedan para después.
 - Varias escenas a la vez, con la CPU y RAM libres del equipo ([operación](04_operacion.md#paralelo)).
 
 **Legado**

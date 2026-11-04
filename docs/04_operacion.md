@@ -45,17 +45,17 @@
 2. **Por cada sensor seleccionado:**
    1. **Máscaras de tierra.** Se crean las que falten para cada zona; WorldCover se descarga una sola vez.
    2. **Búsqueda.** Se busca el periodo completo y se registran las escenas `NUEVA` y `FALLIDA`. Se omiten, con su motivo, las que repiten una adquisición ya en cola o ya terminada en todas sus zonas.
-   3. **Estimación.** Se muestra la lista que se descargaría y el total: escenas, GB de L1, productos de zona y su tamaño estimado, uso actual de la superimagen frente a los 100 GB. Si se pasaría del presupuesto, aparece un AVISO. Con `--plan` el comando termina aquí.
+   3. **Estimación.** Se muestra la lista que se descargaría y el total: escenas, GB de L1, productos de zona y su tamaño estimado, uso actual de la superimagen frente a los 120 GB. Si se pasaría del presupuesto, aparece un AVISO. Con `--plan` el comando termina aquí.
    4. **Escenas en paralelo** (ver [ejecución de una escena](#ejecución-de-una-escena)).
    5. **Sargazo diario** de los días del periodo.
    6. **Compuestos** de los meses completos, con sus estaciones y años.
 3. **Resumen final.** Escenas por estado, tiempos, descarga y disco.
 
-`run` se puede cortar y repetir: no vuelve a descargar adquisiciones con todas sus zonas terminadas ni recalcula compuestos cuya firma no cambió. Para el ensayo de dos meses:
+`run` se puede cortar y repetir: no vuelve a descargar adquisiciones con todas sus zonas terminadas ni recalcula compuestos cuya firma no cambió. Para el ensayo de enero de 2026:
 
 ```bash
-oceanos run --plan --start 2025-12-01 --end 2026-02-01
-oceanos run --start 2025-12-01 --end 2026-02-01
+oceanos run --plan --start 2026-01-01 --end 2026-02-01
+oceanos run --start 2026-01-01 --end 2026-02-01
 ```
 
 ## Estados
@@ -86,7 +86,7 @@ oceanos run --start 2025-12-01 --end 2026-02-01
 |---|---|
 | `AUXILIAR_POR_DEFECTO` | ACOLITE no consiguió MERRA-2 |
 | `SIN_MASCARA` | Falta la máscara de tierra de la zona |
-| `PRESUPUESTO_SUPERIMAGEN` | No cabe otro producto en los 100 GB |
+| `PRESUPUESTO_SUPERIMAGEN` | No cabe otro producto en los 120 GB |
 | `ValueError` | Falta un producto o la grilla no coincide (el mensaje queda en el evento) |
 
 ## Ejecución de una escena
@@ -188,7 +188,7 @@ Paralelo: 8 escena(s) a la vez · equipo 20 CPU, 29.4 GB RAM (28.0 GB libre) · 
 - **Proceso fallido:** conserva su temporal (`APLAZADA`) para reutilizar el crudo. Cuando un intento posterior lo reutiliza, se limpia.
 - **Seguridad:** toda ruta se resuelve dentro de `storage/temporary/<N>` y nunca se siguen enlaces. Un fallo de borrado deja `limpieza FALLIDA` sin convertir en fallido un proceso exitoso.
 - **Lo que nunca se borra:** el legado y lo importado (`NO_APLICA`), las fuentes externas, el AOI y las credenciales. Los flags de borrado nativo de ACOLITE están desactivados.
-- **Presupuestos:** 50 GB de temporales, que cuentan `storage/temporary`, `acolite/data` y `acolite/scratch`, con al menos 2 GB libres en el disco. La superimagen tiene 100 GB aparte ([disco](07_superimagen.md#disco)).
+- **Presupuestos:** 50 GB de temporales, que cuentan `storage/temporary`, `acolite/data` y `acolite/scratch`, con al menos 2 GB libres en el disco. La superimagen tiene 120 GB aparte ([disco](07_superimagen.md#disco)).
 
 ## Legado `lapargera_v1`
 
