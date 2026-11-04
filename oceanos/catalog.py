@@ -653,11 +653,10 @@ class Catalog:
             '''SELECT DISTINCT zona, fecha FROM productos_escena WHERE aoi=? AND sensor=? AND estado='OK'
                AND fecha BETWEEN ? AND ? ORDER BY zona, fecha''', (aoi, sensor, first, last))]
 
-    def product_bytes(self, sensor):
-        """Mediana de bytes de los productos OK de un sensor (para estimar disco), o None."""
-        values = [row[0] for row in self.db.execute(
-            "SELECT bytes FROM productos_escena WHERE sensor=? AND estado='OK' AND bytes ORDER BY bytes", (sensor,))]
-        return values[len(values)//2] if values else None
+    def product_sizes(self, sensor):
+        """(zona, bytes) de los productos OK de un sensor, para estimar el disco con lo medido."""
+        return [(row[0], row[1]) for row in self.db.execute(
+            "SELECT zona, bytes FROM productos_escena WHERE sensor=? AND estado='OK' AND bytes", (sensor,))]
 
     def record_mask(self, zone, sensor, resolution, path, info):
         """Registra la máscara de tierra de una zona, sensor y resolución, con la capa y su versión."""

@@ -1075,10 +1075,16 @@ class DownloadTests(unittest.TestCase):
         # La superimagen tiene su propio presupuesto: con lo medido por escena, no se exporta si no cabe.
         runner.config={**self.config,'superimagen_budget':6000}
         self.cat.record_product(self.cat.upsert_scene(source()),'ponce_guayanilla','water2coast_v1',estado='OK',sensor='S2',bytes=900)
-        runner.check_superimagen_budget()
+        runner.check_superimagen_budget(['ponce_guayanilla'])
         runner.config['superimagen_budget']=5500
-        with self.assertRaises(StageError) as caught: runner.check_superimagen_budget()
+        with self.assertRaises(StageError) as caught: runner.check_superimagen_budget(['ponce_guayanilla'])
         self.assertEqual(caught.exception.reason,'PRESUPUESTO_SUPERIMAGEN')
+        # Una zona sin mediciones se estima con los bytes por píxel medidos en otra, por su tamaño de grilla.
+        from oceanos.pipeline import product_estimate, zone_pixels
+        measured=[('ponce_guayanilla',900)]
+        expected=int(900/zone_pixels(self.config,'ponce_guayanilla')*zone_pixels(self.config,'la_parguera_guanica'))
+        self.assertEqual(product_estimate(self.config,'la_parguera_guanica',measured),expected)
+        self.assertEqual(product_estimate(self.config,'ponce_guayanilla',measured),900)
 
     def test_first_acolite_runs_alone_only_without_luts(self):
         from oceanos.resources import luts_ready

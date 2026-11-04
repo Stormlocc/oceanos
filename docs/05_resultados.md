@@ -68,7 +68,28 @@ Desde la migración a v5 (superimagen) esos 14 procesos quedan con `legado=1`: s
 
 ## Superimagen: ensayo dic-2025 – ene-2026
 
-Pendiente de ejecutar. Plan (requisitos de los investigadores):
+**Primera escena real (04-11-2026).** `S2A_MSIL1C_20260110T145751_N0511_R039_T20QKF`, zona Fajardo–Culebra (la grilla más grande, 2693 × 5481 a 10 m), en un storage de prueba:
+
+- Descarga CDSE de 379,9 MB en 3 min 44 s. ACOLITE tardó ~3,5 min y la exportación 14 s; 7 min 44 s en total.
+- Auxiliares MERRA-2 reales: ozono 0,268, vapor 3,87, presión 1014,8 hPa y viento 4,8 m/s. LUT y WorldCover funcionaron.
+- Nubes 0 % (`MSK_CLASSI_B00`); la escena cubre el 69 % de la zona.
+- Rrs válida en 8,9 M píxeles. En `lapargera_v1`, sin glint residual, quedaba enmascarada casi entera.
+- `rhog_ref`: mediana 0,0013 y p95 0,0049. El 95,1 % del agua queda con peso 1 (≤ 0,005), el 98,5 % es ≤ 0,02 y el 2,4 % no fue corregido (NaN). El ángulo de glint mediano es 38,6°.
+- **Disco: 615 MB por producto de zona.** `calidad.tif` ocupa 71 MB; cada variable, 10–32 MB. Son 42 bytes por píxel de grilla. El sargazo diario de esa zona y día ocupa 61 MB.
+
+**Proyección de disco.** El plan S2 de dic–ene estima 106 productos de zona y ~43,6 GB, sin descontar las zonas que saldrán `NUBOSA`. Landsat suma 40 productos, ~3,7 GB con la estimación sin medir. Doce meses de S2 darían ~260 GB, más que los 100 GB del presupuesto.
+
+**Prueba de precisión.** Se redondeó la mantisa Float32 de las variables antes de comprimir con ZSTD:
+
+| Bits | Tamaño | Error relativo máximo |
+|---|---|---|
+| 14 | 62 % | 3·10⁻⁵ |
+| 12 | 56 % | 1,2·10⁻⁴ |
+| 10 | 47 % | 4,9·10⁻⁴ |
+
+Con 12 bits, 12 meses de S2 quedarían en ~160 GB: sigue por encima del presupuesto. Hace falta decidir el formato o el presupuesto.
+
+Plan (requisitos de los investigadores):
 
 1. `oceanos run --plan --start 2025-12-01 --end 2026-02-01` para S2 y Landsat: lista de escenas, tamaño de descarga y disco estimado, antes de bajar.
 2. Procesar primero un subconjunto pequeño y verificar las conexiones de MERRA-2, LUT y WorldCover; después dic–ene en las 4 zonas.

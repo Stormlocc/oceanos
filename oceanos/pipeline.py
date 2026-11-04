@@ -78,16 +78,34 @@ def superimagen_bytes(storage):
     return disk_bytes([Path(storage)/'superimagen'])
 
 
-def product_estimate(config):
-    """Bytes estimados de los COG de una escena en una zona, antes de tener mediciones.
+def zone_pixels(config, zone):
+    """Píxeles de la grilla de una zona del perfil."""
+    rows, cols = config['zones'][zone]['grid']['shape_yx']
+    return rows*cols
 
-    Float32 por variable más 10 bandas de calidad, sobre el rectángulo de la zona más grande; la
-    compresión ZSTD y la tierra en NoData lo reducen a la mitad, aproximadamente.
+
+def median(values):
+    values = sorted(values)
+    return values[len(values)//2]
+
+
+def product_estimate(config, zone, measured=()):
+    """Bytes estimados de los COG de una escena en una zona.
+
+    Con productos medidos (`measured`: pares zona, bytes del mismo sensor): la mediana de esa zona,
+    o, si la zona aún no tiene, la mediana de bytes por píxel de grilla de las demás por los píxeles
+    de esta. Sin mediciones: Float32 por variable más 10 bandas de calidad, con la mitad por la
+    compresión ZSTD y la tierra en NoData (medido en S2 Fajardo–Culebra: 42 bytes/píxel, 615 MB).
     """
-    pixels = max(z['grid']['shape_yx'][0]*z['grid']['shape_yx'][1] for z in config['zones'].values())
+    same = [size for name, size in measured if name == zone]
+    if same:
+        return median(same)
+    ratios = [size/zone_pixels(config, name) for name, size in measured if name in config['zones']]
+    if ratios:
+        return int(median(ratios)*zone_pixels(config, zone))
     rrs = {'sentinel2': 13, 'landsat': 9, 'olci': 21}[config['family']]
     layers = rrs + len(config['products']) - 1 + 10
-    return int(pixels*4*layers*0.5)
+    return int(zone_pixels(config, zone)*4*layers*0.5)
 
 
 def disk_free(path):
@@ -370,7 +388,7 @@ class Pipeline:
                                       '(use --force para reprocesar)', scene=scene)
             return None
         # Sin espacio para exportar no tiene sentido descargar: la escena queda FALLIDA para otro run.
-        self.check_superimagen_budget()
+        self.check_superimagen_budget(pending)
         process = self.catalog.start(scene, 'LOCAL' if source.get('local') else 'DESCARGA', self.config)
         self.current_run = process
         raw = self.catalog.storage/'temporary'/str(process)
@@ -438,7 +456,7 @@ class Pipeline:
         files = result['files']
         validate(files, zone['grid'], self.config['products'])
         auxiliary = self.check_ancillary(result)
-        self.check_superimagen_budget()
+        self.check_superimagen_budget([name])
         folder = (Path('superimagen')/'escenas'/name/SENSOR_TAG[family]/
                   f"{lineage['fecha']}_{place(info)}")
         target = self.catalog.storage/folder
@@ -494,9 +512,11 @@ class Pipeline:
             raise StageError('process', 'AUXILIAR_POR_DEFECTO')
         return used
 
-    def check_superimagen_budget(self):
-        """StageError si exportar otra zona superaría el presupuesto de disco de la superimagen."""
-        expected = self.catalog.product_bytes(SENSOR_TAG[self.config['family']]) or product_estimate(self.config)
+    def check_superimagen_budget(self, zones=None):
+        """StageError si exportar estas zonas (por defecto, la mayor del perfil) superaría el presupuesto."""
+        measured = self.catalog.product_sizes(SENSOR_TAG[self.config['family']])
+        estimates = [product_estimate(self.config, zone, measured) for zone in zones or self.config['zones']]
+        expected = sum(estimates) if zones else max(estimates)
         if superimagen_bytes(self.catalog.storage)+expected > self.config['superimagen_budget']:
             raise StageError('export', 'PRESUPUESTO_SUPERIMAGEN')
 

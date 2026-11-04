@@ -283,13 +283,15 @@ def show_query(report):
 def show_estimate(catalog, config, rows):
     """Lo que se descargaría y el disco estimado de la superimagen; avisa si pasa del presupuesto."""
     queued = [row for row in rows if row['estado'] in ('NUEVA', 'PENDIENTE', 'FALLIDA')]
-    zones = sum(len([zone for zone in row['zonas'].split(',') if zone]) for row in queued)
-    per_zone = catalog.product_bytes(SENSOR_TAG[config['family']]) or product_estimate(config)
+    measured = catalog.product_sizes(SENSOR_TAG[config['family']])
+    zones = [zone for row in queued for zone in row['zonas'].split(',') if zone in config['zones']]
+    products = sum(product_estimate(config, zone, measured) for zone in zones)
     used = superimagen_bytes(catalog.storage)
-    expected = used+zones*per_zone
+    expected = used+products
+    basis = f'medido en {len(measured)} producto(s)' if measured else 'sin mediciones todavía'
     print(f"Por descargar: {len(queued)} escenas ({size(sum((r['tamano_mb'] or 0)*1e6 for r in queued))} de L1, "
           'se borran al exportar) · '
-          f"{zones} productos de zona de ~{size(per_zone)} · superimagen {size(used)} → ~{size(expected)} "
+          f"{len(zones)} productos de zona, ~{size(products)} ({basis}) · superimagen {size(used)} → ~{size(expected)} "
           f"de {size(config['superimagen_budget'])}")
     if expected > config['superimagen_budget']:
         print('AVISO: la estimación pasa el presupuesto de la superimagen; la exportación se detendrá al alcanzarlo '
