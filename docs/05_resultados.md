@@ -1,14 +1,12 @@
 # Resultados de los ensayos
 
-Todos los resultados son **técnicos**. La aceptación científica de los productos acuáticos sigue pendiente de datos in situ (CTD, muestras de clorofila y turbidez, observaciones OCEANOS/CariCOOS con control de calidad). Los archivos de los ensayos de septiembre se retiraron en el reinicio; sus cifras y hashes quedan en el catálogo.
+Las secciones hasta «Reinicio» corresponden al AOI legado `lapargera_v1` (glint apagado, grilla común). Todos los resultados son **técnicos**. La aceptación científica de los productos acuáticos sigue pendiente de datos in situ (CTD, muestras de clorofila y turbidez, observaciones OCEANOS/CariCOOS con control de calidad). Los archivos de los ensayos de septiembre se retiraron en el reinicio; sus cifras y hashes quedan en el catálogo.
 
 ## Primer ensayo y diagnóstico del enmascarado (29-09-2026)
 
 Escena `S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE` (ZIP de 789.574.421 bytes, MD5 verificado). Se generaron L1R (315 MB), L2R (774 MB) y L2W (122 MB) en la grilla esperada, pero **Rrs, turbidez, OC3 y NDCI quedaron con 0 píxeles válidos**; FAI y NDVI tienen valores en el 100 % del recorte porque no reciben la máscara acuática.
 
 Causa técnica comprobada: `rhot_1610` supera el umbral nativo 0,0215 en **todo** el recorte (mínimo 0,026, mediana 0,067), por lo que el bit 0 de `l2_flags` está activo en el 100 %. Se descartaron, con error nulo o dentro de tolerancia, la escala SAFE→L1R (B02 y B11), la transferencia de las 13 bandas `rhot` entre L1R y L2R y la geolocalización (error máximo 0,0000038°). El ángulo de brillo solar en el agua es de 17,7°–22,4° (mediana 19,8°), por debajo de los 40° que ACOLITE usa como referencia de glint: el **glint es una hipótesis compatible, no una causa demostrada**.
-
-![Diagnóstico RGB, SWIR y geometría](evidence/phase7/diagnostic.png)
 
 Decisión: no subir el umbral ni desactivar la máscara para "obtener" datos. Activar `dsf_residual_glint_correction` no basta, porque la máscara se calcula sobre `rhot` (TOA), no sobre la reflectancia corregida. Evaluar glint y máscara requiere un experimento separado y datos in situ.
 
@@ -54,14 +52,27 @@ Misma escena (`S2B_MSIL1C_20251107T150719_…SAFE`, 734,8 MB), procesos aislados
 
 La nativa pide el archivo dos veces (comprobado también con un servidor local: dos peticiones al host de descarga y 3 veces el tamaño del archivo en RAM), lo que explica el pico de ≈3,2 veces el ZIP de las 14 escenas del catálogo v3 y que su velocidad aparente máxima (9,45 MB/s) fuera la mitad de los 20 MB/s por conexión de CDSE. A igual velocidad de red, la descarga propia tarda la mitad. Por eso OCEANOS la reemplazó ([ACOLITE](02_acolite.md#descarga-y-extracción)).
 
-## Regeneración desde L1R
+## Regeneración desde L1R (legado)
 
 Antes del reinicio se regeneró L2W desde L1R conservados, sin descargar: S2C del 19-08-2026 (19 variables 2D) y L9 del 17-08-2026 (L1R ya proyectado, 16 variables) dieron **valores idénticos**, incluidos flags y patrón de NaN. La igualdad se limita a esas condiciones (misma revisión, settings, LUT y auxiliares); no se compara el NetCDF byte a byte porque cambian timestamps.
 
-## Reinicio y estado actual de los datos
+## Reinicio y datos del legado `lapargera_v1`
 
 El 30-09-2026, por orden del usuario, se retiraron 31,54 GB de datos de ensayo (RAW, NetCDF, cachés de la copia auditada, evidencias sueltas y scripts manuales); los artefactos quedaron marcados `DELETED` en el catálogo. Se conservaron el AOI, los perfiles, el código, el parche y las dos figuras.
 
 Entre el 2 y el 7 de octubre se procesaron 14 adquisiciones Sentinel-2: las 12 del 1 de enero al 25 de febrero de 2026 y las del 4 y 9 de agosto. Las 14 descargas sumaron 53,2 min (10,05 GB, ≈3,2 MB/s); 4 procesos necesitaron reintentos y 3 de ellos agotaron los intentos antes de completarse en una ejecución posterior.
 
 Estado al 08-10-2026: catálogo nuevo v4 (el anterior quedó como `catalog/catalog_v3_respaldo_20261008_003347.sqlite`, con ese historial de tiempos e intentos). Los 14 pares L1R/L2W se registraron con `sync storage/runs --hash` como procesos 1–14 `IMPORTADO`, en carpetas `runs/0001_S2C_2026-01-01` … `runs/0014_S2C_2026-08-09`: 4,65 GB de L1R y 3,89 GB de L2W. Una búsqueda de enero–febrero los unificó con sus 12 escenas CDSE (`IMPORTADA`). Landsat consultado para enero–febrero (7 escenas 005/048, 7,1 GB en bundles), sin descargas. Cifras actualizadas: `SELECT * FROM v_resumen` y [`sql/consultas.sql`](../sql/consultas.sql).
+
+Desde la migración a v5 (superimagen) esos 14 procesos quedan con `legado=1`: se conservan y se consultan con `oceanos status --legado`, pero no cuentan para la cola ni para la superimagen.
+
+## Superimagen: ensayo dic-2025 – ene-2026
+
+Pendiente de ejecutar. Plan (requisitos de los investigadores):
+
+1. `oceanos run --plan --start 2025-12-01 --end 2026-02-01` para S2 y Landsat: lista de escenas, tamaño de descarga y disco estimado, antes de bajar.
+2. Procesar primero un subconjunto pequeño y verificar las conexiones de MERRA-2, LUT y WorldCover; después dic–ene en las 4 zonas.
+3. Medir el tamaño real por escena y por mes frente a los 100 GB.
+4. Histograma de `rhog_ref` por zona y sensor: calibrar `full_weight_max` (0,005) y `discard_above` (0,02) y registrar aquí el valor final y su justificación ([umbrales](07_superimagen.md#umbrales-de-glint-origen-y-calibración)).
+5. Compuestos mensuales de diciembre de 2025 y enero de 2026 con los dos métodos lado a lado.
+6. Después, OLCI en el mismo periodo.

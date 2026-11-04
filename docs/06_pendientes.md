@@ -1,45 +1,51 @@
 # Pendientes, riesgos y trabajo futuro
 
-Estado al 03-11-2026. Ninguna fase nueva se inicia sin orden explícita del usuario, y no se descargan escenas, LUT ni auxiliares sin autorización.
+Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borrado de datos del usuario y los cambios de alcance se consultan antes.
+
+## Superimagen: lo que falta
+
+| Tema | Estado y siguiente paso |
+|---|---|
+| Ensayo real dic-2025 – ene-2026 | Código completo y probado sin red; falta correr `run --plan` y luego `run` con S2 y Landsat en las 4 zonas ([plan](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
+| Calibración de glint | Los cortes 0,005 / 0,02 son el punto de partida. Calibrarlos con los histogramas de `rhog_ref` de dic–ene por zona y sensor, y revisarlos con datos de verano (más glint a 18° N) |
+| Corte OLCI de 20° | Punto de partida de Digital Earth Australia; revisar con el histograma del ángulo de glint de las escenas OLCI reales |
+| OLCI | Implementado (descarga CDSE, 300 m, flags para nubes, compuestos por ángulo de glint), sin escena real. Se integra después de S2 y Landsat de punta a punta |
+| Tamaño real por escena | La estimación de disco usa Float32 con 50 % de compresión hasta tener mediciones; desde el primer producto usa la mediana medida |
+| 12 meses (nov-2025 – oct-2026) | Después del ensayo de dos meses y de la calibración |
+| Catálogo de la carpeta principal | La rama migra el catálogo v4 → v5 al abrirlo (con respaldo). El código de `main` sin fusionar no abre un catálogo v5: fusionar antes de usar el `storage` principal |
 
 ## Pendientes científicos
 
 | Tema | Estado y siguiente paso |
 |---|---|
-| Productos acuáticos enmascarados | El umbral SWIR nativo enmascara casi todo el AOI ([resultados](05_resultados.md)). Investigar glint y máscara en un experimento separado y trazable, sin relajar umbrales arbitrariamente |
-| Datos in situ | Necesarios para aceptar cualquier producto: observaciones coincidentes de clorofila y turbidez con ubicación, hora, profundidad y control de calidad |
-| Salida solo oceánica | FAI/NDVI conservan tierra; evaluar `masking.land_water_mask` de ACOLITE (GSHHG/HydroLAKES), con atención a cayos y lagunas. Natural Earth no sirve como máscara a 10 m |
+| Datos in situ | Necesarios para aceptar cualquier producto: clorofila, turbidez y Kd coincidentes, con ubicación, hora, profundidad y control de calidad |
+| Máscara L2W de ACOLITE | Con glint residual activo los productos acuáticos ya no deberían quedar enmascarados como en `lapargera_v1` ([resultados](05_resultados.md)); confirmarlo en el ensayo |
+| Agua muy somera y arrecifes | El fondo puede contaminar Rrs y FAI en La Parguera; evaluar con datos in situ |
+| Media ponderada y variables parciales | En (b) estacional/anual, ponderar por `peso_total` es exacto salvo donde una variable faltaba en parte de las observaciones del mes ([07](07_superimagen.md#compuestos-de-calidad-de-agua)) |
 
 ## Riesgos y limitaciones técnicas
 
 | Tema | Detalle |
 |---|---|
-| HTTP 403 de USGS M2M | La cuenta solo tiene el permiso M2M `user` (comprobado el 03-11-2026), y `download-options`/`download-request` exigen `download`. **Acción del usuario:** pedir el acceso de descarga M2M en ers.cr.usgs.gov (*Access Request*). Mientras tanto, tamaños y descarga van por la página de EarthExplorer, que puede romperse si USGS la cambia |
-| Descarga Landsat por EarthExplorer | Desde el 03-11-2026 es propia y en streaming, pero lee el botón "Download Product" de la página de opciones, igual que la nativa: puede romperse si USGS cambia la página. Alternativa estable: pedir el rol de descarga M2M y usar `download-request`/`download-retrieve` |
-| Fuente sin checksum comparable | Sin MD5/SHA del proveedor (USGS), decidir si se omite el cálculo exige descargar primero |
-| Importación por nombre | `sync` no abre los NetCDF; un nombre engañoso marcaría la adquisición como disponible. Usar `--hash` si los archivos serán evidencia |
-| Recursos | Presupuesto de 50 GB de temporales (sin contar L1R/L2W conservados) y 2 GB libres de disco, supervisados por muestreo, sin cuota instantánea; no se registra qué auxiliares consumió cada escena |
-| Respaldo externo | Planificado para después: un módulo/comando que exporte los L2W (y el catálogo) a un storage en la nube |
-| Cambio de ACOLITE | Cambiar revisión o parche invalida la reutilización de todas las salidas previas (ver [ACOLITE](02_acolite.md#instalación-y-prepare)) |
+| Respaldo EarthExplorer | Solo si M2M no entrega URL; lee el botón "Download Product" de la página y puede romperse si USGS la cambia |
+| M2M en preparación | Si USGS tarda en preparar un pedido, se consulta `download-retrieve` cada 15 s hasta 20 veces; después la escena queda `FALLIDA` y se reintenta en otro `run` |
+| Auxiliares | Si MERRA-2 falla, la zona queda `FALLIDA` con `AUXILIAR_POR_DEFECTO`. Coincidencia improbable: valores reales iguales a los tres defaults darían un falso positivo |
+| Fuente sin checksum comparable | USGS no publica MD5/SHA del bundle: la reutilización del crudo depende del SHA-256 propio |
+| WorldCover 2021 | Capa fija; cambios de costa posteriores (huracanes, rellenos) no se reflejan. El margen de 2 píxeles absorbe parte |
+| Recursos | Presupuestos supervisados por muestreo, sin reservar espacio; la superimagen se comprueba antes de descargar y antes de exportar |
+| Cambio de ACOLITE | Cambiar revisión o parche deja productos con linaje distinto; los compuestos no mezclan firmas pero sí escenas de distintas revisiones si se reprocesa parcialmente |
+| Respaldo externo | Planificado para después: exportar la superimagen y el catálogo a un storage en la nube |
 
-## Paralelo: resuelto y pendiente
+## Paralelo
 
-Resuelto (08-10-2026, [operación](04_operacion.md#paralelo)): una conexión SQLite (WAL) y una copia de `Pipeline` por hilo dentro del mismo comando (`exclusive()` sigue impidiendo dos comandos); el lote reparte la lista de escenas en memoria, sin estado "en proceso" en la cola; reservas de RAM por etapa con la RAM libre del equipo menos una reserva (13-10-2026: antes 70 % fijo); hilos numéricos limitados; barra con un espacio por escena; `scratch` propio por etapa y primer ACOLITE en solitario.
+Resuelto: conexión SQLite (WAL) por hilo, reservas de RAM por etapa con la RAM libre del equipo, prioridad a lo más avanzado, máximo 4 descargas CDSE, un ACOLITE por día, LUT preparadas por el primer ACOLITE ([operación](04_operacion.md#paralelo)).
 
 Pendiente:
-- **Sin ensayo real.** Probado con dobles y con un proceso aislado real sin red; falta un lote real con descargas para medir la ganancia y confirmar que CDSE/USGS aceptan descargas simultáneas.
-- **Descarga en memoria.** Resuelto: Sentinel-2 (13-10-2026) y Landsat (03-11-2026) con descarga propia en streaming y una sola transferencia.
-- **Reanudar descargas cortadas.** Implementado el 03-11-2026 (`Range` + `If-Range`, con vuelta a empezar si el servidor no lo admite), solo entre intentos del mismo proceso: un nuevo `run` empieza de cero. Probado contra un servidor local; **falta confirmar con CDSE/USGS reales** si responden 206 (si no, el comportamiento es el de antes).
-- **Presupuesto de disco.** Se muestrea cada 2 s por proceso y no reserva espacio; el número de escenas a la vez se limita al inicio con 3,5 GB por escena. Desde el 13-10-2026 cuenta solo temporales: antes sumaba los L1R/L2W conservados y habría detenido el pipeline tras unas 60 escenas más.
-- **Auxiliares del mismo día.** Resuelto (03-11-2026): dos ACOLITE del mismo día no corren a la vez.
-- **Descargas repetidas.** Resuelto (03-11-2026): la cola admite una escena por adquisición y `run` no descarga si la adquisición ya tiene L2W; si se reconoce tras descargar, el RAW se borra en el acto.
-- **Proveedores.** CDSE: 4 descargas a la vez y 100 sesiones activas (la descarga propia cierra la sesión de cada token). USGS: sin límite de descarga documentado (se usan 4 a la vez por prudencia); M2M limita a 15.000 peticiones cada 15 min.
-- **Identidad compuesta.** `clave_resultado`/`clave_correccion` dependen de la identidad del motor; cualquier cambio del parche ACOLITE invalida la reutilización de todas las salidas previas.
-- **Importados sin verificar.** Los 14 L1R/L2W actuales son procesos `IMPORTADO`: evitan descargas repetidas, pero no se reutilizan como padre para regenerar productos. Para eso hay que reprocesar la escena (o validar los archivos y marcarlos `TECNICA_OK`).
+- **Sin ensayo real con descargas.** Falta medir la ganancia y confirmar que CDSE y USGS aceptan descargas simultáneas y responden 206 a `Range`.
+- **Picos de RAM de OLCI y exportación.** Valores iniciales (6,6 y 1,5 GB) sin medición; se reemplazan solos por la mediana de los procesos `OK`.
 
 ## Trabajo futuro (no iniciado)
 
-- **Docker y Airflow (fase 12).** Flujo: catálogo → selección → adquisición → ACOLITE → validación → registro → limpieza. Cada tarea con identificador y estado; reanudar desde resultados válidos; no repetir AC por un fallo de limpieza ni multiplicar reintentos entre Airflow, wrapper y cliente nativo. Persistir solo L1R/L2W y un catálogo. Inventariar dependencias reales (GDAL con JP2OpenJPEG y netCDF, pyproj, pyresample, netCDF4) antes de contenerizar.
-- **Cubo temporal (fase 13).** Alimentado por los L2W retenidos, particionado por AOI y versión de grilla, con vínculo a proceso, configuración y fuente; sin mezclar algoritmos o grillas incompatibles y sin borrar NetCDF hasta decidir una política. Es distinto de usar Zarr como entrada de ACOLITE.
-- **Nuevos AOI y varios tiles.** Cada AOI necesita su propio análisis; no heredar EPSG, grilla ni algoritmos de `lapargera_v1`. Para varios tiles auditar `merge_tiles`, `merge_full_tiles`, `extend_region`, cruces UTM y proyección. Un L1R recortado no permite ampliar el AOI. Volver a descargar una escena para otro AOI es aceptable.
-- **Productos propios (fase 14).** Solo donde ACOLITE no cubra la necesidad.
+- **Docker y Airflow.** Flujo: catálogo → selección → adquisición → ACOLITE por zona → exportación → sargazo → compuestos → limpieza. Inventariar dependencias reales (GDAL con JP2OpenJPEG, netCDF y COG, pyproj, netCDF4) antes de contenerizar.
+- **Validación científica** con datos in situ y comparación entre los métodos (a) y (b).
+- **Productos propios.** Solo donde ACOLITE no cubra la necesidad.

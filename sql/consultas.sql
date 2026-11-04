@@ -1,12 +1,13 @@
--- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v4).
+-- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v5).
 -- Abrir con:  python -m sqlite3 storage/catalog/catalog.sqlite   (o DB Browser for SQLite)
--- Tablas: escenas (catálogo + cola), procesos (descarga/procesamiento + L1R/L2W),
---         busquedas (cada search) y eventos (historial legible).
--- Vistas listas: v_resumen, v_cola, v_descargas, v_fallidas, v_disco  →  SELECT * FROM v_resumen;
+-- Tablas: escenas (catálogo + cola), procesos (descarga y procesamiento, legado=1 es lapargera_v1),
+--         busquedas, eventos, productos_escena (superimagen por escena y zona, con linaje),
+--         mascaras, compuestos (sargazo diario y compuestos) y compuesto_escenas.
+-- Vistas: v_resumen, v_cola, v_descargas, v_fallidas, v_superimagen, v_compuestos, v_legado, v_disco.
 
 -- 1. Resumen general (cantidades por estado) y espacio en disco.
 SELECT * FROM v_resumen;
-SELECT * FROM v_disco;
+SELECT * FROM v_superimagen;
 
 -- 2. Imágenes descargadas y procesadas: fecha, tiempos, intentos y tamaños.
 SELECT * FROM v_descargas;
@@ -29,8 +30,9 @@ SELECT * FROM v_cola;
 -- 7. Catálogo completo de escenas conocidas, con su estado.
 SELECT fecha_utc, satelite, tile, tamano_mb, nubosidad, estado, escena FROM escenas ORDER BY fecha_utc;
 
--- 8. Archivos importados con sync.
-SELECT id, carpeta, l1r_mb, l2w_mb, archivos, validacion, escena FROM procesos WHERE tipo = 'IMPORTADO' ORDER BY id;
+-- 8. Legado (lapargera_v1 e importados con sync): L1R/L2W conservados fuera de la superimagen.
+SELECT * FROM v_legado;
+SELECT * FROM v_disco;
 
 -- 9. Velocidad de descarga: totales y promedio por imagen.
 SELECT count(*) AS descargas, round(sum(descarga_min), 1) AS minutos, round(avg(descarga_min), 1) AS minutos_promedio,
@@ -51,3 +53,26 @@ FROM busquedas b, json_each(b.descartadas) d ORDER BY b.id;
 
 -- 13. Últimos eventos.
 SELECT fecha, proceso, tipo, mensaje FROM eventos ORDER BY id DESC LIMIT 30;
+
+-- 14. Superimagen: resultado de cada escena en cada zona, con nubes, cobertura y glint.
+SELECT fecha, zona, sensor, satelite, estado, round(nubes_pct, 1) AS nubes, round(cobertura_pct, 1) AS cobertura,
+       round(angulo_glint_deg, 1) AS glint_deg, round(bytes / 1e6, 1) AS mb, via_descarga, carpeta
+FROM productos_escena ORDER BY fecha, zona;
+
+-- 15. Linaje de un producto: fuente, checksums, ACOLITE, auxiliares y máscara.
+SELECT escena, zona, proveedor_id, sha256, checksum_proveedor, baseline, via_descarga, acolite, auxiliares, mascara, fecha_proceso
+FROM productos_escena WHERE estado = 'OK' ORDER BY fecha DESC LIMIT 10;
+
+-- 16. Tamaño medio por producto de zona y por mes, frente al presupuesto de 100 GB.
+SELECT sensor, zona, count(*) AS productos, round(avg(bytes) / 1e6, 1) AS mb_medio, round(sum(bytes) / 1e9, 2) AS gb
+FROM productos_escena WHERE estado = 'OK' GROUP BY sensor, zona;
+SELECT substr(fecha, 1, 7) AS mes, round(sum(bytes) / 1e9, 2) AS gb FROM productos_escena GROUP BY mes ORDER BY mes;
+
+-- 17. Compuestos y escenas que entraron a cada uno.
+SELECT * FROM v_compuestos;
+SELECT c.tipo, c.metodo, c.zona, c.sensor, c.periodo, p.fecha, p.escena
+FROM compuestos c JOIN compuesto_escenas ce ON ce.compuesto = c.id JOIN productos_escena p ON p.id = ce.producto
+ORDER BY c.tipo, c.zona, c.periodo, p.fecha;
+
+-- 18. Máscaras de tierra.
+SELECT * FROM mascaras ORDER BY zona, resolucion_m;

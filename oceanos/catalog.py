@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS escenas (
  proveedor TEXT,                   -- CDSE | USGS | LOCAL
  tamano_mb REAL,                   -- tamaño del L1 a descargar
  nubosidad REAL,                   -- % informado por el proveedor
- estado TEXT NOT NULL DEFAULT 'NUEVA', -- NUEVA, PENDIENTE, PROCESADA, FALLIDA, DISPONIBLE, IMPORTADA
+ estado TEXT NOT NULL DEFAULT 'NUEVA', -- NUEVA, PENDIENTE, PROCESADA, FALLIDA, DISPONIBLE (IMPORTADA: legado v4)
  registrada TEXT,                  -- cuándo se puso en la cola (search --registrar)
  vista TEXT,                       -- última búsqueda en que apareció
  adquisicion TEXT,                 -- satélite:día:tile; une la escena con L1R/L2W importados
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS escenas (
 CREATE TABLE IF NOT EXISTS procesos (
  id INTEGER PRIMARY KEY,           -- 1, 2, 3…; también da nombre a la carpeta
  escena TEXT REFERENCES escenas(escena),
- aoi TEXT,                         -- región del perfil (lapargera_v1)
+ aoi TEXT,                         -- región del perfil (water2coast_v1; lapargera_v1 es legado)
  tipo TEXT,                        -- DESCARGA | LOCAL | DERIVADO | IMPORTADO
  estado TEXT,                      -- EN_CURSO, OK, OMITIDO, FALLIDO, INTERRUMPIDO, IMPORTADO
  inicio TEXT,                      -- AAAA-MM-DD HH:MM:SS UTC
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS procesos (
  descarga_mb REAL,
  intentos INTEGER,                 -- intentos de descarga (fallidos + exitoso)
  error TEXT,
- carpeta TEXT,                     -- runs/0007_S2B_2026-02-15
+ carpeta TEXT,                     -- legado: runs/0007_S2B_2026-02-15 (la superimagen va en productos_escena)
  l1r TEXT,                         -- ruta dentro de storage
  l1r_mb REAL,
  l2w TEXT,

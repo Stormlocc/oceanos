@@ -10,7 +10,10 @@ from oceanos.catalog import Catalog
 from oceanos.config import ACOLITE, PROFILE, profile, exclusive
 from oceanos.native import scene_identity, eligible, extract
 from oceanos.pipeline import Pipeline, cleanup, recover
-from sin_red import setUpModule, tearDownModule  # noqa: F401  (sin red en las pruebas)
+import sin_red
+
+# Sin red en las pruebas: unittest llama estos hooks del módulo.
+setUpModule, tearDownModule = sin_red.setUpModule, sin_red.tearDownModule
 
 SCENE='S2B_MSIL1C_20260804T150719_N0512_R082_T19QGV_20260804T182348.SAFE'
 # Intervalo fijo de las pruebas: independiente del intervalo de trabajo del YAML.

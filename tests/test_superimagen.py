@@ -13,7 +13,10 @@ from oceanos.config import PROFILE, file_hash, profile
 from oceanos.escenas import QUALITY_BANDS, read_band, write_cog
 from oceanos.native import scene_identity
 from oceanos.pipeline import Pipeline, StageError
-from sin_red import setUpModule, tearDownModule  # noqa: F401  (sin red en las pruebas)
+import sin_red
+
+# Sin red en las pruebas: unittest llama estos hooks del módulo.
+setUpModule, tearDownModule = sin_red.setUpModule, sin_red.tearDownModule
 
 GRID = {'epsg': 32619, 'resolution_m': 10, 'xrange_m': [700000, 700060], 'yrange_m': [2000040, 2000000],
         'shape_yx': [4, 6], 'geotransform': [700000, 10, 0, 2000040, 0, -10]}

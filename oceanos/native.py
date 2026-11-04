@@ -255,7 +255,7 @@ def usgs_sizes(ac, dataset, entities):
     """Tamaño (bytes) del Product Bundle de cada escena según download-options de M2M.
 
     Devuelve ({entityId: bytes}, None) o ({}, código) si USGS no los entrega; download-options
-    requiere el rol MACHINE de la cuenta M2M.
+    requiere el acceso de descarga M2M de la cuenta (aprobado el 04-11-2026).
     """
     import json
     import requests
@@ -404,7 +404,7 @@ def query(ac, provider, config):
         found, error = usgs_sizes(ac, config['search']['dataset'], entities)
         origin = 'M2M'
         if error:
-            # download-options exige el rol MACHINE; la página de opciones muestra el mismo bundle.
+            # Sin acceso de descarga M2M, la página de opciones de EarthExplorer muestra el mismo bundle.
             found, fallback = earthexplorer_sizes(ac, config['search']['dataset'], entities)
             origin = 'EARTHEXPLORER' if found else 'NO_DISPONIBLE:'+error+','+fallback
         for source in wanted:

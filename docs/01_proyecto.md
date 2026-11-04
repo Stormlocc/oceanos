@@ -1,49 +1,65 @@
 # Proyecto OCEANOS
 
-Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github.com/acolite/acolite) para calidad del agua costera en La Parguera (Puerto Rico). Regla de diseño: antes de escribir una función, comprobar si ACOLITE ya la resuelve; OCEANOS solo añade perfil, catálogo, reintentos, verificación y limpieza.
+Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github.com/acolite/acolite) para la calidad del agua costera y el sargazo en Puerto Rico y Culebra.
 
-## Acuerdos vigentes
+**Regla de diseño:** antes de escribir una función, comprobar si ACOLITE ya la resuelve. OCEANOS solo agrega:
+- perfil y catálogo;
+- reintentos y verificación;
+- la superimagen;
+- limpieza.
 
-- AOI `lapargera_v1` (geometría `config/aoi/lapargera_v1/W2C_South_AOI.kmz`, definitiva para este estudio).
-- Sentinel-2 L1C (SAFE desde CDSE) y Landsat 8/9 L1TP Collection 2 Tier 1 (TAR desde USGS). Zarr remoto retirado el 01-10-2026 por falta de cobertura (ver [ACOLITE](02_acolite.md#zarr-retirado)).
-- Todas las adquisiciones válidas, sin filtro de nubosidad (configurable en el YAML).
-- Salida rectangular a 10 m en EPSG:32619. Remuestrear Landsat de 30 a 10 m no agrega detalle.
-- Prioridad al océano, bahías, lagunas costeras y aguas someras; FAI/NDVI conservan tierra y se filtran después.
-- Varias escenas a la vez hasta su L2W, aprovechando la CPU y la RAM libres del equipo donde se ejecuta (menos una reserva para el sistema), con un máximo de 50 GB temporales ([operación](04_operacion.md#paralelo)).
-- Persisten **L1R, L2W y el catálogo SQLite**; RAW, L2R y registros duplicados son temporales. Regenerar productos desde L1R repite la corrección atmosférica (AC).
-- Productos: `Rrs_*`, `tur_nechad2009`, `chl_oc3`, `ndci` (solo Sentinel-2), `fai`, `ndvi`. OC4 excluido por decisión del usuario (29-09-2026).
-- Código pequeño y legible, pruebas de comportamiento, documentación en español.
-- **No descargar escenas, LUT, auxiliares ni dependencias sin autorización explícita.** `run` y `derive` pueden pedir auxiliares aun con entrada local; el CLI no bloquea la red.
+## Acuerdos vigentes (noviembre de 2026)
 
-## AOI lapargera_v1
+**AOI y sensores**
+- AOI `water2coast_v1`: 4 zonas en `config/aoi/water2coast_v1/AOI_Water2Coast.zip` (definitivo). Se toma solo como geometría; no hereda EPSG, grilla ni algoritmos de `lapargera_v1`.
+- Sensores:
+  - Sentinel-2 L1C (SAFE desde CDSE).
+  - Landsat 8/9 L1TP Collection 2 Tier 1 (TAR desde USGS por M2M; EarthExplorer como respaldo).
+  - Sentinel-3 OLCI L1 EFR (CDSE).
 
-| Magnitud | Valor |
-|---|---|
-| Límites (O, S, E, N) | -67,0918°, 17,8351°, -66,4024°, 18,0474° |
-| Área geodésica | 1.712 km² (≈37 % tierra y ≈63 % agua según Natural Earth 1:10 M, solo orientativo) |
-| Zona | UTM 19N, sin cruce de zonas; EPSG:32619 |
-| Sentinel-2 | 19QGV contiene el 100 % del AOI (19QGA, 19QFV y 19QFA solo por solapamiento) |
-| Landsat WRS-2 | 005/048 cubre el 99,886 %; 005/047 el 16,877 % (USGS devuelve ambos; el perfil usa 005/048) |
-| Grilla final | 2440 × 7335 píxeles de 10 m; x 701980–775330 m, y 1997360–1972960 m |
+**Procesamiento**
+- Resolución nativa por sensor: S2 a 10 m, Landsat a 30 m y OLCI a 300 m, en el UTM de cada zona. No se remuestrea a una grilla común.
+- Una zona con más del 50 % de nubes se omite (`NUBOSA`). La nubosidad se mide sobre la zona, no sobre la escena.
+- Glint: corrección residual de ACOLITE con `rhog_ref` por píxel; los umbrales se calibran con datos ([superimagen](07_superimagen.md#umbrales-de-glint-origen-y-calibración)).
+- Máscara de tierra: ESA WorldCover 10 m.
 
-La grilla es la que produce el recorte nativo de ACOLITE (`projection_sub`) sobre el rectángulo del AOI con el extent de 19QGV, verificada con escenas reales de ambos sensores. Sustituye la propuesta geométrica inicial de 2431 × 7334. El polígono no es un rectángulo exacto: se procesa su rectángulo envolvente, sin buffer.
+**Productos y almacenamiento**
+- Productos:
+  - S2 y Landsat: Rrs, OC2/OC3, Gons (solo S2), CI, NDCI (solo S2), turbidez y SPM de Nechad, Kd490 por QAA, FAI, FAIT y NDVI.
+  - OLCI: Rrs, OC4, CI, NDCI, Nechad y Kd490.
+- Persisten **la superimagen y el catálogo SQLite**. Crudo, extracción, L1R, L2R y L2W se borran tras exportar y verificar.
+- Presupuestos: 100 GB para la superimagen y 50 GB para los temporales.
+- Varias escenas a la vez, con la CPU y RAM libres del equipo ([operación](04_operacion.md#paralelo)).
 
-![Cobertura del AOI](evidence/phase1/aoi_coverage.png)
+**Legado**
+- `lapargera_v1` (14 L1R/L2W de Sentinel-2) se conserva aparte como legado.
+
+**Código y autorizaciones**
+- Código pequeño y legible, pruebas de comportamiento sin red y documentación en español.
+- Cada decisión queda en `docs/` con su fuente.
+- Las descargas fuera de lo autorizado, el borrado de datos del usuario y los cambios de alcance se consultan antes.
+
+## AOI Water2Coast
+
+| Zona | EPSG | S2 | Landsat | Grilla 10 m | Grilla 30 m | Grilla 300 m |
+|---|---|---|---|---|---|---|
+| Mayagüez–Cabo Rojo | 32619 | 19QFA, 19QFV | 005047, 005048 | 3783 × 2179 | 1262 × 727 | 127 × 74 |
+| La Parguera–Guánica | 32619 | 19QFV, 19QGV | 005048 | 1702 × 3070 | 568 × 1024 | 57 × 103 |
+| Ponce–Guayanilla | 32619 | 19QGV | 005048 | 2014 × 6154 | 672 × 2052 | 68 × 206 |
+| Fajardo–Culebra | 32620 | 20QKF | 004047 | 2693 × 5481 | 898 × 1828 | 91 × 183 |
+
+Las filas × columnas de 30 y 300 m son la misma envolvente ampliada a múltiplos de la resolución. Cálculo en `oceanos/zonas.py`; las elecciones de tiles y path/row se justifican en [07](07_superimagen.md#zonas-grillas-y-resolución).
+
+## AOI legado `lapargera_v1`
+
+La Parguera, 19QGV, EPSG:32619, una grilla de 2440 × 7335 píxeles de 10 m (geometría `config/aoi/lapargera_v1/W2C_South_AOI.kmz`). Sus 14 L1R/L2W siguen en `storage/runs`. Ver [resultados](05_resultados.md).
 
 ## Historia resumida
 
 | Fase | Fecha | Resultado que sigue vigente |
 |---|---|---|
-| 1. AOI | 25-09-2026 | 19QGV single-tile, EPSG:32619, sin buffer |
-| 2. Auditoría ACOLITE | 25-09-2026 | ACOLITE cubre consulta, descarga, lectura, AC y L2W; revisión fijada `80da0c0` ([detalle](02_acolite.md)) |
-| 3–4. Catálogo y perfil | 25/29-09-2026 | Diseño SQLite y perfil candidato con overrides mínimos ([configuración](03_configuracion.md)) |
-| 5. Entrada | 29-09-2026 | SAFE desde CDSE como entrada Sentinel-2 |
-| 6–7. Primer ensayo y diagnóstico | 29-09-2026 | Productos acuáticos enmascarados por el umbral SWIR; sin error radiométrico ([resultados](05_resultados.md)) |
-| 8–9. Benchmark y limpieza | 29-09-2026 | Concurrencia uno; política de retención reemplazada por la vigente |
-| 10. Multifecha y Landsat | 30-09-2026 | 5 Sentinel-2 + 3 Landsat en la grilla común; Landsat proyecta L1R antes de AC |
-| 11. Wrapper | 30-09/01-10-2026 | CLI `oceanos`, SQLite, reintentos, regeneración desde L1R; reinicio de ensayos |
-| 11.1. Cola y sync | 07-10-2026 | `search --registrar` → `run`, `sync`, progreso, tiempos, consulta USGS ([operación](04_operacion.md)) |
-| 11.2. Catálogo legible | 08-10-2026 | SQLite v4: escenas, procesos, búsquedas y eventos, con vistas; carpetas `runs/0001_S2C_2026-01-01` |
-| 12–14 | — | Docker/Airflow, cubo Zarr y productos propios: no iniciados ([pendientes](06_pendientes.md)) |
-
-Cada fase nueva requiere una orden explícita del usuario.
+| 1–2. AOI y auditoría ACOLITE | 25-09-2026 | ACOLITE cubre consulta, descarga, lectura, AC y L2W; revisión fijada `80da0c0` ([detalle](02_acolite.md)) |
+| 3–10. Catálogo, perfil y ensayos `lapargera_v1` | 25/30-09-2026 | Productos acuáticos enmascarados por el umbral SWIR sin glint residual ([resultados](05_resultados.md)) |
+| 11. Wrapper, cola, catálogo legible y paralelo | 30-09/03-11-2026 | CLI `oceanos`, SQLite, reintentos, descargas propias en streaming, reparto dinámico del hardware |
+| 12. Superimagen Water2Coast | 04-11-2026 | 4 zonas, resolución nativa, glint, COG con calidad y linaje, WorldCover, sargazo, compuestos, `run` único, M2M, OLCI, catálogo v5 ([superimagen](07_superimagen.md)) |
+| Siguiente | — | Ensayo dic-2025/ene-2026, calibración de glint y luego 12 meses (nov-2025 a oct-2026). Docker/Airflow sin iniciar ([pendientes](06_pendientes.md)) |
