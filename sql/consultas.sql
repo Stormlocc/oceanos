@@ -1,9 +1,9 @@
--- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v6).
+-- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v7).
 -- Abrir con:  python -m sqlite3 storage/catalog/catalog.sqlite   (o DB Browser for SQLite)
--- Tablas: escenas (catálogo + cola), procesos (descarga y procesamiento, legado=1 es lapargera_v1),
+-- Tablas: escenas (catálogo + cola), procesos (descarga y procesamiento; SINCRONIZADO = traído con sync),
 --         busquedas, eventos, productos_escena (superimagen por escena y zona, con linaje),
 --         mascaras, compuestos (sargazo diario y compuestos) y compuesto_escenas.
--- Vistas: v_resumen, v_cola, v_descargas, v_fallidas, v_superimagen, v_compuestos, v_legado, v_disco.
+-- Vistas: v_resumen, v_cola, v_descargas, v_fallidas, v_superimagen, v_compuestos.
 
 -- 1. Resumen general (cantidades por estado) y espacio en disco.
 SELECT * FROM v_resumen;
@@ -30,9 +30,12 @@ SELECT * FROM v_cola;
 -- 7. Catálogo completo de escenas conocidas, con su estado.
 SELECT fecha_utc, satelite, tile, tamano_mb, nubosidad, estado, escena FROM escenas ORDER BY fecha_utc;
 
--- 8. Legado (lapargera_v1 e importados con sync): L1R/L2W conservados fuera de la superimagen.
-SELECT * FROM v_legado;
-SELECT * FROM v_disco;
+-- 8. Productos traídos de otra computadora con sync: cuántos, de qué sensor y de qué proceso de origen.
+SELECT z.sensor, z.estado, count(*) AS productos, round(sum(coalesce(z.bytes, 0)) / 1e9, 2) AS gb,
+       min(z.fecha) AS desde, max(z.fecha) AS hasta
+FROM productos_escena z JOIN procesos p ON p.id = z.proceso WHERE p.tipo = 'SINCRONIZADO'
+GROUP BY z.sensor, z.estado;
+SELECT * FROM eventos WHERE tipo = 'SINCRONIZACION' ORDER BY id;
 
 -- 9. Velocidad de descarga: totales y promedio por imagen.
 SELECT count(*) AS descargas, round(sum(descarga_min), 1) AS minutos, round(avg(descarga_min), 1) AS minutos_promedio,

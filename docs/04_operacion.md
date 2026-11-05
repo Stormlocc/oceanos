@@ -17,10 +17,10 @@
 | `mascara` | WorldCover | Crear las máscaras de tierra que falten |
 | `sargazo`, `componer` | No | Recalcular sargazo diario o compuestos desde `superimagen/escenas` |
 | `superimagen` | No | Productos por zona y sensor, compuestos y disco frente al presupuesto |
-| `status [N] [--estado E] [--ultimas N] [--legado]` | No | Procesos, o el detalle del proceso N |
-| `reporte [--resultado R] [--sensor S] [--csv ARCHIVO] [--legado]` | No | Resultado por escena y por zona, con motivo e intentos |
+| `status [N] [--estado E] [--ultimas N]` | No | Procesos, o el detalle del proceso N |
+| `reporte [--resultado R] [--sensor S] [--csv ARCHIVO]` | No | Resultado por escena y por zona, con motivo e intentos |
 | `cola [--quitar ESCENA…]` | No | Ver o retirar escenas de la cola |
-| `sync [CARPETA] [--hash]` | No | Registrar como **legado** L1R/L2W copiados a mano |
+| `sync` | No | Traer la superimagen de otra computadora pegada en `storage/superimagen/sincronizar/` ([sync](#sync-superimagen-de-otra-computadora)) |
 | `recover` | No | Marcar interrupciones y limpiar lo parcial; se ejecuta solo al iniciar `run` y `search` |
 
 **Selección.** Las opciones de selección valen antes o después del comando:
@@ -45,7 +45,7 @@
 2. **Por cada sensor seleccionado:**
    1. **Máscaras de tierra.** Se crean las que falten para cada zona; WorldCover se descarga una sola vez.
    2. **Búsqueda.** Se busca el periodo completo y se registran las escenas `NUEVA` y `FALLIDA`. Se omiten, con su motivo, las que repiten una adquisición ya en cola o ya terminada en todas sus zonas.
-   3. **Estimación.** Se muestra la lista que se descargaría y el total: escenas, GB de L1, productos de zona y su tamaño estimado, uso actual de la superimagen frente a los 120 GB. Si se pasaría del presupuesto, aparece un AVISO. Con `--plan` el comando termina aquí.
+   3. **Estimación.** Se muestra la lista que se descargaría y el total: escenas, GB de L1, productos de zona y su tamaño estimado, uso actual de la superimagen frente a los 300 GB. Si se pasaría del presupuesto, aparece un AVISO. Con `--plan` el comando termina aquí.
    4. **Escenas en paralelo** (ver [ejecución de una escena](#ejecución-de-una-escena)).
    5. **Sargazo diario** de los días del periodo.
    6. **Compuestos** de los meses completos, con sus estaciones y años.
@@ -86,7 +86,7 @@ oceanos run --start 2026-01-01 --end 2026-02-01
 |---|---|
 | `AUXILIAR_POR_DEFECTO` | ACOLITE no consiguió MERRA-2 |
 | `SIN_MASCARA` | Falta la máscara de tierra de la zona |
-| `PRESUPUESTO_SUPERIMAGEN` | No cabe otro producto en los 120 GB |
+| `PRESUPUESTO_SUPERIMAGEN` | No cabe otro producto en los 300 GB |
 | `ValueError` | Falta un producto o la grilla no coincide (el mensaje queda en el evento) |
 
 ## Ejecución de una escena
@@ -187,26 +187,32 @@ Paralelo: 8 escena(s) a la vez · equipo 20 CPU, 29.4 GB RAM (28.0 GB libre) · 
 
 ## Retención y limpieza
 
-- **Qué persiste:** la superimagen (`storage/superimagen`), el catálogo y el legado. Crudo, extracción, L1R, L2R y L2W se borran después de exportar y verificar.
+- **Qué persiste:** la superimagen (`storage/superimagen`) y el catálogo. Crudo, extracción, L1R, L2R y L2W se borran después de exportar y verificar.
 - **Proceso fallido:** conserva su temporal (`APLAZADA`) para reutilizar el crudo. Cuando un intento posterior lo reutiliza, se limpia.
 - **Seguridad:** toda ruta se resuelve dentro de `storage/temporary/<N>` y nunca se siguen enlaces. Un fallo de borrado deja `limpieza FALLIDA` sin convertir en fallido un proceso exitoso.
-- **Lo que nunca se borra:** el legado y lo importado (`NO_APLICA`), las fuentes externas, el AOI y las credenciales. Los flags de borrado nativo de ACOLITE están desactivados.
-- **Presupuestos:** 50 GB de temporales, que cuentan `storage/temporary`, `acolite/data` y `acolite/scratch`, con al menos 2 GB libres en el disco. La superimagen tiene 120 GB aparte ([disco](07_superimagen.md#disco)).
+- **Lo que nunca se borra:** las fuentes externas, el AOI y las credenciales. Los procesos `SINCRONIZADO` no tienen temporales (`NO_APLICA`). Los flags de borrado nativo de ACOLITE están desactivados.
+- **Presupuestos:** 50 GB de temporales, que cuentan `storage/temporary`, `acolite/data` y `acolite/scratch`, con al menos 2 GB libres en el disco. La superimagen tiene 300 GB aparte ([disco](07_superimagen.md#disco)).
 
-## Legado `lapargera_v1`
+## Sync: superimagen de otra computadora
 
-- **Migración del catálogo.** Al abrir un catálogo v4, OCEANOS hace una copia de respaldo y lo migra a la versión actual (v6).
-  - Los procesos anteriores quedan con `legado=1`.
-  - Sus escenas vuelven a `NUEVA`.
-- **Archivos.** Los L1R/L2W siguen en `storage/runs` y nunca se borran.
-- **Fuera del trabajo nuevo.** El legado no entra a la cola, ni a la regla de "ya tenemos esta adquisición", ni a la superimagen.
-- **Consulta.** Se ve con `status --legado`, `reporte --legado` o la vista `v_legado`.
+Para repartir el trabajo entre computadoras (por ejemplo, una descarga S2 y OLCI, y otra Landsat), cada una corre `run` con su propio `storage/`. Después, en la computadora que reúne todo:
 
-`sync` registra como legado los L1R/L2W copiados a mano a una carpeta de `storage`. La carpeta por defecto es `importados`; no se pueden usar `catalog`, `temporary`, `superimagen` ni `auxiliares`.
-- **Qué lee:** solo el nombre de salida de ACOLITE (`<sensor>_<AAAA_MM_DD_HH_MM_SS>_<tile|pathrow>_<región>_<L1R|L2W>.nc`), sin abrir los NetCDF.
-- **`--hash`:** calcula el SHA-256.
-- **Idempotencia:** `sync` se puede repetir sin duplicar registros.
-- **Estado de la escena:** no lo cambia.
+1. **Pegar.** En `storage/superimagen/sincronizar/` se pegan dos cosas de la otra computadora, con su `run` ya terminado: la carpeta `storage/superimagen/escenas/` (como `sincronizar/escenas/`) y el archivo `storage/catalog/catalog.sqlite`. Si junto al catálogo hay un `catalog.sqlite-wal`, se copia también.
+2. **Ejecutar** `oceanos sync`.
+
+Qué hace (`oceanos/sync.py`):
+- **Versión.** Acepta catálogos v6 o v7. Uno más antiguo se migra antes, en la otra computadora, con cualquier comando de OCEANOS.
+- **Búsquedas.** Copia las búsquedas `OK` del mismo AOI que aquí no estaban. Sin ellas, un mes no contaría como buscado y no tendría compuesto.
+- **Escenas.** Copia las que aquí no existían. Una escena que allá quedó en cola o fallida entra como `NUEVA`: no se descarga sola, pero deja su mes incompleto.
+- **Productos por zona** (`OK`, `NUBOSA`, `SIN_DATOS`), con todo su linaje y un proceso `SINCRONIZADO` que guarda el id del proceso de origen y sus métricas.
+- **Conflictos.** Si aquí ya hay un producto de la misma adquisición y zona, se queda **el de fecha de proceso más reciente**. El otro se borra: su fila, sus vínculos a compuestos y su carpeta.
+- **Verificación.** Antes de mover una carpeta `OK`, comprueba que están todos los COG de `variables`, que GDAL los abre y que suman los `bytes` del linaje. Si algo falla, ese producto no entra y su carpeta queda en `sincronizar/`.
+- **Derivados.** Recalcula el sargazo diario y los compuestos de los sensores traídos, sin descargar.
+- **Limpieza.** Si todo entró, borra el `catalog.sqlite` pegado y las carpetas vacías. Si algo falló, conserva el catálogo para repetir `sync` después de corregir.
+- **Idempotencia.** Repetirlo con lo mismo pegado no duplica nada: lo ya traído se reconoce por su fecha de proceso.
+- **Disco.** Lo pegado ya ocupa espacio dentro de `storage/superimagen`, así que cuenta para los 300 GB desde que se pega.
+
+Las máscaras de tierra no se copian: cada computadora crea las suyas con el mismo método.
 
 ## Reporte
 
@@ -223,19 +229,19 @@ Opciones:
 
 `oceanos superimagen` resume los productos por zona y sensor, los compuestos y el disco.
 
-## Catálogo SQLite (esquema v6)
+## Catálogo SQLite (esquema v7)
 
 `storage/catalog/catalog.sqlite` es el único registro operativo.
 - **Formato:** fechas `AAAA-MM-DD HH:MM:SS` UTC; tamaños en MB, salvo `bytes`.
 - **Comentarios:** cada columna lleva su comentario en la base y los visores lo muestran.
-- **Migración:** un catálogo v4 o v5 se respalda (`catalog_v<n>_respaldo_<fecha>.sqlite`) y se migra en el sitio.
-  - v4: los procesos del AOI anterior quedan como legado.
-  - v5 → v6 (noviembre de 2026): se agrega `productos_escena.correccion`, que queda vacía en los productos ya exportados. Se registra un evento `MIGRACION`.
+- **Migración:** un catálogo v5 o v6 se respalda (`catalog_v<n>_respaldo_<fecha>.sqlite`) y se migra en el sitio; cada paso deja un evento `MIGRACION`. Uno v1–v4, anterior a la superimagen, se guarda como respaldo y se empieza uno nuevo.
+  - v5 → v6 (noviembre de 2026): se agrega `productos_escena.correccion`, que queda vacía en los productos ya exportados.
+  - v6 → v7 (05-11-2026): se quita el legado `lapargera_v1`. Se borran sus procesos y eventos y las escenas `LOCAL` que solo creó el `sync` anterior. `procesos` pierde las columnas L1R/L2W, `carpeta`, `archivos`, las claves de reutilización y `legado`, y desaparecen las vistas `v_legado` y `v_disco`.
 
 | Tabla | Una fila por | Columnas principales |
 |---|---|---|
 | `escenas` | Producto del proveedor | sensor, satélite, `fecha_utc`, tile, proveedor, `tamano_mb`, nubosidad, estado (cola), `adquisicion`, `fuente` (JSON), `zonas` (JSON) |
-| `procesos` | Descarga y procesamiento, o importación | escena, aoi, tipo, estado, tiempos, intentos, error, validación, limpieza, `detalle` (JSON: métricas, zonas, entorno), `legado` |
+| `procesos` | Descarga y procesamiento, o producto traído con sync (`SINCRONIZADO`) | escena, aoi, tipo, estado, tiempos, intentos, error, validación, limpieza, `detalle` (JSON: métricas, zonas, entorno y origen de sync) |
 | `busquedas` | Intento de búsqueda | proveedor, sensor, satélites, desde, hasta, estado, devueltas, cumplen, completitud, tamaños, descartadas, `aoi` |
 | `eventos` | Hecho relevante | fecha, proceso, escena, tipo, mensaje |
 | `productos_escena` | Escena × zona × AOI | estado, carpeta, bytes, variables, nubes, cobertura, glint y linaje completo ([07](07_superimagen.md#etapa-escenas)) |
@@ -253,8 +259,6 @@ Opciones:
 | `v_fallidas` | Escenas fallidas |
 | `v_superimagen` | Escenas y GB por zona, sensor y estado |
 | `v_compuestos` | Compuestos generados |
-| `v_legado` | Procesos del legado |
-| `v_disco` | L1R/L2W del legado |
 
 Hay más consultas en [`sql/consultas.sql`](../sql/consultas.sql).
 
@@ -264,21 +268,26 @@ Hay más consultas en [`sql/consultas.sql`](../sql/consultas.sql).
 env PYTHONPATH=.:tests /home/antho/.local/bin/micromamba run -p /home/antho/micromamba/envs/acolite python -m unittest discover -s tests
 ```
 
-Son 103 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
+Son 102 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
 
 - **`test_wrapper.py`** cubre:
-  - catálogo, migraciones v4 y v5 → v6, y legado;
+  - catálogo y migraciones (v4 a respaldo, v5 → v7 y v6 → v7 sin legado);
   - cola por adquisición y zonas, y reutilización del crudo;
   - limpieza y presupuestos;
   - validación;
   - descargas CDSE y USGS (M2M y respaldo EarthExplorer), reanudación con `Range` y reintentos;
   - paralelo y recursos;
-  - CLI (`run --plan`, selección, reporte con CSV) y `sync` como legado.
+  - CLI (`run --plan`, selección, reporte con CSV).
 - **`test_superimagen.py`** cubre, sobre una grilla pequeña:
   - exportación a COG con `calidad.tif` (incluidos `aot_550`, `vza` y `raa`, y la lectura del formato anterior de 10 bandas) y linaje con `correccion`;
   - nubes por zona y máscara de tierra;
   - sargazo diario;
   - compuestos (a) y (b) con sus pesos, estaciones y años, y completitud del mes;
   - flujo completo de una zona.
+- **`test_sync.py`** cubre, con dos storages que simulan dos computadoras:
+  - productos, búsquedas y escenas traídos, con limpieza del catálogo pegado y repetición sin duplicados;
+  - conflicto de una misma adquisición: gana la fecha de proceso más reciente, en los dos sentidos;
+  - carpeta incompleta (no entra y el catálogo pegado se conserva) y versión de catálogo no aceptada;
+  - `oceanos sync` recalcula sargazo y compuestos solo de los sensores traídos.
 
 Las pruebas no validan los algoritmos científicos de ACOLITE.

@@ -13,10 +13,10 @@ from .pipeline import (DISK_MARGIN, Pipeline, cleanup, disk_free, explain, produ
                        superimagen_bytes)
 from .progress import Progress, size, duration
 from .resources import plan
-from .sync import sync
+from .sync import folder as sync_folder, sync
 
 SATELLITES = {platform: family for family, platforms in PLATFORMS.items() for platform in platforms}
-STATES = ['EN_CURSO', 'OK', 'OMITIDO', 'FALLIDO', 'INTERRUMPIDO', 'IMPORTADO']
+STATES = ['EN_CURSO', 'OK', 'OMITIDO', 'FALLIDO', 'INTERRUMPIDO']
 RESULTS = ['OK', 'DISPONIBLE', 'FALLIDA', 'PENDIENTE']
 LOCAL_FORMATS = {'sentinel2': 'SAFE', 'landsat': 'TAR', 'olci': 'SEN3'}
 DATE = 'AAAA-MM-DD[THH:MM:SSZ]'
@@ -170,29 +170,25 @@ def parser():
     command('superimagen', 'Productos por zona y sensor, compuestos y disco frente al presupuesto (sin red)',
             examples='  oceanos superimagen')
     status = command('status', 'Procesos desde SQLite (sin ACOLITE ni red)',
-        examples='  oceanos status --ultimas 5\n  oceanos status --estado FALLIDO\n  oceanos status 7\n  oceanos status --legado')
+        examples='  oceanos status --ultimas 5\n  oceanos status --estado FALLIDO\n  oceanos status 7')
     status.add_argument('run', nargs='?', metavar='PROCESO', help='número de proceso: detalle con métricas y eventos')
     status.add_argument('--ultimas', type=int, metavar='N', help='solo los N procesos más recientes')
     status.add_argument('--estado', choices=STATES, metavar='ESTADO', help='filtrar por estado: '+', '.join(STATES))
-    status.add_argument('--legado', action='store_true', help='procesos de AOI anteriores (lapargera_v1), aparte')
     report = command('reporte', 'Resultado por escena con el de cada zona y el motivo de las fallidas (sin red)',
-        '--csv guarda la misma tabla. --legado lista los L1R/L2W de AOI anteriores, que se conservan\n'
-        'pero no entran a la superimagen.',
-        '  oceanos reporte\n  oceanos reporte --resultado FALLIDA\n  oceanos reporte --sensor landsat --csv reporte.csv\n'
-        '  oceanos reporte --legado')
+        '--csv guarda la misma tabla.',
+        '  oceanos reporte\n  oceanos reporte --resultado FALLIDA\n  oceanos reporte --sensor landsat --csv reporte.csv')
     report.add_argument('--resultado', choices=RESULTS, metavar='RESULTADO', help='filtrar: '+', '.join(RESULTS))
     report.add_argument('--csv', type=Path, metavar='ARCHIVO', help='guardar el reporte en CSV')
     report.add_argument('--sensor', choices=list(PLATFORMS), help='solo ese sensor')
-    report.add_argument('--legado', action='store_true', help='listar el legado en vez de la superimagen')
     queue = command('cola', 'Ver la cola de descargas (sin red)',
         examples='  oceanos cola\n  oceanos cola --quitar 20260116 20260205')
     queue.add_argument('--quitar', nargs='+', metavar='ESCENA', help='retirar de la cola escenas no procesadas')
-    imports = command('sync', 'Registrar como legado L1R/L2W copiados a mano a una carpeta de storage',
-        'Se conservan y se listan con --legado; no cuentan para la superimagen ni para la cola.',
-        '  oceanos sync storage/importados/pc2 --hash')
-    imports.add_argument('carpeta', nargs='?', type=Path, metavar='CARPETA',
-                         help='carpeta dentro de storage. Por defecto: storage/importados')
-    imports.add_argument('--hash', action='store_true', help='calcular también el SHA-256 de cada archivo (lento)')
+    command('sync', 'Traer la superimagen de otra computadora pegada en storage/superimagen/sincronizar (sin red)',
+        'Pegue en storage/superimagen/sincronizar/ la carpeta escenas/ de storage/superimagen y el\n'
+        'storage/catalog/catalog.sqlite de la otra computadora (con el run de allá terminado). sync verifica\n'
+        'y mueve cada producto, deja el de proceso más reciente si ya existía, registra búsquedas y escenas,\n'
+        'recalcula sargazo y compuestos y borra el catalog.sqlite pegado. Se puede repetir.',
+        '  oceanos sync')
     command('recover', 'Registrar interrupciones y limpiar lo parcial (automático al iniciar run y search)',
             examples='  oceanos recover')
     clean = command('cleanup', 'Evaluar la limpieza de temporales de un proceso', examples='  oceanos cleanup 7', hidden=True)
@@ -354,23 +350,6 @@ def show_report(catalog, result=None, csv_path=None, sensor=None):
         print('\n' + ' · '.join(f'{name}: {counts[name]}' for name in RESULTS if name in counts))
         if counts.get('FALLIDA'):
             print("Las FALLIDA siguen en la cola: 'oceanos run' las reintenta ('oceanos cola --quitar ESCENA' para descartarlas).")
-    legacy = catalog.legacy_count()
-    if legacy:
-        print(f"Legado: {legacy} procesos de AOI anteriores, aparte ('oceanos reporte --legado').")
-    if csv_path:
-        write_csv(csv_path, rows, columns)
-
-
-def show_legacy(catalog, csv_path=None):
-    """Procesos de legado (AOI anteriores): se conservan, no entran a la superimagen."""
-    rows = catalog.legacy()
-    columns = [('ID', 'id'), ('AOI', 'aoi'), ('FECHA (UTC)', 'fecha_utc'), ('SAT', 'satelite'), ('TIPO', 'tipo'),
-               ('ESTADO', 'estado'), ('L2W', 'l2w'), ('ESCENA', 'escena')]
-    if not rows:
-        print('Sin procesos de legado.')
-        return
-    table(rows, columns)
-    print(f'\n{len(rows)} procesos de legado: se conservan y nunca entran a la superimagen, la cola ni el "ya lo tenemos".')
     if csv_path:
         write_csv(csv_path, rows, columns)
 
@@ -533,8 +512,8 @@ def run_sensor(catalog, config, args):
 def catalog_notice(catalog):
     """Explica una migración o un catálogo nuevo al abrirlo."""
     if catalog.migrated:
-        legacy = (f" {catalog.legacy_count()} procesos de lapargera_v1 quedan como legado ('oceanos reporte --legado')."
-                  if catalog.migrated_from == 4 else '')
+        legacy = (f' Se quitaron {catalog.removed_legacy} procesos del legado lapargera_v1.'
+                  if catalog.removed_legacy else '')
         print(f'Catálogo v{catalog.migrated_from} migrado a v{VERSION} '
               f'(respaldo: {catalog.backup.relative_to(catalog.storage)}).'+legacy)
     elif catalog.backup:
@@ -547,7 +526,7 @@ def offline_command(catalog, args):
         if args.run:
             show_detail(catalog.run_detail(args.run))
         else:
-            show_runs(catalog.runs(args.estado, args.ultimas, legacy=args.legado))
+            show_runs(catalog.runs(args.estado, args.ultimas))
         return 0
     if args.command == 'recover':
         result = recover(catalog)
@@ -557,29 +536,46 @@ def offline_command(catalog, args):
         print(cleanup(catalog, args.run))
         return 0
     if args.command == 'reporte':
-        if args.legado:
-            show_legacy(catalog, args.csv)
-        else:
-            show_report(catalog, args.resultado, args.csv, args.sensor)
+        show_report(catalog, args.resultado, args.csv, args.sensor)
         return 0
     if args.command == 'cola':
         for text in args.quitar or []:
             catalog.dequeue(catalog.resolve_scene(text))
         show_queue(catalog)
         return 0
-    if args.command == 'sync':
-        report = sync(catalog, args.carpeta or args.storage/'importados', hashed=args.hash)
-        for key in ('reaparecidos', 'desaparecidos', 'no_reconocidos', 'duplicados'):
-            for name in report[key]:
-                print(f'  {key}: {name}')
-        print(f"Importados como legado {len(report['importados'])} archivos · ya registrados {report['ya_registrados']}")
-        return 0
     return None
+
+
+def sync_command(catalog, configs):
+    """`oceanos sync`: trae lo pegado en superimagen/sincronizar y recalcula sargazo y compuestos."""
+    report = sync(catalog, configs[0]['aoi']['id'])
+    for key, title in (('importados', 'nuevo'), ('reemplazados', 'reemplaza uno más antiguo'),
+                       ('omitidos', 'ya estaba igual o más nuevo'), ('errores', 'NO ENTRÓ')):
+        for label in report[key]:
+            print(f'  {title}: {label}')
+    print(f"Sincronizado: {len(report['importados'])} productos nuevos · {len(report['reemplazados'])} reemplazados · "
+          f"{len(report['omitidos'])} omitidos · {len(report['errores'])} con errores · "
+          f"{report['busquedas']} búsquedas y {report['escenas']} escenas")
+    if report['otro_aoi']:
+        print(f"{report['otro_aoi']} productos de otro AOI no se trajeron.")
+    folder = sync_folder(catalog.storage).relative_to(catalog.storage)
+    if report['catalogo_borrado']:
+        print(f'Se borró el catalog.sqlite pegado en {folder}.')
+    else:
+        print(f'El catalog.sqlite pegado se conserva en {folder}: corrija lo que no entró y repita oceanos sync.')
+    if report['restos']:
+        print(f"Quedan {len(report['restos'])} archivos sin reconocer en {folder}, p. ej. {report['restos'][0]}")
+    for config in configs:
+        if SENSOR_TAG[config['family']] in report['sensores']:
+            derived_products(catalog, config)
+    return 1 if report['errores'] else 0
 
 
 def profile_command(catalog, args):
     """Comandos que usan el perfil (uno o varios sensores); devuelve el código de salida."""
     configs = load_profiles(args)
+    if args.command == 'sync':
+        return sync_command(catalog, configs)
     if args.command == 'superimagen':
         show_superimagen(catalog, configs[0]['superimagen_budget'])
         return 0
@@ -620,7 +616,7 @@ def profile_command(catalog, args):
 def main(argv=None):
     """Ejecuta un subcomando bajo el bloqueo exclusivo del catálogo y devuelve el código de salida."""
     args = parser().parse_args(argv)
-    for name in ('source', 'plan', 'version', 'force', 'trabajadores', 'registrar', 'json', 'legado'):
+    for name in ('source', 'plan', 'version', 'force', 'trabajadores', 'registrar', 'json'):
         setattr(args, name, getattr(args, name, None))
     try:
         with exclusive(args.storage):

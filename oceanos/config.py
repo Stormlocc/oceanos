@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = '80da0c0c681d9597fd4b7737837d6a3e61907b33'
 # Instalación activa; prepare aplica el parche de catálogo sobre esta revisión.
 ACOLITE = Path.home()/'acolite'
-# Perfil por defecto: AOI Water2Coast. lapargera_v1 queda solo como registro del legado.
+# Perfil por defecto: AOI Water2Coast.
 PROFILE = ROOT/'config/aoi/water2coast_v1'
 SENSORS = ('sentinel2', 'landsat', 'olci')
 PLATFORMS = {'sentinel2': ('S2A', 'S2B', 'S2C'), 'landsat': ('L8', 'L9'), 'olci': ('S3A', 'S3B')}

@@ -68,7 +68,7 @@ DISK_MARGIN = 2e9
 def roots(storage, acolite):
     """Carpetas del presupuesto de temporales: temporales de storage, LUT/auxiliares y scratch de ACOLITE.
 
-    La superimagen tiene su propio presupuesto y el legado (runs, importados) no es temporal.
+    La superimagen tiene su propio presupuesto.
     """
     return [Path(storage)/'temporary', Path(acolite).resolve()/'data', Path(acolite).resolve()/'scratch']
 
@@ -659,8 +659,8 @@ def cleanup(catalog, process, force=False):
     """
     row = catalog.process(int(process))
     process = row['id']
-    if row['tipo'] == 'IMPORTADO' or row['legado']:
-        # Legado e importados no tienen temporales propios y sus archivos nunca se borran.
+    if row['tipo'] == 'SINCRONIZADO':
+        # Traído de otra computadora con sync: aquí no tiene temporales.
         return 'NO_APLICA'
     if row['estado'] == 'FALLIDO' and not force:
         catalog.update(process, limpieza='APLAZADA')

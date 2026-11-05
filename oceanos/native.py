@@ -76,31 +76,6 @@ OLCI_NAME = re.compile(r'(?P<platform>S3[AB])_OL_1_EFR____(?P<start>\d{8}T\d{6})
                        r'\d{4}_\d{3}_(?P<orbit>\d{3})_[\d_]{4}_\w{3}_\w_(?P<timeliness>NR|NT|ST)_(?P<baseline>\d{3})(\.SEN3)?')
 
 
-# Nombre de salida ACOLITE: <sensor>_<AAAA_MM_DD_HH_MM_SS>_<tile o path/row>[_<región>]_<L1R|L2W>.nc
-OUTPUT_NAME = re.compile(r'(?P<sensor>S2[ABC]_MSI|L[89]_OLI)_(?P<time>\d{4}(?:_\d{2}){5})_'
-                         r'(?P<place>T\d{2}[A-Z]{3}|\d{6})(?:_(?P<region>.+?))?_(?P<level>L1R|L2W)\.nc')
-
-
-def output_identity(name):
-    """Identidad de un L1R/L2W de ACOLITE solo por su nombre de archivo, sin abrirlo.
-
-    El instante del nombre es el de sensado del gránulo, no el del producto L1C; por eso la
-    relación con una escena del catálogo se hace por `acquisition_day`.
-    """
-    match = OUTPUT_NAME.fullmatch(name)
-    if not match:
-        raise ValueError('Nombre de salida ACOLITE no reconocido')
-    sensor, place = match['sensor'].split('_')[0], match['place']
-    date = datetime.strptime(match['time'], '%Y_%m_%d_%H_%M_%S').strftime('%Y%m%dT%H%M%S')
-    if sensor.startswith('S2'):
-        info = {'family': 'sentinel2', 'platform': sensor, 'tile': place[1:]}
-    else:
-        info = {'family': 'landsat', 'platform': 'LC0'+sensor[1], 'path': int(place[:3]), 'row': int(place[3:])}
-    info.update(date=date, baseline='DESCONOCIDA')
-    info['acquisition_key'] = acquisition_day(info)
-    return {**info, 'region': match['region'], 'level': match['level']}
-
-
 def acquisition_day(info):
     """Clave plataforma:día:tile (o path/row), común a un producto L1C y a sus salidas ACOLITE."""
     place = info.get('tile') or '{:03d}{:03d}'.format(info['path'], info['row'])

@@ -11,7 +11,7 @@ Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github
 ## Acuerdos vigentes (noviembre de 2026)
 
 **AOI y sensores**
-- AOI `water2coast_v1`: 4 zonas en `config/aoi/water2coast_v1/AOI_Water2Coast.zip` (definitivo). Se toma solo como geometría; no hereda EPSG, grilla ni algoritmos de `lapargera_v1`.
+- AOI `water2coast_v1`: 4 zonas en `config/aoi/water2coast_v1/AOI_Water2Coast.zip` (definitivo). Se toma solo como geometría.
 - Sensores:
   - Sentinel-2 L1C (SAFE desde CDSE).
   - Landsat 8/9 L1TP Collection 2 Tier 1 (TAR desde USGS por M2M; EarthExplorer como respaldo).
@@ -28,12 +28,9 @@ Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github
   - S2 y Landsat: Rrs, OC2/OC3, Gons (solo S2), CI, NDCI (solo S2), turbidez y SPM de Nechad, Kd490 por QAA, FAI, FAIT y NDVI.
   - OLCI: Rrs, OC4, CI, NDCI y Nechad. Kd490 no, porque ACOLITE no tiene QAA para OLCI ([07](07_superimagen.md#productos-de-acolite)).
 - Persisten **la superimagen y el catálogo SQLite**. Crudo, extracción, L1R, L2R y L2W se borran tras exportar y verificar.
-- Presupuestos: 120 GB para la superimagen y 50 GB para los temporales.
-- **Periodo de trabajo actual: enero de 2026** (decisión del 04-11-2026, por disco). Los 12 meses quedan para después.
+- Presupuestos: 300 GB para la superimagen (límite de cada computadora que descarga) y 50 GB para los temporales.
+- **Periodo de trabajo:** enero de 2026 hecho; febrero–junio de 2026 repartido entre computadoras y reunido con `oceanos sync` ([operación](04_operacion.md#sync-superimagen-de-otra-computadora)).
 - Varias escenas a la vez, con la CPU y RAM libres del equipo ([operación](04_operacion.md#paralelo)).
-
-**Legado**
-- `lapargera_v1` (14 L1R/L2W de Sentinel-2) se conserva aparte como legado.
 
 **Código y autorizaciones**
 - Código pequeño y legible, pruebas de comportamiento sin red y documentación en español.
@@ -51,18 +48,15 @@ Sistema reproducible y económico en disco alrededor de [ACOLITE](https://github
 
 Las filas × columnas de 30 y 300 m son la misma envolvente ampliada a múltiplos de la resolución. Cálculo en `oceanos/zonas.py`; las elecciones de tiles y path/row se justifican en [07](07_superimagen.md#zonas-grillas-y-resolución).
 
-## AOI legado `lapargera_v1`
-
-La Parguera, 19QGV, EPSG:32619, una grilla de 2440 × 7335 píxeles de 10 m (geometría `config/aoi/lapargera_v1/W2C_South_AOI.kmz`). Sus 14 L1R/L2W siguen en `storage/runs`. Ver [resultados](05_resultados.md).
-
 ## Historia resumida
 
 | Fase | Fecha | Resultado que sigue vigente |
 |---|---|---|
 | 1–2. AOI y auditoría ACOLITE | 25-09-2026 | ACOLITE cubre consulta, descarga, lectura, AC y L2W; revisión fijada `80da0c0` ([detalle](02_acolite.md)) |
-| 3–10. Catálogo, perfil y ensayos `lapargera_v1` | 25/30-09-2026 | Productos acuáticos enmascarados por el umbral SWIR sin glint residual ([resultados](05_resultados.md)) |
+| 3–10. Catálogo, perfil y ensayos con un AOI de prueba | 25/30-09-2026 | Sin glint residual, la máscara SWIR enmascaraba casi toda el agua ([antecedentes](05_resultados.md#antecedentes-aoi-de-prueba-septiembreoctubre-de-2026-retirado)) |
 | 11. Wrapper, cola, catálogo legible y paralelo | 30-09/03-11-2026 | CLI `oceanos`, SQLite, reintentos, descargas propias en streaming, reparto dinámico del hardware |
 | 12. Superimagen Water2Coast | 04-11-2026 | 4 zonas, resolución nativa, glint, COG con calidad y linaje, WorldCover, sargazo, compuestos, `run` único, M2M, OLCI, catálogo v5 ([superimagen](07_superimagen.md)) |
 | 13. Ensayo de enero de 2026 | 04/05-11-2026 | S2, Landsat y OLCI en las 4 zonas: 148 zonas OK, ~20 GB; umbrales de glint calibrados para enero ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
 | 14. AOT y geometría | 05-11-2026 | `aot_550`, `vza` y `raa` en `calidad.tif` (13 bandas) y linaje `correccion`; catálogo v6 ([superimagen](07_superimagen.md#etapa-escenas)) |
-| Siguiente | — | Reprocesar enero con `calidad.tif` de 13 bandas, revisar glint con un mes de verano y luego más meses. Docker/Airflow sin iniciar ([pendientes](06_pendientes.md)) |
+| 15. Sin legado y sync entre computadoras | 05-11-2026 | Se retiró el AOI de prueba (catálogo v7). `oceanos sync` reúne la superimagen de varias computadoras. Presupuesto de 300 GB ([operación](04_operacion.md#sync-superimagen-de-otra-computadora)) |
+| Siguiente | — | Febrero–junio de 2026 en dos computadoras, reunidos con `sync`; revisar glint con un mes de verano. Docker/Airflow sin iniciar ([pendientes](06_pendientes.md)) |

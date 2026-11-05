@@ -16,7 +16,7 @@ OCEANOS y ACOLITE corren en Linux: en Windows se usan dentro de **WSL2 con Ubunt
 |---|---|---|---|
 | Windows | 10 22H2 u 11, 64 bits, virtualización activada en la BIOS | Windows 11 | WSL2 |
 | RAM | 8 GB | 16 GB o más | Pico de ACOLITE medido en enero de 2026: hasta 7,9 GB (S2), 1,1 GB (Landsat) y 2,6 GB (OLCI) por escena |
-| Disco libre | 200 GB | 250 GB | 120 GB de superimagen, 50 GB de temporales, ~10 GB de entornos y ~4 GB de LUT y auxiliares |
+| Disco libre | 380 GB | 400 GB | 300 GB de superimagen, 50 GB de temporales, ~10 GB de entornos y ~4 GB de LUT y auxiliares |
 | Cuentas | CDSE, USGS ERS con acceso M2M, NASA Earthdata | — | Descargas de S2/OLCI, Landsat y MERRA-2 |
 
 ### 1. Instalar WSL2 con Ubuntu (PowerShell de Windows como administrador)
@@ -111,8 +111,8 @@ Un `run` se puede cortar con Ctrl+C y repetir: continúa donde quedó.
 **Ver los resultados desde Windows.** En el Explorador de archivos, abre `\\wsl$\Ubuntu-24.04\home\<usuario_linux>\projects\oceanos\storage\superimagen`. Los COG se abren directo en QGIS o ArcGIS Pro, y el catálogo con DB Browser for SQLite (`sqlitebrowser storage/catalog/catalog.sqlite`).
 
 **Traer datos de otra computadora (opcional).**
-- Copia `storage/` completo (catálogo y superimagen) con la misma estructura. `run` reconoce lo ya procesado y no lo vuelve a descargar.
-- L1R/L2W sueltos del legado se registran con `oceanos sync`.
+- Equipo nuevo, sin datos propios: copia `storage/` completo (catálogo y superimagen) con la misma estructura. `run` reconoce lo ya procesado y no lo vuelve a descargar.
+- Juntar el trabajo de dos computadoras: en la que reúne todo, pega en `storage/superimagen/sincronizar/` la carpeta `storage/superimagen/escenas/` y el `storage/catalog/catalog.sqlite` de la otra, y ejecuta `oceanos sync` ([detalle](docs/04_operacion.md#sync-superimagen-de-otra-computadora)).
 
 ## Uso en Ubuntu WSL
 
@@ -123,7 +123,7 @@ alias oceanos='~/.local/bin/micromamba run -p ~/micromamba/envs/acolite python -
 oceanos prepare                                        # una vez: verificar ACOLITE y aplicar el parche
 oceanos run --plan --start 2026-01-01 --end 2026-02-01 # qué se descargaría y cuánto disco ocuparía
 oceanos run --start 2026-01-01 --end 2026-02-01        # todo: buscar, descargar, ACOLITE, escenas, sargazo, compuestos
-oceanos superimagen                                    # productos por zona y sensor, y disco frente a 120 GB
+oceanos superimagen                                    # productos por zona y sensor, y disco frente a 300 GB
 oceanos reporte                                        # resultado por escena y zona, con motivo (--csv archivo.csv)
 ```
 
@@ -137,8 +137,8 @@ oceanos reporte                                        # resultado por escena y 
 - Una sola escena: `oceanos run --escena 20251216`.
 - Archivo local: `oceanos run --source escena.zip --scene NOMBRE.SAFE`.
 
-**Legado**
-- `lapargera_v1` se conserva aparte: `oceanos status --legado` y `oceanos reporte --legado`.
+**Varias computadoras**
+- Conviene repartir por proveedor (una computadora S2 + OLCI, que comparten la cuota de 4 descargas de CDSE, y otra Landsat) y reunir con `oceanos sync`.
 
 **Paralelo**
 - `run` reparte las escenas según la CPU y RAM libres; con `--trabajadores 1` va de a una. Detalle en [operación](docs/04_operacion.md#paralelo).

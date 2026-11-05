@@ -9,7 +9,7 @@ Estado al 05-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 | Ensayo de enero de 2026 | **Hecho** (04/05-11-2026): S2, Landsat y OLCI en las 4 zonas, sin escenas fallidas al final ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
 | Calibración de glint | Con enero se mantienen 0,005 / 0,02 (S2 y Landsat) y 20° (OLCI, que en enero no descarta nada). Revisar con un mes de verano antes de procesar más meses |
 | Respaldo EarthExplorer | 3 de 12 escenas Landsat lo usaron en enero sin motivo registrado; ahora queda en `via_descarga`. Revisar el motivo en el próximo lote |
-| Más meses | Por decisión del usuario se trabaja solo enero de 2026, con cuota de 120 GB: un mes ocupa ~20 GB |
+| Más meses | Febrero–junio de 2026 en dos computadoras (S2 + OLCI en una, Landsat en otra), reunidos con `oceanos sync`. Presupuesto de 300 GB por computadora; un mes ocupa ~20 GB |
 | Enero con `calidad.tif` de 13 bandas | Los productos de enero tienen el `calidad.tif` de 10 bandas, sin AOT ni geometría. Reprocesarlo (en curso el 05-11-2026 en otra máquina) y anotar aquí el resultado |
 | Costos en la nube | Siguiente paso: estimar cómputo y almacenamiento con las cifras medidas en enero |
 
@@ -18,7 +18,7 @@ Estado al 05-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 | Tema | Estado y siguiente paso |
 |---|---|
 | Datos in situ | Necesarios para aceptar cualquier producto: clorofila, turbidez y Kd coincidentes, con ubicación, hora, profundidad y control de calidad |
-| Máscara L2W de ACOLITE | Confirmado en enero de 2026: con glint residual activo los productos acuáticos ya no quedan enmascarados como en `lapargera_v1` ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)). Revisar con un mes de verano |
+| Máscara L2W de ACOLITE | Confirmado en enero de 2026: con glint residual activo los productos acuáticos ya no quedan enmascarados como en el AOI de prueba ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)). Revisar con un mes de verano |
 | Agua muy somera y arrecifes | El fondo puede contaminar Rrs y FAI en La Parguera; evaluar con datos in situ |
 | Media ponderada y variables parciales | En (b) estacional/anual, ponderar por `peso_total` es exacto salvo donde una variable faltaba en parte de las observaciones del mes ([07](07_superimagen.md#compuestos-de-calidad-de-agua)) |
 

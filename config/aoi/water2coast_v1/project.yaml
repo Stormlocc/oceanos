@@ -12,7 +12,7 @@ aoi:
   objective: calidad_del_agua_y_sargazo
 
 # Una grilla por zona y sensor, en el UTM de la zona y alineada a múltiplos de la resolución
-# nativa del sensor (oceanos/zonas.py). No se hereda nada de lapargera_v1.
+# nativa del sensor (oceanos/zonas.py).
 zones:
   mayaguez_cabo_rojo: {name: Mayaguez Cabo Rojo, epsg: 32619}
   la_parguera_guanica: {name: La Parguera Guanica, epsg: 32619}
@@ -48,8 +48,9 @@ storage:
   # GB decimales. Temporales: crudo, extracción, L1R/L2R/L2W y auxiliares mientras se procesa.
   temporary_budget_bytes: 50000000000
   # Productos finales en storage/superimagen (escenas, calidad_agua, sargazo, mascaras).
-  # 120 GB decididos por el usuario el 04-11-2026, tras medir 615 MB por producto S2 de zona.
-  superimagen_budget_bytes: 120000000000
+  # 300 GB decididos por el usuario el 05-11-2026 (antes 120 GB): cada computadora que descarga tiene
+  # ese límite. Un mes de S2 + Landsat + OLCI ocupa ~20 GB.
+  superimagen_budget_bytes: 300000000000
 
 superimagen:
   land_mask:

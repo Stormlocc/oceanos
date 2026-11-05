@@ -1,6 +1,6 @@
 # Superimagen Water2Coast
 
-Desde noviembre de 2026 OCEANOS procesa el AOI `water2coast_v1`. En vez de guardar L1R/L2W de una grilla común, guarda una **superimagen**: por zona, sensor y escena, los productos de ACOLITE en COG listos para combinar, y a partir de ellos los mapas diarios de sargazo y los compuestos de calidad de agua. Este documento reúne qué se guarda, cómo se calcula y **cada decisión con su justificación y su fuente**. Requisitos de los investigadores: memoria `superimagen-requisitos` y el plan en Claude Doc.
+OCEANOS procesa el AOI `water2coast_v1` y guarda una **superimagen**: por zona, sensor y escena, los productos de ACOLITE en COG listos para combinar, y a partir de ellos los mapas diarios de sargazo y los compuestos de calidad de agua. Este documento reúne qué se guarda, cómo se calcula y **cada decisión con su justificación y su fuente**. Requisitos de los investigadores: memoria `superimagen-requisitos` y el plan en Claude Doc.
 
 ## Flujo de `oceanos run`
 
@@ -26,6 +26,7 @@ Todo es reanudable e idempotente: una adquisición con todas sus zonas terminada
 | `calidad_agua/<zona>/<sensor>/mensual/<AAAA-MM>/<método>/` | Un COG por variable, `fecha_origen.tif`, `n_observaciones.tif` y `rhog_ref.tif`/`angulo_glint.tif` (mejor píxel) o `peso_total.tif` (media ponderada) |
 | `calidad_agua/<zona>/<sensor>/estacional/<AAAA-DEF|MAM|JJA|SON>/<método>/` y `anual/<AAAA>/<método>/` | Igual que el mensual, calculado desde los mensuales |
 | `mascaras/tierra_<zona>_<sensor>_<res>m.tif` | Máscara de tierra: 0 agua, 1 tierra (con margen), 2 fuera de la zona |
+| `sincronizar/` | Solo de paso: lo que se pega de otra computadora para `oceanos sync` ([operación](04_operacion.md#sync-superimagen-de-otra-computadora)) |
 
 **Decisión:** la carpeta de escena lleva el lugar (`2025-12-16_19QGV`, `2025-12-16_005048`, `2025-12-16_R082T1450`). El requisito decía `<fecha>`, pero dos tiles o path/row del mismo día cubren la misma zona (p. ej. 19QFV y 19QGV en La Parguera) y se pisarían. El sargazo diario y los compuestos los combinan después.
 
@@ -38,7 +39,7 @@ Todo es reanudable e idempotente: una adquisición con todas sus zonas terminada
 | `ponce_guayanilla` | 32619 | 19QGV | 005048 | 2014 × 6154 |
 | `fajardo_culebra` | 32620 | 20QKF | 004047 | 2693 × 5481 |
 
-- **Geometría:** `config/aoi/water2coast_v1/AOI_Water2Coast.zip` (campo `Name`), con su SHA-256 comprobado al cargar el perfil. Nada se hereda de `lapargera_v1`.
+- **Geometría:** `config/aoi/water2coast_v1/AOI_Water2Coast.zip` (campo `Name`), con su SHA-256 comprobado al cargar el perfil.
 - **Fajardo–Culebra en UTM 20N:** está al este de 66° O. 19QHA también la cubre, pero en UTM 19, así que se usa 20QKF, que la cubre al 100 %.
 - **Tiles y path/row:** salen de la cobertura medida con las huellas reales de diciembre de 2025 (solo metadata). Se omitió un lugar cuando cubre poco y otro ya cubre la zona entera; por ejemplo 19QGA cubre el 22 % de Ponce y 19QGV el 100 %. Una escena entra en las zonas de su lugar cuya huella toca (`native.zones_for`). OLCI no tiene tiles: entra en toda zona que su huella cubra.
 - **Grilla por zona y sensor:** el rectángulo envolvente de la zona en su UTM, ampliado hacia afuera a múltiplos de la resolución (`zonas.grid`).
@@ -183,18 +184,9 @@ Un mes sin escenas válidas no tiene compuesto, pero cuenta como completo para s
 
 ## Disco
 
-- **Presupuesto propio:** 120 GB para `storage/superimagen` (subido de 100 GB por el usuario el 04-11-2026, tras medir la primera escena) (`storage.superimagen_budget_bytes`). Los temporales siguen con su presupuesto de 50 GB.
+- **Presupuesto propio:** 300 GB para `storage/superimagen` (`storage.superimagen_budget_bytes`). El usuario lo subió de 100 a 120 GB el 04-11-2026, tras medir la primera escena, y a 300 GB el 05-11-2026: es el límite de cada computadora que descarga. Lo pegado en `sincronizar/` también cuenta. Los temporales siguen con su presupuesto de 50 GB.
 - **Estimación:** antes de descargar, `run --plan` muestra la lista de escenas, cuántos productos de zona se exportarán y cuánto ocuparán: la mediana medida de cada zona o, si la zona aún no tiene, los bytes por píxel medidos en el sensor por el tamaño de su grilla; sin mediciones, Float32 por capa con un 50 % de compresión.
 - **Al acercarse al límite:** si la estimación supera el presupuesto, `run` avisa. Antes de cada descarga y de cada exportación se comprueba que quepa otro producto; si no, la escena queda `FALLIDA` con `PRESUPUESTO_SUPERIMAGEN`, sin descargar.
-
-## Legado `lapargera_v1`
-
-- **Migración:** al abrir un catálogo v4, OCEANOS lo copia como respaldo (`catalog_v4_respaldo_<fecha>.sqlite`) y lo migra (hoy hasta v6).
-  - Los procesos de `lapargera_v1` quedan con `legado=1`.
-  - Las escenas vuelven a `NUEVA`, porque su estado de cola era del AOI anterior.
-  - Se registra un evento `LEGADO`.
-- **Conservación:** los L1R/L2W del legado se conservan en `storage/runs` y nunca se borran. Tampoco entran a la superimagen, a la cola ni al cálculo de "ya tenemos esta adquisición": tenían el glint apagado y otra grilla.
-- **Consulta aparte:** con `oceanos status --legado` y `oceanos reporte --legado`. `oceanos sync` registra los L1R/L2W importados también como legado.
 
 ## Landsat por M2M
 

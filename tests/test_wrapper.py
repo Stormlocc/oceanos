@@ -45,12 +45,11 @@ class CatalogTests(unittest.TestCase):
         self.cat.finish(second,'OK','TECNICA_OK',metrics=[{'stage':'process','seconds':1,'ok':True}])
         self.cat.record_product(name,'ponce_guayanilla','water2coast_v1',proceso=second,estado='OK',sensor='S2')
         self.assertEqual((first,second),(1,2))
-        self.assertIsNone(self.cat.process(second)['carpeta'])
+        self.assertNotIn('carpeta',self.cat.process(second))
         rows=self.cat.runs()
         self.assertEqual([(r['id'],r['satelite'],r['zonas_ok']) for r in rows],[(1,'S2B',0),(2,'S2B',1)])
         self.assertEqual([(r['id'],r['error']) for r in self.cat.runs('FALLIDO')],[(1,'TimeoutError')])
         self.assertEqual([r['id'] for r in self.cat.runs(last=1)],[2])
-        self.assertEqual(self.cat.runs(legacy=True),[])
         detail=self.cat.run_detail('0002')
         self.assertEqual(detail['metricas'][0]['stage'],'process');self.assertNotIn('detalle',detail)
         self.assertTrue(detail['eventos'][0].endswith('INICIO: Proceso descarga de '+SCENE))
@@ -160,35 +159,55 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue(cat.backup.name.startswith('catalog_v3_respaldo_') and cat.backup.exists())
         self.assertFalse(cat.migrated)
         views=[r[0] for r in cat.db.execute("SELECT name FROM sqlite_master WHERE type='view'")]
-        self.assertTrue({'v_superimagen','v_compuestos','v_legado','v_cola'} <= set(views))
+        self.assertTrue({'v_superimagen','v_compuestos','v_cola'} <= set(views))
+        self.assertFalse({'v_legado','v_disco'} & set(views))
         for view in views:
             cat.db.execute(f'SELECT * FROM {view}').fetchall()
         self.assertEqual(cat.db.execute('PRAGMA user_version').fetchone()[0],VERSION)
         cat.db.close()
-        self.assertIsNone(Catalog(folder).backup)
+        again=Catalog(folder);self.assertIsNone(again.backup);again.db.close()
 
-    def test_v4_catalog_is_migrated_with_backup_and_legacy(self):
+    def test_v4_catalog_is_backed_up_and_replaced(self):
+        self.cat.db.execute('PRAGMA user_version=4');self.cat.db.commit();self.cat.db.close()
+        self.cat=Catalog(self.temp.name)
+        self.assertTrue(self.cat.backup.name.startswith('catalog_v4_respaldo_') and self.cat.backup.exists())
+        self.assertFalse(self.cat.migrated)
+        self.assertEqual(self.cat.db.execute('PRAGMA user_version').fetchone()[0],VERSION)
+
+    def test_v6_catalog_loses_legacy_and_keeps_superimagen(self):
         name=self.scene();self.cat.enqueue([name])
-        legacy=self.cat.start(name,'DESCARGA',{'aoi':{'id':'lapargera_v1'}});self.cat.finish(legacy,'OK','TECNICA_OK')
+        process=self.cat.start(name,'DESCARGA',self.config);self.cat.finish(process,'OK','TECNICA_OK')
+        product=self.cat.record_product(name,'ponce_guayanilla','water2coast_v1',estado='OK',sensor='S2',
+                                        fecha='2026-08-04',proceso=process)
         db=self.cat.db
         for (view,) in db.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall():
             db.execute(f'DROP VIEW {view}')
-        db.execute('DROP INDEX productos_zona')
-        for table in ('compuesto_escenas','compuestos','productos_escena','mascaras'):
-            db.execute(f'DROP TABLE {table}')
-        for table,column in (('escenas','zonas'),('procesos','legado'),('busquedas','aoi')):
-            db.execute(f'ALTER TABLE {table} DROP COLUMN {column}')
-        db.execute('PRAGMA user_version=4');db.commit();db.close()
+        # Columnas de legado de v6 en procesos.
+        for column in ('carpeta TEXT','l1r TEXT','l2w TEXT','archivos TEXT','legado INTEGER DEFAULT 0',
+                       'l1r_padre INTEGER REFERENCES procesos(id)','clave_resultado TEXT'):
+            db.execute('ALTER TABLE procesos ADD COLUMN '+column)
+        db.execute("INSERT INTO escenas(escena,proveedor,adquisicion,estado) VALUES('S2B_20260804_19QGV','LOCAL','x','IMPORTADA')")
+        db.execute("INSERT INTO escenas(escena,proveedor,adquisicion,estado) VALUES('viejo','CDSE','y','IMPORTADA')")
+        db.execute("INSERT INTO procesos(escena,aoi,tipo,estado,l2w,legado) VALUES('S2B_20260804_19QGV','lapargera_v1',"
+                   "'IMPORTADO','IMPORTADO','runs/0001/x_L2W.nc',1)")
+        db.execute("INSERT INTO procesos(escena,aoi,tipo,estado,legado) VALUES(?,'lapargera_v1','DESCARGA','OK',1)",(name,))
+        db.execute("INSERT INTO eventos(proceso,tipo,mensaje) SELECT id,'LEGADO','x' FROM procesos WHERE legado=1")
+        db.execute('PRAGMA user_version=6');db.commit();db.close()
         self.cat=Catalog(self.temp.name)
-        self.assertTrue(self.cat.migrated and self.cat.backup.name.startswith('catalog_v4_respaldo_'))
-        self.assertEqual(self.cat.migrated_from,4)
-        columns={r[1] for r in self.cat.db.execute('PRAGMA table_info(productos_escena)')}
-        self.assertIn('correccion',columns)
-        self.assertEqual(self.cat.process(legacy)['legado'],1)
-        self.assertEqual(self.cat.legacy_count(),1)
-        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'NUEVA')
-        self.assertEqual(self.cat.runs(),[])
-        self.assertEqual([r['id'] for r in self.cat.legacy()],[legacy])
+        self.assertTrue(self.cat.migrated and self.cat.migrated_from==6 and self.cat.removed_legacy==2)
+        self.assertTrue(self.cat.backup.name.startswith('catalog_v6_respaldo_') and self.cat.backup.exists())
+        from oceanos.catalog import PROCESS_COLUMNS
+        self.assertEqual(tuple(r[1] for r in self.cat.db.execute('PRAGMA table_info(procesos)')),PROCESS_COLUMNS)
+        self.assertEqual([r['id'] for r in self.cat.runs()],[process])
+        self.assertEqual(self.cat.db.execute("SELECT count(*) FROM eventos WHERE tipo='LEGADO'").fetchone()[0],0)
+        scenes={r[0]:r[1] for r in self.cat.db.execute('SELECT escena,estado FROM escenas')}
+        self.assertEqual(scenes,{name:'PENDIENTE','viejo':'NUEVA'})
+        row=self.cat.db.execute('SELECT id,proceso FROM productos_escena').fetchone()
+        self.assertEqual(tuple(row),(product,process))
+        self.assertEqual(self.cat.db.execute('PRAGMA foreign_key_check').fetchall(),[])
+        self.assertEqual(self.cat.db.execute('PRAGMA foreign_keys').fetchone()[0],1)
+        for (view,) in self.cat.db.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall():
+            self.cat.db.execute(f'SELECT * FROM {view}').fetchall()
 
     def test_v5_catalog_gains_correccion_column_and_keeps_products(self):
         name=self.scene()
@@ -204,7 +223,7 @@ class CatalogTests(unittest.TestCase):
         row=self.cat.db.execute('SELECT id,estado,correccion FROM productos_escena').fetchone()
         self.assertEqual((row['id'],row['estado'],row['correccion']),(product,'OK',None))
         self.assertEqual(self.cat.db.execute('PRAGMA user_version').fetchone()[0],VERSION)
-        self.assertEqual(self.cat.db.execute("SELECT count(*) FROM eventos WHERE tipo='MIGRACION'").fetchone()[0],1)
+        self.assertEqual(self.cat.db.execute("SELECT count(*) FROM eventos WHERE tipo='MIGRACION'").fetchone()[0],2)
         self.cat.db.close()
         self.cat=Catalog(self.temp.name)
         self.assertFalse(self.cat.migrated)
@@ -363,17 +382,12 @@ class ValidationTests(unittest.TestCase):
 
 
 
-L2W='S2B_MSI_2026_08_04_15_08_03_T19QGV_lapargera_v1_L2W.nc'
-L1R='S2B_MSI_2026_08_04_15_08_03_T19QGV_lapargera_v1_L1R.nc'
-
-
 class QueueSyncTests(unittest.TestCase):
-    """Legado importado por nombre, cola de run, tiempos de descarga y resumen."""
+    """Cola de run, tiempos de descarga y resumen."""
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(self.temp.name)
         self.config=profile(PROFILE,'sentinel2',start=START,end=END)
-        self.imports=self.cat.storage/'importados';self.imports.mkdir()
 
     def tearDown(self):
         self.cat.db.close()
@@ -396,83 +410,6 @@ class QueueSyncTests(unittest.TestCase):
     def finish_zones(self, scene, zones=('la_parguera_guanica','ponce_guayanilla'), state='OK'):
         for zone in zones:
             self.cat.record_product(scene,zone,'water2coast_v1',estado=state,sensor='S2',fecha='2026-08-04')
-
-    def test_output_name_matches_provider_acquisition(self):
-        from oceanos.native import output_identity, acquisition_day
-        info=output_identity(L2W)
-        self.assertEqual((info['region'],info['level']),('lapargera_v1','L2W'))
-        self.assertEqual(info['acquisition_key'],acquisition_day(scene_identity(SCENE)))
-        landsat=output_identity('L9_OLI_2026_08_05_14_57_33_004047_L1R.nc')
-        self.assertEqual(landsat['acquisition_key'],acquisition_day(scene_identity('LC09_L1TP_004047_20260805_20260806_02_T1')))
-        with self.assertRaises(ValueError): output_identity('notas.nc')
-
-    def test_sync_registers_legacy_that_never_counts_as_done(self):
-        from oceanos.sync import sync
-        name=self.scene();self.cat.enqueue([name])
-        (self.imports/L2W).write_bytes(b'l2w');(self.imports/L1R).write_bytes(b'l1r');(self.imports/'otro.nc').write_bytes(b'x')
-        report=sync(self.cat,self.imports)
-        self.assertEqual(sorted(i['tipo'] for i in report['importados']),['L1R','L2W'])
-        self.assertEqual(report['no_reconocidos'],['importados/otro.nc'])
-        process=report['importados'][0]['proceso']
-        row=self.cat.process(process)
-        self.assertEqual((row['tipo'],row['estado'],row['validacion'],row['escena'],row['carpeta'],row['limpieza'],row['legado']),
-                         ('IMPORTADO','IMPORTADO','SIN_VERIFICAR',name,'importados','NO_APLICA',1))
-        self.assertIsNone(row['l2w_sha256'])
-        # El legado no saca la escena de la cola ni cuenta como "ya lo tenemos".
-        self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'PENDIENTE')
-        self.assertEqual(self.cat.completed('water2coast_v1'),{})
-        self.assertEqual(self.cat.completed('lapargera_v1'),{})
-        self.assertEqual([r['id'] for r in self.cat.legacy()],[process])
-        again=sync(self.cat,self.imports)
-        self.assertEqual((again['importados'],again['ya_registrados']),([],2))
-        (self.imports/L2W).unlink()
-        self.assertEqual(sync(self.cat,self.imports)['desaparecidos'],['importados/'+L2W])
-        (self.imports/L2W).write_bytes(b'l2w')
-        self.assertEqual(sync(self.cat,self.imports)['reaparecidos'],['proceso 1 (importados)'])
-        self.assertEqual(cleanup(self.cat,process),'NO_APLICA')
-        self.assertTrue((self.imports/L2W).exists())
-
-    def test_sync_late_l1r_completes_same_process(self):
-        from oceanos.sync import sync
-        (self.imports/L2W).write_bytes(b'l2w');first=sync(self.cat,self.imports)['importados'][0]['proceso']
-        (self.imports/L1R).write_bytes(b'l1r');second=sync(self.cat,self.imports)['importados'][0]['proceso']
-        self.assertEqual(first,second)
-        self.assertEqual(self.cat.db.execute('SELECT count(*) FROM procesos').fetchone()[0],1)
-
-    def test_sync_without_provider_scene_creates_local_one(self):
-        from oceanos.sync import sync
-        (self.imports/L2W).write_bytes(b'l2w')
-        sync(self.cat,self.imports)
-        row=self.cat.db.execute('SELECT escena,proveedor,satelite,fecha_utc FROM escenas').fetchone()
-        self.assertEqual(tuple(row),('S2B_20260804_19QGV','LOCAL','S2B','2026-08-04 15:08'))
-
-    def test_provider_scene_absorbs_local_scene_from_sync(self):
-        from oceanos.sync import sync
-        (self.imports/L2W).write_bytes(b'l2w');sync(self.cat,self.imports)
-        name=self.scene()
-        self.assertEqual([r[0] for r in self.cat.db.execute('SELECT escena FROM escenas')],[name])
-        self.assertEqual(self.cat.process(1)['escena'],name)
-
-    def test_sync_adopts_runs_with_readable_names(self):
-        from oceanos.sync import sync
-        old=self.cat.storage/'runs'/'0df48287585d47b8aa4643234003e5a0'/'output';old.mkdir(parents=True)
-        (old/L2W).write_bytes(b'l2w');(old/L1R).write_bytes(b'l1r')
-        report=sync(self.cat,self.cat.storage/'runs',hashed=True)
-        row=self.cat.process(1)
-        folder="runs/0001_S2B_2026-08-04"
-        self.assertEqual((row['carpeta'],row['l2w'],row['legado']),(folder,folder+'/'+L2W,1))
-        self.assertTrue(row['l2w_sha256'])
-        self.assertEqual(sorted(p.name for p in (self.cat.storage/row['carpeta']).iterdir()),[L1R,L2W])
-        self.assertEqual(len(report['importados']),2)
-        self.assertEqual(sync(self.cat,self.cat.storage/'runs')['ya_registrados'],2)
-
-    def test_sync_rejects_folders_outside_or_reserved(self):
-        from oceanos.sync import sync
-        for folder in ('temporary','catalog','superimagen','auxiliares'):
-            (self.cat.storage/folder).mkdir(exist_ok=True)
-        for folder in (self.cat.storage/'temporary',self.cat.storage/'catalog',self.cat.storage/'superimagen',
-                       self.cat.storage,Path(tempfile.gettempdir())):
-            with self.assertRaises(ValueError): sync(self.cat,folder)
 
     def test_queue_pending_skips_completed_zones_and_out_of_profile(self):
         inside=self.scene();later=self.named('20260809T150719');outside=self.named('20260901T150719')
@@ -1161,7 +1098,6 @@ class NoRepeatTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory()
         self.cat=Catalog(Path(self.temp.name)/'storage')
         self.config=profile(PROFILE,'sentinel2',start=START,end=END)
-        self.imports=self.cat.storage/'importados';self.imports.mkdir()
         self.raw=Path(self.temp.name)/'raw';self.raw.mkdir()
 
     def tearDown(self):

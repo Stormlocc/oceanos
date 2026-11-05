@@ -43,7 +43,7 @@ Entradas que reconoce `acolite_run`: SAFE L1C (rechaza otro nivel), ZIP/TAR comp
 
 - **Sentinel-2:** CRS y grillas 10/20/60 m desde la metadata del gránulo; `s2_target_res=10`; GDAL Warp con `average` lleva las bandas a 10 m; aplica `RADIO_ADD_OFFSET` y cuantificación. Geometría por defecto en grilla de 60 m.
 - **Landsat:** lee Collection 2 por MTL (exige L1) y usa `nearest`. Tier 1 es un criterio de selección del catálogo, no del lector. NDCI no existe para OLI (no hay banda red-edge).
-- L1R contiene `rhot_*`, lon/lat, geometría y la proyección NetCDF. En la superimagen es temporal: se borra tras exportar (solo el legado `lapargera_v1` conserva L1R).
+- L1R contiene `rhot_*`, lon/lat, geometría y la proyección NetCDF. Es temporal: se borra tras exportar.
 
 ## Corrección atmosférica (DSF)
 

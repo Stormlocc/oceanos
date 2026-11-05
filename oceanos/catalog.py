@@ -1,4 +1,4 @@
-"""Catálogo SQLite legible (esquema v6): escenas, procesos, productos por zona, compuestos y eventos."""
+"""Catálogo SQLite legible (esquema v7): escenas, procesos, productos por zona, compuestos y eventos."""
 import contextlib
 import json
 import sqlite3
@@ -7,9 +7,10 @@ from pathlib import Path
 from .config import canonical, file_hash
 from .native import acquisition_day, eligible, l1_bytes, scene_date
 
-VERSION = 6
-# AOI anteriores: sus procesos se conservan como legado y nunca cuentan para el AOI nuevo.
-LEGACY_AOIS = ('lapargera_v1',)
+VERSION = 7
+# Columnas de procesos en v7; el resto de v6 (L1R/L2W, claves de reutilización, legado) se quitó.
+PROCESS_COLUMNS = ('id', 'escena', 'aoi', 'tipo', 'estado', 'inicio', 'fin', 'duracion_min', 'descarga_min',
+                   'descarga_mb', 'intentos', 'error', 'validacion', 'limpieza', 'detalle')
 # Resultados de una zona que cierran su procesamiento (OK con productos, o sin nada que guardar).
 TERMINAL = ('OK', 'NUBOSA', 'SIN_DATOS')
 
@@ -24,19 +25,19 @@ CREATE TABLE IF NOT EXISTS escenas (
  proveedor TEXT,                   -- CDSE | USGS | LOCAL
  tamano_mb REAL,                   -- tamaño del L1 a descargar
  nubosidad REAL,                   -- % informado por el proveedor
- estado TEXT NOT NULL DEFAULT 'NUEVA', -- NUEVA, PENDIENTE, PROCESADA, FALLIDA, DISPONIBLE (IMPORTADA: legado v4)
+ estado TEXT NOT NULL DEFAULT 'NUEVA', -- NUEVA, PENDIENTE, PROCESADA, FALLIDA, DISPONIBLE
  registrada TEXT,                  -- cuándo se puso en la cola (search --registrar)
  vista TEXT,                       -- última búsqueda en que apareció
- adquisicion TEXT,                 -- satélite:día:tile; une la escena con L1R/L2W importados
+ adquisicion TEXT,                 -- satélite:día:tile; une las versiones de un mismo producto
  fuente TEXT,                      -- JSON del proveedor necesario para descargar y verificar
  zonas TEXT                        -- JSON: zonas del AOI que toca la escena (según el perfil)
 );
 CREATE TABLE IF NOT EXISTS procesos (
  id INTEGER PRIMARY KEY,           -- 1, 2, 3…; también da nombre a la carpeta
  escena TEXT REFERENCES escenas(escena),
- aoi TEXT,                         -- región del perfil (water2coast_v1; lapargera_v1 es legado)
- tipo TEXT,                        -- DESCARGA | LOCAL | DERIVADO | IMPORTADO
- estado TEXT,                      -- EN_CURSO, OK, OMITIDO, FALLIDO, INTERRUMPIDO, IMPORTADO
+ aoi TEXT,                         -- región del perfil (water2coast_v1)
+ tipo TEXT,                        -- DESCARGA | LOCAL | SINCRONIZADO (traído de otra computadora con sync)
+ estado TEXT,                      -- EN_CURSO, OK, FALLIDO, INTERRUMPIDO
  inicio TEXT,                      -- AAAA-MM-DD HH:MM:SS UTC
  fin TEXT,
  duracion_min REAL,
@@ -44,20 +45,9 @@ CREATE TABLE IF NOT EXISTS procesos (
  descarga_mb REAL,
  intentos INTEGER,                 -- intentos de descarga (fallidos + exitoso)
  error TEXT,
- carpeta TEXT,                     -- legado: runs/0007_S2B_2026-02-15 (la superimagen va en productos_escena)
- l1r TEXT,                         -- ruta dentro de storage
- l1r_mb REAL,
- l2w TEXT,
- l2w_mb REAL,
- archivos TEXT,                    -- PRESENTES | FALTAN
- validacion TEXT,                  -- TECNICA_OK | SIN_VERIFICAR (importados) | PENDIENTE
+ validacion TEXT,                  -- TECNICA_OK | PENDIENTE
  limpieza TEXT,                    -- PENDIENTE, HECHA, APLAZADA, FALLIDA, NO_APLICA
- l1r_padre INTEGER REFERENCES procesos(id), -- proceso cuyo L1R se reutilizó
- clave_resultado TEXT,             -- reutilización: misma fuente, settings, motor y productos
- clave_correccion TEXT,            -- reutilización de L1R: igual, sin productos
- l1r_bytes INTEGER, l1r_sha256 TEXT, l2w_bytes INTEGER, l2w_sha256 TEXT,
- detalle TEXT DEFAULT '{}',        -- JSON: métricas, validación, ciencia, settings, entorno y perfil
- legado INTEGER DEFAULT 0          -- 1: AOI anterior (lapargera_v1, glint apagado); fuera de la superimagen
+ detalle TEXT DEFAULT '{}'         -- JSON: métricas, validación, ciencia, settings, entorno, perfil y origen de sync
 );
 CREATE TABLE IF NOT EXISTS busquedas (
  id INTEGER PRIMARY KEY,
@@ -144,8 +134,6 @@ CREATE TABLE IF NOT EXISTS compuesto_escenas (
 );
 CREATE INDEX IF NOT EXISTS procesos_escena ON procesos(escena);
 CREATE INDEX IF NOT EXISTS productos_zona ON productos_escena(aoi, zona, sensor, fecha);
-CREATE INDEX IF NOT EXISTS procesos_resultado ON procesos(clave_resultado);
-CREATE INDEX IF NOT EXISTS procesos_correccion ON procesos(clave_correccion);
 CREATE INDEX IF NOT EXISTS eventos_proceso ON eventos(proceso);
 
 CREATE VIEW IF NOT EXISTS v_resumen AS
@@ -155,14 +143,13 @@ CREATE VIEW IF NOT EXISTS v_cola AS
  SELECT escena, fecha_utc, satelite, tamano_mb, estado, registrada FROM escenas
  WHERE estado IN ('PENDIENTE','FALLIDA') ORDER BY fecha_utc;
 CREATE VIEW IF NOT EXISTS v_descargas AS
- SELECT p.id, e.fecha_utc, e.satelite, p.descarga_min, p.descarga_mb, p.intentos, p.duracion_min,
-        p.l1r_mb, p.l2w_mb, p.carpeta, p.escena
+ SELECT p.id, e.fecha_utc, e.satelite, p.tipo, p.descarga_min, p.descarga_mb, p.intentos, p.duracion_min, p.escena
  FROM procesos p JOIN escenas e USING (escena) WHERE p.estado='OK' ORDER BY e.fecha_utc;
 CREATE VIEW IF NOT EXISTS v_fallidas AS
  SELECT e.escena, e.fecha_utc, e.estado, count(*) AS procesos_fallidos, max(p.intentos) AS max_intentos,
         group_concat(DISTINCT p.error) AS errores, max(p.inicio) AS ultimo
  FROM procesos p JOIN escenas e USING (escena)
- WHERE p.estado IN ('FALLIDO','INTERRUMPIDO') AND e.estado NOT IN ('PROCESADA','IMPORTADA')
+ WHERE p.estado IN ('FALLIDO','INTERRUMPIDO') AND e.estado!='PROCESADA'
  GROUP BY e.escena ORDER BY e.fecha_utc;
 CREATE VIEW IF NOT EXISTS v_superimagen AS
  SELECT aoi, zona, sensor, estado, count(*) AS escenas, round(sum(coalesce(bytes,0))/1e9,2) AS gb,
@@ -171,14 +158,6 @@ CREATE VIEW IF NOT EXISTS v_superimagen AS
 CREATE VIEW IF NOT EXISTS v_compuestos AS
  SELECT tipo, metodo, zona, sensor, periodo, n_escenas, round(bytes/1e6,1) AS mb, fecha_proceso, carpeta
  FROM compuestos ORDER BY tipo, zona, sensor, periodo;
-CREATE VIEW IF NOT EXISTS v_legado AS
- SELECT p.id, p.aoi, e.fecha_utc, e.satelite, p.tipo, p.estado, p.l1r, p.l2w, p.escena
- FROM procesos p LEFT JOIN escenas e USING (escena) WHERE p.legado=1 ORDER BY e.fecha_utc;
-CREATE VIEW IF NOT EXISTS v_disco AS
- SELECT CASE tipo WHEN 'IMPORTADO' THEN 'importado' ELSE 'propio' END AS origen,
-        count(l1r) AS l1r, round(sum(l1r_mb)/1000.0,2) AS l1r_gb,
-        count(l2w) AS l2w, round(sum(l2w_mb)/1000.0,2) AS l2w_gb
- FROM procesos WHERE archivos='PRESENTES' GROUP BY origen;
 '''
 
 PLATFORMS = {'LC08': 'L8', 'LC09': 'L9'}
@@ -235,53 +214,36 @@ class Catalog:
     def __init__(self, storage):
         """Abre o crea la base.
 
-        Un catálogo v1–v3 se guarda como respaldo y se empieza de cero. Uno v4 o v5 se migra en el
-        sitio después de copiarlo como respaldo: en v4 los procesos de AOI anteriores quedan como
-        legado; v5 gana la columna `correccion` (vacía en los productos ya exportados).
+        Un catálogo v1–v4 (anterior a la superimagen) se guarda como respaldo y se empieza de cero.
+        Uno v5 o v6 se migra en el sitio después de copiarlo como respaldo: v5 gana la columna
+        `correccion` (vacía en los productos ya exportados) y v6 pierde el legado `lapargera_v1`.
         """
         self.storage = Path(storage).resolve()
         folder = self.storage/'catalog'
         folder.mkdir(parents=True, exist_ok=True)
         path = folder/'catalog.sqlite'
-        self.backup, self.migrated, self.migrated_from = None, False, None
+        self.backup, self.migrated, self.migrated_from, self.removed_legacy = None, False, None, 0
         self.db = self.connect(path)
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
         old_tables = self.db.execute("SELECT count(*) FROM sqlite_master WHERE name='ejecuciones'").fetchone()[0]
         if version > VERSION:
             raise ValueError('Versión de catálogo no soportada')
         moment = f'{datetime.now(timezone.utc):%Y%m%d_%H%M%S}'
-        if version in (1, 2, 3) or old_tables:
+        if version in (1, 2, 3, 4) or old_tables:
             self.db.close()
             self.backup = folder/f"catalog_v{version}_respaldo_{moment}.sqlite"
             path.rename(self.backup)
             self.db = self.connect(path)
-        elif version in (4, 5):
+        elif version in (5, 6):
             self.backup = folder/f'catalog_v{version}_respaldo_{moment}.sqlite'
             with contextlib.closing(sqlite3.connect(self.backup)) as copy:
                 self.db.backup(copy)
-            if version == 4:
-                self.migrate_v4()
-            else:
+            if version == 5:
                 self.migrate_v5()
+            self.migrate_v6()
             self.migrated, self.migrated_from = True, version
         self.db.executescript(SCHEMA)
         self.db.execute(f'PRAGMA user_version={VERSION}')
-
-    def migrate_v4(self):
-        """Agrega zonas y legado y deja las escenas libres para el AOI nuevo.
-
-        El estado de cola de una escena (PROCESADA, IMPORTADA…) venía del AOI anterior: con el AOI
-        nuevo la misma escena debe poder procesarse por zona. Sus procesos quedan como legado.
-        """
-        with self.db:
-            self.db.execute('ALTER TABLE escenas ADD COLUMN zonas TEXT')
-            self.db.execute('ALTER TABLE procesos ADD COLUMN legado INTEGER DEFAULT 0')
-            self.db.execute('ALTER TABLE busquedas ADD COLUMN aoi TEXT')
-            marks = ','.join('?'*len(LEGACY_AOIS))
-            count = self.db.execute(f'UPDATE procesos SET legado=1 WHERE aoi IN ({marks})', LEGACY_AOIS).rowcount
-            self.db.execute("UPDATE escenas SET estado='NUEVA', registrada=NULL")
-        self.event('LEGADO', f"{count} procesos de {', '.join(LEGACY_AOIS)} (glint apagado) quedan como legado: "
-                             'se conservan y no entran a la superimagen')
 
     def migrate_v5(self):
         """Agrega `correccion` a productos_escena; los productos ya exportados la tienen vacía."""
@@ -289,6 +251,39 @@ class Catalog:
             self.db.execute('ALTER TABLE productos_escena ADD COLUMN correccion TEXT')
         self.event('MIGRACION', 'Catálogo v5 → v6: nueva columna productos_escena.correccion (AOT y geometría); '
                                 'vacía en los productos exportados antes de la migración')
+
+    def migrate_v6(self):
+        """Quita el legado `lapargera_v1`: sus procesos y eventos, sus columnas L1R/L2W y sus vistas.
+
+        También las escenas LOCAL que solo creó el sync antiguo. La tabla procesos se reconstruye
+        (SQLite no borra una columna con clave foránea) y las vistas se recrean con el esquema.
+        """
+        db = self.db
+        db.commit()
+        db.execute('PRAGMA foreign_keys=OFF')
+        try:
+            with db:
+                for (view,) in db.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall():
+                    db.execute(f'DROP VIEW {view}')
+                existing = {row[1] for row in db.execute('PRAGMA table_info(procesos)')}
+                legacy = "SELECT id FROM procesos WHERE tipo='IMPORTADO'" + (' OR legado=1' if 'legado' in existing else '')
+                db.execute(f'DELETE FROM eventos WHERE proceso IN ({legacy})')
+                self.removed_legacy = db.execute(f'DELETE FROM procesos WHERE id IN ({legacy})').rowcount
+                db.execute("DELETE FROM escenas WHERE proveedor='LOCAL' AND escena NOT IN (SELECT escena FROM procesos "
+                           "WHERE escena IS NOT NULL) AND escena NOT IN (SELECT escena FROM productos_escena "
+                           "WHERE escena IS NOT NULL)")
+                db.execute("UPDATE escenas SET estado='NUEVA', registrada=NULL WHERE estado='IMPORTADA'")
+                columns = ','.join(PROCESS_COLUMNS)
+                # Misma definición que el esquema vigente: desde el nombre hasta el cierre de la tabla.
+                definition = SCHEMA.split('CREATE TABLE IF NOT EXISTS procesos')[1].split('\n);')[0]
+                db.execute('CREATE TABLE procesos_v7'+definition+'\n)')
+                db.execute(f'INSERT INTO procesos_v7({columns}) SELECT {columns} FROM procesos')
+                db.execute('DROP TABLE procesos')
+                db.execute('ALTER TABLE procesos_v7 RENAME TO procesos')
+        finally:
+            db.execute('PRAGMA foreign_keys=ON')
+        self.event('MIGRACION', f'Catálogo v6 → v7: se quitó el legado lapargera_v1 ({self.removed_legacy} procesos) '
+                                'y las columnas L1R/L2W de procesos')
 
     @staticmethod
     def connect(path):
@@ -338,20 +333,7 @@ class Catalog:
             else:
                 self.db.execute(f"INSERT INTO escenas(escena,{','.join(columns)}) VALUES(?{',?'*len(columns)})",
                                 (name, *columns.values()))
-        if not row and source['provider'] != 'LOCAL':
-            self.absorb_local(name, columns['adquisicion'])
         return name
-
-    def absorb_local(self, scene, acquisition):
-        """Pasa a la escena del proveedor los procesos de una escena LOCAL (creada por sync) de la misma adquisición."""
-        for local in self.db.execute("SELECT escena, estado FROM escenas WHERE proveedor='LOCAL' AND adquisicion=?",
-                                     (acquisition,)).fetchall():
-            with self.db:
-                self.db.execute('UPDATE procesos SET escena=? WHERE escena=?', (scene, local['escena']))
-                self.db.execute('UPDATE eventos SET escena=? WHERE escena=?', (scene, local['escena']))
-                self.db.execute('UPDATE escenas SET estado=? WHERE escena=?', (local['estado'], scene))
-                self.db.execute('DELETE FROM escenas WHERE escena=?', (local['escena'],))
-            self.event('ESCENA_UNIFICADA', f"{local['escena']} (creada por sync) es {scene}", scene=scene)
 
     def source(self, scene):
         """Snapshot JSON de la fuente de una escena."""
@@ -433,28 +415,23 @@ class Catalog:
 
         Resultado: OK, DISPONIBLE (la adquisición ya estaba completa), FALLIDA (el próximo run la
         reintenta) o PENDIENTE, con intentos de descarga, motivo del último fallo y el resultado de
-        cada zona. Los procesos de legado no cuentan (ver `legacy`).
+        cada zona.
         """
         rows = self.db.execute('''SELECT e.escena, e.sensor, e.satelite, e.fecha_utc, e.tile, e.estado,
               p.id AS proceso, p.estado AS proceso_estado, p.intentos, p.error, p.fin, p.descarga_min,
-              (SELECT count(*) FROM procesos q WHERE q.escena=e.escena AND q.legado=0) AS procesos,
+              (SELECT count(*) FROM procesos q WHERE q.escena=e.escena) AS procesos,
               (SELECT group_concat(z.zona || ':' || z.estado, ' ') FROM productos_escena z WHERE z.escena=e.escena) AS zonas
-            FROM escenas e LEFT JOIN procesos p ON p.id=(SELECT max(id) FROM procesos q WHERE q.escena=e.escena AND q.legado=0)
+            FROM escenas e LEFT JOIN procesos p ON p.id=(SELECT max(id) FROM procesos q WHERE q.escena=e.escena)
             WHERE (e.registrada IS NOT NULL OR p.id IS NOT NULL) AND (? IS NULL OR e.sensor=?)
             ORDER BY e.fecha_utc''', (sensor, sensor)).fetchall()
         names = {'PROCESADA': 'OK'}
         return [{**dict(row), 'resultado': names.get(row['estado'], row['estado'])} for row in rows]
 
-    def legacy(self):
-        """Procesos de AOI anteriores (legado): se conservan aparte y nunca entran a la superimagen."""
-        return [dict(row) for row in self.db.execute('SELECT * FROM v_legado')]
-
     def completed(self, region, zones=None):
         """Adquisiciones que ya no hay que descargar para la región: {adquisición: zonas terminadas}.
 
         Una adquisición está completa cuando todas las zonas que toca (o las de `zones`) tienen
-        resultado terminal (OK, NUBOSA o SIN_DATOS). El legado nunca cuenta: sus L2W no son productos
-        de la superimagen.
+        resultado terminal (OK, NUBOSA o SIN_DATOS), procesado aquí o traído con sync.
         """
         finished = {}
         for row in self.db.execute(f'''SELECT e.adquisicion, z.zona FROM productos_escena z JOIN escenas e USING (escena)
@@ -540,13 +517,12 @@ class Catalog:
 
     # ---------- procesos ----------
 
-    def start(self, scene, kind, config, result_key=None, correction_key=None):
+    def start(self, scene, kind, config):
         """Crea un proceso EN_CURSO y devuelve su id; sus intermedios van en temporary/<id>."""
         with self.db:
-            cursor = self.db.execute('''INSERT INTO procesos(escena,aoi,tipo,estado,inicio,validacion,limpieza,
-                clave_resultado,clave_correccion,detalle,legado) VALUES(?,?,?,'EN_CURSO',?,'PENDIENTE','PENDIENTE',?,?,?,?)''',
-                (scene, config['aoi']['id'], kind, stamp(), result_key, correction_key, canonical({'perfil': config}),
-                 int(config['aoi']['id'] in LEGACY_AOIS)))
+            cursor = self.db.execute('''INSERT INTO procesos(escena,aoi,tipo,estado,inicio,validacion,limpieza,detalle)
+                VALUES(?,?,?,'EN_CURSO',?,'PENDIENTE','PENDIENTE',?)''',
+                (scene, config['aoi']['id'], kind, stamp(), canonical({'perfil': config})))
             process = cursor.lastrowid
         self.event('INICIO', f'Proceso {kind.lower()} de {scene}', process, scene)
         return process
@@ -584,51 +560,19 @@ class Catalog:
         self.update(process, descarga_min=None if seconds is None else round(seconds/60, 2),
                     descarga_mb=mb(size), intentos=attempts)
 
-    def artifact(self, process, kind, path, hashed=True):
-        """Registra el L1R o L2W de un proceso (ruta, tamaño y SHA-256)."""
-        path = Path(path).resolve()
-        size = path.stat().st_size
-        level = kind.lower()
-        self.update(process, **{level: str(path.relative_to(self.storage)), f'{level}_mb': mb(size),
-                                f'{level}_bytes': size, f'{level}_sha256': file_hash(path) if hashed else None},
-                    archivos='PRESENTES')
-
-    def missing(self, process):
-        """Marca que faltan archivos de un proceso."""
-        self.update(process, archivos='FALTAN')
-
-    def available(self, row, kind):
-        """Comprueba que el L1R/L2W de un proceso sigue en disco sin cambios; si no, marca FALTAN.
-
-        Sin SHA-256 (importado sin --hash) solo se comparan existencia y tamaño.
-        """
-        level = kind.lower()
-        if not row[level]:
-            return False
-        path = (self.storage/row[level]).resolve()
-        ok = path.is_relative_to(self.storage) and path.is_file() and path.stat().st_size == row[f'{level}_bytes']
-        ok = ok and (row[f'{level}_sha256'] is None or file_hash(path) == row[f'{level}_sha256'])
-        if not ok:
-            self.missing(row['id'])
-        return ok
-
     def failed_attempts(self, process):
         """Intentos de descarga fallidos registrados para un proceso."""
         return self.db.execute("SELECT count(*) FROM eventos WHERE proceso=? AND tipo='INTENTO_FALLIDO'",
                                (process,)).fetchone()[0]
 
-    def runs(self, state=None, last=None, legacy=False):
-        """Lista procesos en orden cronológico (los del AOI vigente o, con `legacy`, los de legado)."""
+    def runs(self, state=None, last=None):
+        """Lista procesos en orden cronológico."""
         rows = self.db.execute('''SELECT p.id, e.fecha_utc, e.satelite, p.tipo, p.estado, p.inicio, p.duracion_min,
-            p.descarga_min, p.intentos, p.error, p.l2w, p.archivos, p.escena,
+            p.descarga_min, p.intentos, p.error, p.escena,
             (SELECT count(*) FROM productos_escena z WHERE z.proceso=p.id AND z.estado='OK') AS zonas_ok
-            FROM procesos p LEFT JOIN escenas e USING (escena) WHERE (? IS NULL OR p.estado=?) AND p.legado=?
-            ORDER BY p.id DESC LIMIT ?''', (state, state, int(legacy), -1 if last is None else last)).fetchall()
+            FROM procesos p LEFT JOIN escenas e USING (escena) WHERE (? IS NULL OR p.estado=?)
+            ORDER BY p.id DESC LIMIT ?''', (state, state, -1 if last is None else last)).fetchall()
         return [dict(r) for r in reversed(rows)]
-
-    def legacy_count(self):
-        """Número de procesos de legado (para avisar que existen sin mezclarlos)."""
-        return self.db.execute('SELECT count(*) FROM procesos WHERE legado=1').fetchone()[0]
 
     # ---------- superimagen ----------
 
@@ -735,17 +679,6 @@ class Catalog:
         with self.db:
             self.db.execute("UPDATE busquedas SET estado='INTERRUMPIDA' WHERE estado='EN_CURSO'")
         return len(rows)
-
-    def disk(self, processes=None):
-        """MB y número de L1R/L2W presentes, de todo el storage o solo de los procesos dados."""
-        usage = {'L1R': [0, 0], 'L2W': [0, 0]}
-        for row in self.db.execute("SELECT id, l1r_bytes, l2w_bytes FROM procesos WHERE archivos='PRESENTES'"):
-            if processes is None or row['id'] in processes:
-                for kind in usage:
-                    if row[f'{kind.lower()}_bytes']:
-                        usage[kind][0] += 1
-                        usage[kind][1] += row[f'{kind.lower()}_bytes']
-        return {kind: {'archivos': count, 'bytes': size} for kind, (count, size) in usage.items()}
 
     def stage_seconds(self, stage):
         """Mediana histórica de segundos de una etapa exitosa; sirve para estimar el progreso."""

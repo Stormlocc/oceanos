@@ -6,7 +6,7 @@ Los perfiles de `config/aoi/water2coast_v1/` son configuración de OCEANOS: **AC
 
 | Archivo | Contenido |
 |---|---|
-| `project.yaml` | Perfil común: AOI (archivo, SHA-256, campo `Name`), zonas con su EPSG, orden de los sensores, settings ACOLITE comunes (glint y AOT por píxel), nubes ≤ 50 % por zona, reintentos (3 intentos, esperas de 10/30 s), presupuestos (50 GB temporales, 120 GB superimagen), máscara WorldCover, umbrales de glint y bits de flags de sargazo y compuestos |
+| `project.yaml` | Perfil común: AOI (archivo, SHA-256, campo `Name`), zonas con su EPSG, orden de los sensores, settings ACOLITE comunes (glint y AOT por píxel), nubes ≤ 50 % por zona, reintentos (3 intentos, esperas de 10/30 s), presupuestos (50 GB temporales, 300 GB superimagen), máscara WorldCover, umbrales de glint y bits de flags de sargazo y compuestos |
 | `sentinel2.yaml` | S2A/S2B/S2C L1C desde CDSE, 10 m, tiles por zona y productos |
 | `landsat.yaml` | L8/L9 L1TP C2 T1 desde USGS (`landsat_ot_c2_l1`), 30 m, path/row por zona y productos |
 | `olci.yaml` | S3A/S3B `OL_1_EFR___` desde CDSE, 300 m y productos (sin FAI: OLCI no tiene ~1610 nm) |
@@ -16,7 +16,6 @@ Los perfiles de `config/aoi/water2coast_v1/` son configuración de OCEANOS: **AC
 - `--start/--end` lo reemplazan sin editar el YAML. Landsat exige límites a las 00:00 UTC.
 - `--satelite`, `--zona` y `--products` restringen lo del perfil; no pueden agregar nada que no esté.
 
-El perfil `config/aoi/lapargera_v1/` queda solo como registro del legado: `run` no lo usa.
 
 ## Settings generados por zona
 
