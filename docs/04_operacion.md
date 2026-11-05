@@ -259,7 +259,7 @@ Hay más consultas en [`sql/consultas.sql`](../sql/consultas.sql).
 env PYTHONPATH=.:tests /home/antho/.local/bin/micromamba run -p /home/antho/micromamba/envs/acolite python -m unittest discover -s tests
 ```
 
-Son 96 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
+Son 100 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
 
 - **`test_wrapper.py`** cubre:
   - catálogo, migración v4 → v5 y legado;

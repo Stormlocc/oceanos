@@ -6,13 +6,11 @@ Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 
 | Tema | Estado y siguiente paso |
 |---|---|
-| Ensayo real dic-2025 – ene-2026 | Código completo y probado sin red; falta correr `run --plan` y luego `run` con S2 y Landsat en las 4 zonas ([plan](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
-| Calibración de glint | Los cortes 0,005 / 0,02 son el punto de partida. Calibrarlos con los histogramas de `rhog_ref` de dic–ene por zona y sensor, y revisarlos con datos de verano (más glint a 18° N) |
-| Corte OLCI de 20° | Punto de partida de Digital Earth Australia; revisar con el histograma del ángulo de glint de las escenas OLCI reales |
-| OLCI | Implementado (descarga CDSE, 300 m, flags para nubes, compuestos por ángulo de glint), sin escena real. Se integra después de S2 y Landsat de punta a punta |
-| Tamaño real por escena | La estimación de disco usa Float32 con 50 % de compresión hasta tener mediciones; desde el primer producto usa la mediana medida |
-| 12 meses (nov-2025 – oct-2026) | Después del ensayo de dos meses y de la calibración |
-| Catálogo de la carpeta principal | La rama migra el catálogo v4 → v5 al abrirlo (con respaldo). El código de `main` sin fusionar no abre un catálogo v5: fusionar antes de usar el `storage` principal |
+| Ensayo de enero de 2026 | **Hecho** (04/05-11-2026): S2, Landsat y OLCI en las 4 zonas, sin escenas fallidas al final ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
+| Calibración de glint | Con enero se mantienen 0,005 / 0,02 (S2 y Landsat) y 20° (OLCI, que en enero no descarta nada). Revisar con un mes de verano antes de procesar más meses |
+| Respaldo EarthExplorer | 3 de 12 escenas Landsat lo usaron en enero sin motivo registrado; ahora queda en `via_descarga`. Revisar el motivo en el próximo lote |
+| Más meses | Por decisión del usuario se trabaja solo enero de 2026, con cuota de 120 GB: un mes ocupa ~20 GB |
+| Costos en la nube | Siguiente paso: estimar cómputo y almacenamiento con las cifras medidas en enero |
 
 ## Pendientes científicos
 

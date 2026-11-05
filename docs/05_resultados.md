@@ -150,4 +150,41 @@ De los píxeles marcados solo por el bit 0, el 51–94 % tampoco tiene `rhog_ref
 - **0,02:** casi nunca descarta (≤ 0,3 % del agua limpia), porque el bit 0 ya quitó el glint fuerte. Funciona como tope de seguridad.
 - **Revisión pendiente:** enero es temporada de glint bajo a 18° N. Los cortes deben revisarse con un mes de verano antes de procesar los 12 meses. Sentinel-2 tiene más glint que Landsat en las cuatro zonas: p50 0,0025–0,0054 frente a 0,0010–0,0033.
 
-Pendiente: OLCI en enero de 2026, con el histograma del ángulo de glint para revisar el corte de 20°.
+### Ensayo de enero de 2026: Sentinel-3 OLCI (05-11-2026)
+
+**Corrida y correcciones:** 37 escenas OLCI L1 EFR, 31,5 GB de descarga, corridas después de que S2 y Landsat funcionaran de punta a punta. Para completarse hizo falta corregir dos cosas:
+
+1. **Kd490.** El perfil pedía `qaa_v6_Kd_490`, pero ACOLITE no configura QAA ni P3QAA para OLCI. Las primeras 20 escenas fallaron la validación. Se quitó Kd490 de OLCI ([07](07_superimagen.md#productos-de-acolite)).
+2. **Zonas fuera de la franja.** En 4 pasadas de ~14:00 UTC la huella aproximada tocaba una zona que la franja real del sensor no cubre. ACOLITE escribía un L1R vacío sin L2R ni L2W, y la escena fallaba. Ahora esa zona queda `SIN_DATOS`, un estado terminal.
+
+Al reintentar, las escenas fallidas reutilizaron su descarga por SHA-256: 17 en la primera repetición y 4 en la última.
+
+**Resultado (129 zona × escena):**
+
+| Zona | OK | NUBOSA | SIN_DATOS |
+|---|---|---|---|
+| Fajardo–Culebra | 21 | 10 | 1 |
+| La Parguera–Guánica | 25 | 6 | 0 |
+| Mayagüez–Cabo Rojo | 24 | 7 | 1 |
+| Ponce–Guayanilla | 19 | 11 | 4 |
+| **Total** | **89** | **34** | **6** |
+
+**Verificación:**
+- **Auxiliares:** los 89 productos OK tienen auxiliares MERRA-2 reales.
+- **Nubes:** se miden con los flags de ACOLITE y concuerdan con S2 en días despejados (10 de enero: 0–3 % frente a 0 %).
+- **Disco:** cada producto OLCI ocupa 0,3–1 MB por zona; 50 MB en todo el mes.
+- **Compuestos:** 8 compuestos mensuales, los dos métodos en las 4 zonas, con 19–25 escenas por zona, observación en el 57–78 % de la zona y hasta 21 observaciones por píxel. La mediana de `chl_oc4` coincide entre métodos en Fajardo y La Parguera. En Mayagüez (0,76 frente a 0,88) y Ponce (0,39 frente a 0,46) el mejor píxel da más. Es esperable: elige la observación de mayor ángulo de glint, no la mediana del mes.
+
+**Corte de glint OLCI (20°):** en el agua sin flags de nubes, el ángulo de glint mínimo de enero es 24,2°, con p1 de 24,3° y mediana de 32–36°. El corte de 20° no descarta nada en enero. Se mantiene como punto de partida y debe revisarse con un mes de verano, cuando el sol está más alto.
+
+### Total del ensayo de enero de 2026
+
+| Sensor | Escenas | Zonas OK | NUBOSA | SIN_DATOS | Productos | Compuestos mensuales | Sargazo diario |
+|---|---|---|---|---|---|---|---|
+| Sentinel-2 | 35 | 42 | 7 | 0 | 13,8 GB | 8 (4,1 GB) | 30 (1,5 GB) |
+| Landsat 8/9 | 12 | 17 | 3 | 0 | 0,7 GB | 8 (0,4 GB) | 14 (0,06 GB) |
+| OLCI | 37 | 89 | 34 | 6 | 0,05 GB | 8 (0,01 GB) | — (sin FAI) |
+| **Total** | **84** | **148** | **44** | **6** | **14,6 GB** | **24 (4,5 GB)** | **44 (1,6 GB)** |
+
+- **Disco:** la superimagen de enero ocupa ~20 GB de los 120 GB. Los temporales quedaron limpios (152 KB).
+- **Descarga:** 62,5 GB de L1 en total, entre S2 19,6, Landsat 12,9 y OLCI ~30, con reintentos y reutilización.
