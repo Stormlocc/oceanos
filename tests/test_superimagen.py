@@ -396,6 +396,15 @@ class ZoneFlowTests(StorageCase):
         with self.assertRaises(ValueError):
             process(ac, 'in', 'settings.txt', output)
 
+    def test_worker_returns_an_empty_zone_without_reading_l2r(self):
+        from unittest.mock import Mock
+        from oceanos import worker
+        ac = Mock(); ac.settings = {'run': {'uoz_default': 0.3}, 'user': {'limit': '1,2,3,4'}}; ac.version = 'x'
+        empty = {'l1r': 'X_L1R.nc', 'empty': True}
+        with patch('oceanos.worker.native.process', return_value=empty):
+            result = worker.run_acolite(ac, {'input': 'in', 'settings': 's', 'output': 'o'})
+        self.assertEqual((result['files'], result['science_metadata']), (empty, {}))
+
     def test_missing_land_mask_stops_before_acolite(self):
         from oceanos.mascara import path_for
         path_for(self.storage, 'ponce_guayanilla', 'sentinel2', 10).unlink()

@@ -18,9 +18,12 @@ ANCILLARY_DEFAULTS = {'uoz': 'uoz_default', 'uwv': 'uwv_default', 'pressure': 'p
 def run_acolite(ac, request):
     """ACOLITE de una zona: rutas de salida, metadata del L2R, settings y defaults de auxiliares."""
     files = native.process(ac, request['input'], request['settings'], request['output'])
-    with netCDF4.Dataset(files['l2r']) as dataset:
-        science = {key: getattr(dataset, key) for key in dataset.ncattrs()
-                   if key.startswith(('ac_', 'ancillary', 'lut', 'rsr')) or key in SCIENCE_KEYS}
+    science = {}
+    if not files.get('empty'):
+        # Sin datos sobre la zona no hay L2R: la zona queda SIN_DATOS y no hay metadata que leer.
+        with netCDF4.Dataset(files['l2r']) as dataset:
+            science = {key: getattr(dataset, key) for key in dataset.ncattrs()
+                       if key.startswith(('ac_', 'ancillary', 'lut', 'rsr')) or key in SCIENCE_KEYS}
     run = ac.settings['run']
     overrides = {k: v for k, v in ac.settings['user'].items() if k not in ('inputfile', 'output', 'runid')}
     return {'files': files, 'science_metadata': science, 'settings': overrides,
