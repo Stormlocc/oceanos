@@ -10,7 +10,7 @@ from . import native
 from .config import canonical, received_bytes
 
 # Atributos del L2R que se guardan como metadata científica antes de borrarlo.
-SCIENCE_KEYS = ('sensor', 'isodate', 'uoz', 'uwv', 'pressure', 'wind', 'sza', 'vza', 'raa')
+SCIENCE_KEYS = ('sensor', 'isodate', 'uoz', 'uwv', 'pressure', 'wind', 'sza', 'vza', 'raa', 'dsf_aot_estimate')
 # Settings con los valores que ACOLITE usa cuando no consigue los auxiliares MERRA-2.
 ANCILLARY_DEFAULTS = {'uoz': 'uoz_default', 'uwv': 'uwv_default', 'pressure': 'pressure_default'}
 

@@ -85,17 +85,33 @@ Verificado en la revisión fijada:
 Después de cada ACOLITE, por zona (`escenas.export`):
 
 - **COG por variable** (Float32, ZSTD con predictor, teselas de 512, sin overviews para no gastar disco). La tierra y lo que cae fuera de la zona quedan en NoData (NaN).
-- **`calidad.tif`** con 10 bandas:
+- **`calidad.tif`** con 13 bandas, leídas siempre por nombre (`QUALITY_BANDS`):
   - Bits 0–5 de `l2_flags`, decodificados: `flag_swir`, `flag_cirrus`, `flag_toa_alto`, `flag_rrs_negativa`, `flag_fuera_escena`, `flag_mixto`. Los exponentes salen de `config/defaults.txt` de ACOLITE.
   - `rhog_ref` del L2R.
   - Residuo Rrs SWIR cerca de 1600 y 2200 nm (residuo de glint o espuma tras la corrección).
   - Ángulo de glint por píxel, calculado con `ac.shared.glint_angle` y la geometría del L2R.
+  - `aot_550`: espesor óptico de aerosol a 550 nm por píxel, del DSF de ACOLITE (desde noviembre de 2026; ver abajo).
+  - `vza` y `raa`: ángulo cenital de vista y azimut relativo (grados) del L2R. Con geometría resuelta varían por píxel; si ACOLITE solo deja el valor de la escena, se repite.
+  - Lo que ACOLITE no escribió queda NaN.
+  - **Compatibilidad:** los productos de enero de 2026 tienen el `calidad.tif` anterior de 10 bandas, sin las tres últimas. Las bandas nuevas van siempre al final y se leen por nombre, así que compuestos y sargazo siguen leyendo los dos formatos. Pedir `aot_550`, `vza` o `raa` a un archivo antiguo falla: esas bandas no existen ahí.
+
+**Por qué AOT y geometría (04-11-2026).** El ensayo de investigación `~/projects/oceanos-incertidumbre` (incertidumbre aprendida entre sensores) mostró que la calidad del píxel predice el desacuerdo entre sensores, pero le faltaban el aerosol y la geometría. ACOLITE los calcula y OCEANOS los perdía al borrar el L2R.
+- **Aerosol:** con `dsf_aot_estimate=tiled`, el default de S2, Landsat y OLCI en la revisión fijada, ACOLITE estima el AOT en teselas de 600×600 píxeles y lo interpola. Por defecto solo guarda el modelo (`ac_model`) y la media (`ac_aot_550_mean`) como atributos. Con `dsf_write_aot_550=True` (perfil, `acolite`) escribe además `aot_550` en el L2R (`acolite_l2r.py`, «write aot to outputfile»).
+- **No cambia la Rrs ni los productos:** es una salida más. El SHA de los settings sí cambia y queda en el linaje.
+- **No se guarda el L2R:** sigue borrándose tras exportar; solo se copian `aot_550`, `vza` y `raa`, como ya se hacía con `rhog_ref`.
 - **Escritura atómica:** se escribe en `<carpeta>.parcial` y se renombra al terminar. Luego se verifica que cada COG existe, tiene su tamaño y GDAL lo abre.
 - **Borrado:** solo después de exportar, verificar y registrar el linaje se borran L1R, L2R y L2W de la zona. Al cerrar la escena se borran también el crudo y la extracción. Si algo falla no se borra nada: el proceso queda `FALLIDO` con su temporal (`limpieza APLAZADA`), y el siguiente intento reutiliza el crudo si su SHA-256 coincide.
 - **Linaje** (`productos_escena`, una fila por escena, zona y AOI):
   - Identidad de la fuente: ID CDSE/USGS, SHA-256 de la descarga, checksum del proveedor, baseline o colección, vía de descarga (CDSE, M2M o EARTHEXPLORER).
   - Proceso: revisión y parche de ACOLITE, settings nativos, auxiliares usados y fecha de proceso.
   - Medidas: ángulo de glint medio sobre el agua, nubes y su origen, cobertura y capa de tierra con su versión.
+  - Corrección atmosférica (`correccion`, JSON, desde el catálogo v6):
+    - `modelo`: modelo de aerosol del DSF, p. ej. `ACOLITE-LUT-202110-MOD2`;
+    - `dsf_aot_estimate`: modo del DSF;
+    - `aot_550_escena`: `ac_aot_550` con DSF `fixed`, o `ac_aot_550_mean` con `tiled`;
+    - `sza`, `vza`, `raa`: geometría de la escena según los atributos del L2R;
+    - `zona`: medias de `aot_550`, `vza` y `raa` sobre el agua de la zona.
+    - Los productos exportados antes de la migración la tienen vacía.
 - Los COG llevan además su metadata mínima, legible desde `gdalinfo` o ArcGIS: escena, proveedor, zona, sensor, revisión de ACOLITE, máscara y SHA-256 de los settings.
 
 ## Nubes: máximo 50 % por zona
@@ -173,7 +189,7 @@ Un mes sin escenas válidas no tiene compuesto, pero cuenta como completo para s
 
 ## Legado `lapargera_v1`
 
-- **Migración:** al abrir un catálogo v4, OCEANOS lo copia como respaldo (`catalog_v4_respaldo_<fecha>.sqlite`) y lo migra a v5.
+- **Migración:** al abrir un catálogo v4, OCEANOS lo copia como respaldo (`catalog_v4_respaldo_<fecha>.sqlite`) y lo migra (hoy hasta v6).
   - Los procesos de `lapargera_v1` quedan con `legado=1`.
   - Las escenas vuelven a `NUEVA`, porque su estado de cola era del AOI anterior.
   - Se registra un evento `LEGADO`.

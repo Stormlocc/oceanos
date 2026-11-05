@@ -192,7 +192,7 @@ Paralelo: 8 escena(s) a la vez · equipo 20 CPU, 29.4 GB RAM (28.0 GB libre) · 
 
 ## Legado `lapargera_v1`
 
-- **Migración del catálogo.** Al abrir un catálogo v4, OCEANOS hace una copia de respaldo y lo migra a v5.
+- **Migración del catálogo.** Al abrir un catálogo v4, OCEANOS hace una copia de respaldo y lo migra a la versión actual (v6).
   - Los procesos anteriores quedan con `legado=1`.
   - Sus escenas vuelven a `NUEVA`.
 - **Archivos.** Los L1R/L2W siguen en `storage/runs` y nunca se borran.
@@ -220,12 +220,14 @@ Opciones:
 
 `oceanos superimagen` resume los productos por zona y sensor, los compuestos y el disco.
 
-## Catálogo SQLite (esquema v5)
+## Catálogo SQLite (esquema v6)
 
 `storage/catalog/catalog.sqlite` es el único registro operativo.
 - **Formato:** fechas `AAAA-MM-DD HH:MM:SS` UTC; tamaños en MB, salvo `bytes`.
 - **Comentarios:** cada columna lleva su comentario en la base y los visores lo muestran.
-- **Migración:** un catálogo v4 se respalda y se migra.
+- **Migración:** un catálogo v4 o v5 se respalda (`catalog_v<n>_respaldo_<fecha>.sqlite`) y se migra en el sitio.
+  - v4: los procesos del AOI anterior quedan como legado.
+  - v5 → v6 (noviembre de 2026): se agrega `productos_escena.correccion`, que queda vacía en los productos ya exportados. Se registra un evento `MIGRACION`.
 
 | Tabla | Una fila por | Columnas principales |
 |---|---|---|
@@ -259,10 +261,10 @@ Hay más consultas en [`sql/consultas.sql`](../sql/consultas.sql).
 env PYTHONPATH=.:tests /home/antho/.local/bin/micromamba run -p /home/antho/micromamba/envs/acolite python -m unittest discover -s tests
 ```
 
-Son 100 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
+Son 103 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Usan dobles de ACOLITE y servidores locales.
 
 - **`test_wrapper.py`** cubre:
-  - catálogo, migración v4 → v5 y legado;
+  - catálogo, migraciones v4 y v5 → v6, y legado;
   - cola por adquisición y zonas, y reutilización del crudo;
   - limpieza y presupuestos;
   - validación;
@@ -270,7 +272,7 @@ Son 100 pruebas, sin red: `tests/sin_red.py` bloquea toda conexión no local. Us
   - paralelo y recursos;
   - CLI (`run --plan`, selección, reporte con CSV) y `sync` como legado.
 - **`test_superimagen.py`** cubre, sobre una grilla pequeña:
-  - exportación a COG con `calidad.tif` y linaje;
+  - exportación a COG con `calidad.tif` (incluidos `aot_550`, `vza` y `raa`, y la lectura del formato anterior de 10 bandas) y linaje con `correccion`;
   - nubes por zona y máscara de tierra;
   - sargazo diario;
   - compuestos (a) y (b) con sus pesos, estaciones y años, y completitud del mes;

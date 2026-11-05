@@ -5,7 +5,7 @@ import sys
 from collections import Counter
 from datetime import timedelta
 from pathlib import Path
-from .catalog import Catalog
+from .catalog import VERSION, Catalog
 from .config import ROOT, ACOLITE, PLATFORMS, PROFILE, canonical, exclusive, file_hash, instant, profile, profile_sensors
 from .escenas import SENSOR_TAG
 from .native import prepare, scene_identity, eligible
@@ -533,8 +533,10 @@ def run_sensor(catalog, config, args):
 def catalog_notice(catalog):
     """Explica una migración o un catálogo nuevo al abrirlo."""
     if catalog.migrated:
-        print(f'Catálogo v4 migrado a v5 (respaldo: {catalog.backup.relative_to(catalog.storage)}). '
-              f"{catalog.legacy_count()} procesos de lapargera_v1 quedan como legado ('oceanos reporte --legado').")
+        legacy = (f" {catalog.legacy_count()} procesos de lapargera_v1 quedan como legado ('oceanos reporte --legado')."
+                  if catalog.migrated_from == 4 else '')
+        print(f'Catálogo v{catalog.migrated_from} migrado a v{VERSION} '
+              f'(respaldo: {catalog.backup.relative_to(catalog.storage)}).'+legacy)
     elif catalog.backup:
         print(f'Catálogo anterior guardado como {catalog.backup.relative_to(catalog.storage)}; se empezó uno nuevo.')
 

@@ -12,7 +12,7 @@ import threading
 from pathlib import Path
 from .catalog import Catalog, place, satellite
 from .config import ROOT, canonical, disk_bytes, file_hash, received_bytes
-from .escenas import SENSOR_TAG, describe, verify
+from .escenas import QUALITY_BANDS, SENSOR_TAG, describe, verify
 from .mascara import path_for as mask_path
 from .native import identity, eligible, l1_bytes, scene_date, zones_for
 from .validation import validate
@@ -94,7 +94,7 @@ def product_estimate(config, zone, measured=()):
 
     Con productos medidos (`measured`: pares zona, bytes del mismo sensor): la mediana de esa zona,
     o, si la zona aún no tiene, la mediana de bytes por píxel de grilla de las demás por los píxeles
-    de esta. Sin mediciones: Float32 por variable más 10 bandas de calidad, con la mitad por la
+    de esta. Sin mediciones: Float32 por variable más las bandas de calidad, con la mitad por la
     compresión ZSTD y la tierra en NoData (medido en S2 Fajardo–Culebra: 42 bytes/píxel, 615 MB).
     """
     same = [size for name, size in measured if name == zone]
@@ -104,8 +104,28 @@ def product_estimate(config, zone, measured=()):
     if ratios:
         return int(median(ratios)*zone_pixels(config, zone))
     rrs = {'sentinel2': 13, 'landsat': 9, 'olci': 21}[config['family']]
-    layers = rrs + len(config['products']) - 1 + 10
+    layers = rrs + len(config['products']) - 1 + len(QUALITY_BANDS)
     return int(zone_pixels(config, zone)*4*layers*0.5)
+
+
+def as_float(value):
+    """Número de un atributo del L2R (puede llegar como numpy o como texto por el JSON del worker)."""
+    try:
+        return round(float(value), 6)
+    except (TypeError, ValueError):
+        return None
+
+
+def atmospheric_correction(science, exported):
+    """Linaje `correccion`: modelo y AOT del DSF, geometría de la escena y medias sobre el agua de la zona.
+
+    Con DSF `tiled` ACOLITE guarda el AOT medio de la escena (`ac_aot_550_mean`); con `fixed`, el
+    único valor (`ac_aot_550`). El mapa por píxel queda en la banda aot_550 de calidad.tif.
+    """
+    aot = science.get('ac_aot_550', science.get('ac_aot_550_mean'))
+    return {'modelo': science.get('ac_model'), 'dsf_aot_estimate': science.get('dsf_aot_estimate'),
+            'aot_550_escena': as_float(aot), **{key: as_float(science.get(key)) for key in ('sza', 'vza', 'raa')},
+            'zona': exported.get('medias_zona') or {}}
 
 
 def disk_free(path):
@@ -472,7 +492,8 @@ class Pipeline:
         verify(target, exported['files'])
         lineage.update(carpeta=str(folder), bytes=exported['bytes'], variables=sorted(exported['files']),
                        agua_vista_pct=exported['agua_vista_pct'], angulo_glint_deg=exported['angulo_glint_deg'],
-                       auxiliares=auxiliary, mascara=(mask_row or {}).get('capa'))
+                       auxiliares=auxiliary, correccion=atmospheric_correction(result['science_metadata'], exported),
+                       mascara=(mask_row or {}).get('capa'))
         if not clouds:
             # Sin máscara de nubes en el L1 (OLCI): se mide con los flags de ACOLITE sobre el agua de la zona.
             lineage.update(nubes_pct=exported['nubes_flags_pct'], nubes_origen='l2_flags',

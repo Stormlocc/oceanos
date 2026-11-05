@@ -1,4 +1,5 @@
-"""Catálogo SQLite legible (esquema v5): escenas, procesos, productos por zona, compuestos y eventos."""
+"""Catálogo SQLite legible (esquema v6): escenas, procesos, productos por zona, compuestos y eventos."""
+import contextlib
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -6,7 +7,7 @@ from pathlib import Path
 from .config import canonical, file_hash
 from .native import acquisition_day, eligible, l1_bytes, scene_date
 
-VERSION = 5
+VERSION = 6
 # AOI anteriores: sus procesos se conservan como legado y nunca cuentan para el AOI nuevo.
 LEGACY_AOIS = ('lapargera_v1',)
 # Resultados de una zona que cierran su procesamiento (OK con productos, o sin nada que guardar).
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS productos_escena (
  acolite TEXT,                     -- JSON: revisión y parche de ACOLITE
  settings TEXT,                    -- JSON: settings nativos usados
  auxiliares TEXT,                  -- JSON: ozono, vapor, presión y viento usados por ACOLITE
+ correccion TEXT,                  -- JSON: modelo y AOT 550 del DSF, sza/vza/raa de la escena y medias de aot_550/vza/raa en el agua de la zona
  mascara TEXT,                     -- capa de tierra y versión
  fecha_proceso TEXT,
  UNIQUE(escena, zona, aoi)
@@ -233,14 +235,15 @@ class Catalog:
     def __init__(self, storage):
         """Abre o crea la base.
 
-        Un catálogo v1–v3 se guarda como respaldo y se empieza de cero. Uno v4 se migra en el sitio
-        (después de copiarlo como respaldo) y sus procesos de AOI anteriores quedan como legado.
+        Un catálogo v1–v3 se guarda como respaldo y se empieza de cero. Uno v4 o v5 se migra en el
+        sitio después de copiarlo como respaldo: en v4 los procesos de AOI anteriores quedan como
+        legado; v5 gana la columna `correccion` (vacía en los productos ya exportados).
         """
         self.storage = Path(storage).resolve()
         folder = self.storage/'catalog'
         folder.mkdir(parents=True, exist_ok=True)
         path = folder/'catalog.sqlite'
-        self.backup, self.migrated = None, False
+        self.backup, self.migrated, self.migrated_from = None, False, None
         self.db = self.connect(path)
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
         old_tables = self.db.execute("SELECT count(*) FROM sqlite_master WHERE name='ejecuciones'").fetchone()[0]
@@ -252,12 +255,15 @@ class Catalog:
             self.backup = folder/f"catalog_v{version}_respaldo_{moment}.sqlite"
             path.rename(self.backup)
             self.db = self.connect(path)
-        elif version == 4:
-            self.backup = folder/f'catalog_v4_respaldo_{moment}.sqlite'
-            with sqlite3.connect(self.backup) as copy:
+        elif version in (4, 5):
+            self.backup = folder/f'catalog_v{version}_respaldo_{moment}.sqlite'
+            with contextlib.closing(sqlite3.connect(self.backup)) as copy:
                 self.db.backup(copy)
-            self.migrate_v4()
-            self.migrated = True
+            if version == 4:
+                self.migrate_v4()
+            else:
+                self.migrate_v5()
+            self.migrated, self.migrated_from = True, version
         self.db.executescript(SCHEMA)
         self.db.execute(f'PRAGMA user_version={VERSION}')
 
@@ -276,6 +282,13 @@ class Catalog:
             self.db.execute("UPDATE escenas SET estado='NUEVA', registrada=NULL")
         self.event('LEGADO', f"{count} procesos de {', '.join(LEGACY_AOIS)} (glint apagado) quedan como legado: "
                              'se conservan y no entran a la superimagen')
+
+    def migrate_v5(self):
+        """Agrega `correccion` a productos_escena; los productos ya exportados la tienen vacía."""
+        with self.db:
+            self.db.execute('ALTER TABLE productos_escena ADD COLUMN correccion TEXT')
+        self.event('MIGRACION', 'Catálogo v5 → v6: nueva columna productos_escena.correccion (AOT y geometría); '
+                                'vacía en los productos exportados antes de la migración')
 
     @staticmethod
     def connect(path):

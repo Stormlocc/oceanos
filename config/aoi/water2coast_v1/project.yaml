@@ -30,6 +30,9 @@ acolite:
   # Glint: corrección residual con las bandas SWIR y escritura de la glint de referencia por píxel.
   dsf_residual_glint_correction: true
   glint_write_rhog_ref: true
+  # AOT a 550 nm por píxel del DSF (tiled: teselas interpoladas). Solo agrega una salida al L2R,
+  # no cambia Rrs ni productos; OCEANOS la copia a calidad.tif (docs/07_superimagen.md).
+  dsf_write_aot_550: true
 
 # Nubes medidas sobre cada zona con la máscara del propio producto L1 (S2 MSK_CLASSI, Landsat
 # QA_PIXEL); si no hay máscara (OLCI), con los flags de ACOLITE. Por encima se omite la zona.

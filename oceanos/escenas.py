@@ -19,7 +19,12 @@ SENSOR_TAG = {'sentinel2': 'S2', 'landsat': 'Landsat', 'olci': 'OLCI'}
 # Bits de l2_flags de ACOLITE (revisión fijada, acolite_flags) que se decodifican en calidad.tif.
 FLAG_BITS = {0: 'flag_swir', 1: 'flag_cirrus', 2: 'flag_toa_alto', 3: 'flag_rrs_negativa', 4: 'flag_fuera_escena',
              5: 'flag_mixto'}
-QUALITY_BANDS = [*FLAG_BITS.values(), 'rhog_ref', 'residuo_rrs_swir1', 'residuo_rrs_swir2', 'angulo_glint']
+# Las bandas se leen por nombre (bloques.quality_rows): las nuevas van siempre al final, así los
+# calidad.tif anteriores (10 bandas, hasta noviembre de 2026) siguen siendo legibles.
+QUALITY_BANDS = [*FLAG_BITS.values(), 'rhog_ref', 'residuo_rrs_swir1', 'residuo_rrs_swir2', 'angulo_glint',
+                 'aot_550', 'vza', 'raa']
+# Bandas de calidad.tif que se resumen como media sobre el agua de la zona en el linaje (`correccion`).
+ZONE_MEANS = ('aot_550', 'vza', 'raa')
 # Variables del L2W que no son productos: ejes, coordenadas y flags (van a calidad.tif).
 NOT_PRODUCTS = {'x', 'y', 'lat', 'lon', 'l2_flags', 'transverse_mercator', 'crs', 'spatial_ref'}
 # COG sin pérdida: ZSTD con predictor (flotante en Float32). Sin overviews: se generan al publicar,
@@ -131,26 +136,49 @@ def variable(dataset, name):
     return np.ma.filled(dataset[name][:].astype(np.float32), np.nan)
 
 
-def glint_angle(ac, l2r):
-    """Ángulo de glint por píxel (grados) con la geometría del L2R y ac.shared.glint_angle de ACOLITE."""
-    shape = l2r['l2_flags'].shape if 'l2_flags' in l2r.variables else (len(l2r['y']), len(l2r['x']))
-    geometry = {}
+def l2r_shape(l2r):
+    return l2r['l2_flags'].shape if 'l2_flags' in l2r.variables else (len(l2r['y']), len(l2r['x']))
+
+
+def geometry(l2r):
+    """sza, vza y raa por píxel del L2R (grados).
+
+    Con geometría resuelta ACOLITE las escribe como variables 2D; si no, solo como atributo de la
+    escena y se repite el valor. Sin ninguna de las dos, NaN.
+    """
+    shape = l2r_shape(l2r)
+    result = {}
     for name in ('sza', 'vza', 'raa'):
         if name in l2r.variables and l2r[name].ndim == 2:
-            geometry[name] = variable(l2r, name)
+            result[name] = variable(l2r, name)
         elif name in l2r.ncattrs():
-            geometry[name] = np.full(shape, float(getattr(l2r, name)), np.float32)
+            result[name] = np.full(shape, float(getattr(l2r, name)), np.float32)
         else:
-            return np.full(shape, np.nan, np.float32)
-    return np.asarray(ac.shared.glint_angle(geometry['sza'], geometry['vza'], geometry['raa']), np.float32)
+            result[name] = np.full(shape, np.nan, np.float32)
+    return result
+
+
+def glint_angle(ac, l2r, angles=None):
+    """Ángulo de glint por píxel (grados) con la geometría del L2R y ac.shared.glint_angle de ACOLITE."""
+    angles = angles or geometry(l2r)
+    if any(np.isnan(angles[name]).all() for name in angles):
+        return np.full(l2r_shape(l2r), np.nan, np.float32)
+    return np.asarray(ac.shared.glint_angle(angles['sza'], angles['vza'], angles['raa']), np.float32)
 
 
 def quality_layers(ac, l2r, l2w, names):
-    """Bandas de calidad.tif: bits de l2_flags, rhog_ref del L2R, residuo Rrs SWIR y ángulo de glint."""
+    """Bandas de calidad.tif, en el orden de QUALITY_BANDS.
+
+    Bits de l2_flags, rhog_ref del L2R, residuo Rrs SWIR, ángulo de glint, AOT 550 del DSF
+    (con dsf_write_aot_550) y vza/raa. Lo que ACOLITE no escribió queda NaN.
+    """
     flags = np.ma.filled(l2w['l2_flags'][:], 0).astype(np.int64)
     layers = [((flags >> bit) & 1).astype(np.float32) for bit in FLAG_BITS]
     rhog = variable(l2r, 'rhog_ref') if 'rhog_ref' in l2r.variables else np.full(flags.shape, np.nan, np.float32)
-    return layers + [rhog, *swir_residuals(l2w, names), glint_angle(ac, l2r)]
+    aot = variable(l2r, 'aot_550') if 'aot_550' in l2r.variables else np.full(flags.shape, np.nan, np.float32)
+    angles = geometry(l2r)
+    return layers + [rhog, *swir_residuals(l2w, names), glint_angle(ac, l2r, angles), aot,
+                     angles['vza'], angles['raa']]
 
 
 def staging_for(target):
@@ -209,9 +237,15 @@ def scene_stats(quality, water):
     seen = water & (bands['flag_fuera_escena'] == 0)
     angle = bands['angulo_glint'][seen]
     clouds = ((bands['flag_cirrus'] == 1) | (bands['flag_toa_alto'] == 1))[seen]
-    return {'angulo_glint_deg': round(float(np.nanmean(angle)), 2) if np.isfinite(angle).any() else None,
+    return {'angulo_glint_deg': mean_or_none(angle, 2),
             'nubes_flags_pct': round(100*float(clouds.mean()), 2) if seen.any() else None,
-            'agua_vista_pct': round(100*float(seen.sum())/max(int(water.sum()), 1), 2)}
+            'agua_vista_pct': round(100*float(seen.sum())/max(int(water.sum()), 1), 2),
+            'medias_zona': {name: mean_or_none(bands[name][seen], 4) for name in ZONE_MEANS}}
+
+
+def mean_or_none(values, digits):
+    """Media de los valores finitos, redondeada; None si no hay ninguno."""
+    return round(float(np.nanmean(values)), digits) if np.isfinite(values).any() else None
 
 
 def verify(target, files):

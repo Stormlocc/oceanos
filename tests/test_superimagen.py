@@ -36,8 +36,11 @@ def config_for(start='2025-12-01', end='2026-01-01'):
     return config
 
 
-def scene_folder(folder, variables, rhog, flags=None, swir=0.0, angle=40.0):
-    """Carpeta de escena como la deja la exportación: un COG por variable y calidad.tif."""
+def scene_folder(folder, variables, rhog, flags=None, swir=0.0, angle=40.0, legacy=False):
+    """Carpeta de escena como la deja la exportación: un COG por variable y calidad.tif.
+
+    legacy=True escribe el calidad.tif anterior a noviembre de 2026 (10 bandas, sin aot_550/vza/raa).
+    """
     folder.mkdir(parents=True, exist_ok=True)
     for name, values in variables.items():
         write_cog(folder/(name+'.tif'), [full(values) if np.isscalar(values) else values.astype(np.float32)], GRID)
@@ -45,7 +48,9 @@ def scene_folder(folder, variables, rhog, flags=None, swir=0.0, angle=40.0):
     for bit, mask in (flags or {}).items():
         bits[bit] = mask.astype(np.float32)
     quality = bits + [full(rhog) if np.isscalar(rhog) else rhog.astype(np.float32), full(swir), full(np.nan), full(angle)]
-    write_cog(folder/'calidad.tif', quality, GRID, names=QUALITY_BANDS)
+    if not legacy:
+        quality += [full(0.1), full(5.0), full(100.0)]
+    write_cog(folder/'calidad.tif', quality, GRID, names=QUALITY_BANDS[:len(quality)])
     return sorted(p.name for p in folder.iterdir())
 
 
@@ -76,7 +81,8 @@ class ExportTests(unittest.TestCase):
         root = Path(self.temp.name)
         x = np.arange(700005, 700060, 10); y = np.arange(2000035, 2000000, -10)
         self.l2r, self.l2w = root/'l2r.nc', root/'l2w.nc'
-        for path, names in ((self.l2r, ['rhog_ref', 'rhos_1614']), (self.l2w, ['Rrs_443', 'Rrs_1614', 'Rrs_2202', 'fai'])):
+        for path, names in ((self.l2r, ['rhog_ref', 'rhos_1614', 'aot_550']),
+                            (self.l2w, ['Rrs_443', 'Rrs_1614', 'Rrs_2202', 'fai'])):
             with netCDF4.Dataset(path, 'w') as ds:
                 ds.createDimension('x', 6); ds.createDimension('y', 4)
                 ds.createVariable('x', 'f8', ('x',))[:] = x; ds.createVariable('y', 'f8', ('y',))[:] = y
@@ -111,6 +117,33 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(np.allclose(quality['residuo_rrs_swir2'][:, 1:5], 0.003))
         self.assertEqual((result['angulo_glint_deg'], result['nubes_flags_pct'], result['agua_vista_pct']), (25.0, 25.0, 100.0))
         self.assertEqual(read_band(target/'fai.tif').shape, SHAPE)
+        # AOT del DSF (dsf_write_aot_550) y geometría del L2R; la tierra queda NaN como en las demás bandas.
+        self.assertTrue(np.allclose(quality['aot_550'][:, 1:5], 0.003) and np.isnan(quality['aot_550'][:, 0]).all())
+        self.assertTrue(np.allclose(quality['vza'][:, 1:5], 5.0) and np.allclose(quality['raa'][:, 1:5], 100.0))
+        self.assertEqual(result['medias_zona'], {'aot_550': 0.003, 'vza': 5.0, 'raa': 100.0})
+
+    def test_export_without_aot_or_geometry_leaves_nan(self):
+        import netCDF4
+        from oceanos.escenas import export
+        with netCDF4.Dataset(self.l2r, 'a') as ds:
+            ds.renameVariable('aot_550', 'otra')
+            for name in ('sza', 'vza', 'raa'):
+                ds.delncattr(name)
+        target = Path(self.temp.name)/'escenas'/'sin_aot'
+        result = export(self.ac, self.l2r, self.l2w, self.mask, target, GRID, {'zona': ZONE})
+        quality = {name: read_band(target/'calidad.tif', index) for index, name in enumerate(QUALITY_BANDS, 1)}
+        self.assertTrue(all(np.isnan(quality[name]).all() for name in ('aot_550', 'vza', 'raa', 'angulo_glint')))
+        self.assertEqual(result['medias_zona'], {'aot_550': None, 'vza': None, 'raa': None})
+        self.assertIsNone(result['angulo_glint_deg'])
+
+    def test_legacy_quality_file_is_still_read_by_name(self):
+        from oceanos.bloques import quality_rows
+        folder = Path(self.temp.name)/'legado'
+        scene_folder(folder, {'fai': 0.01}, 0.004, flags={1: full(1.0)}, swir=0.002, angle=33.0, legacy=True)
+        self.assertTrue(np.allclose(quality_rows(folder, 0, 4, 'rhog_ref'), 0.004))
+        self.assertTrue(np.allclose(quality_rows(folder, 0, 4, 'angulo_glint'), 33.0))
+        self.assertTrue(np.allclose(quality_rows(folder, 0, 4, 'residuo_rrs_swir1'), 0.002))
+        self.assertTrue((quality_rows(folder, 0, 4, 'flag_cirrus') == 1).all())
 
     def test_verify_rejects_missing_or_truncated_cog(self):
         from oceanos.escenas import export, verify
@@ -326,12 +359,16 @@ class ZoneFlowTests(StorageCase):
             files = {level: str(output/f'{level}.nc') for level in ('l1r', 'l2r', 'l2w')}
             for path in files.values(): Path(path).write_bytes(b'nc')
             values = {'uoz': 0.3, 'uwv': 1.5, 'pressure': 1013.25} if self.defaults else {'uoz': 0.27, 'uwv': 3.1, 'pressure': 1012.0}
+            # Como llegan del worker: numpy float32 se serializa como texto en el JSON.
+            values.update(ac_model='ACOLITE-LUT-202110-MOD2', ac_aot_550_mean='0.0812', dsf_aot_estimate='tiled',
+                          sza=41.5, vza=6.25, raa=97.0)
             return {'files': files, 'science_metadata': values,
                     'ancillary_defaults': {'uoz': 0.3, 'uwv': 1.5, 'pressure': 1013.25}}
         if operation == 'export':
             target = Path(args['target']); target.mkdir(parents=True); (target/'fai.tif').write_bytes(b'tif')
             return {'files': {'fai.tif': 3}, 'variables': ['fai'], 'bytes': 3, 'angulo_glint_deg': 30.0,
-                    'nubes_flags_pct': 5.0, 'agua_vista_pct': 99.0}
+                    'nubes_flags_pct': 5.0, 'agua_vista_pct': 99.0,
+                    'medias_zona': {'aot_550': 0.0799, 'vza': 6.1, 'raa': 96.8}}
         raise AssertionError(operation)
 
     def run_scene(self, runner):
@@ -348,6 +385,9 @@ class ZoneFlowTests(StorageCase):
         self.assertEqual((ok['baseline'], ok['via_descarga'], ok['angulo_glint_deg'], json.loads(ok['auxiliares'])['uoz']),
                          ('N0511', 'CDSE', 30.0, 0.27))
         self.assertTrue(ok['sha256'] and json.loads(ok['settings'])['region_name'] == 'ponce_guayanilla')
+        self.assertEqual(json.loads(ok['correccion']),
+                         {'modelo': 'ACOLITE-LUT-202110-MOD2', 'dsf_aot_estimate': 'tiled', 'aot_550_escena': 0.0812,
+                          'sza': 41.5, 'vza': 6.25, 'raa': 97.0, 'zona': {'aot_550': 0.0799, 'vza': 6.1, 'raa': 96.8}})
         self.assertFalse((self.storage/'temporary'/str(process)).exists())
         self.assertEqual(self.cat.process(process)['limpieza'], 'HECHA')
         # Ya terminadas sus zonas, la adquisición no se vuelve a descargar.

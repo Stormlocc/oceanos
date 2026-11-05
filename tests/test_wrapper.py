@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock
-from oceanos.catalog import Catalog
+from oceanos.catalog import VERSION, Catalog
 from oceanos.config import ACOLITE, PROFILE, profile, exclusive
 from oceanos.native import scene_identity, eligible, extract
 from oceanos.pipeline import Pipeline, cleanup, recover
@@ -163,7 +163,7 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue({'v_superimagen','v_compuestos','v_legado','v_cola'} <= set(views))
         for view in views:
             cat.db.execute(f'SELECT * FROM {view}').fetchall()
-        self.assertEqual(cat.db.execute('PRAGMA user_version').fetchone()[0],5)
+        self.assertEqual(cat.db.execute('PRAGMA user_version').fetchone()[0],VERSION)
         cat.db.close()
         self.assertIsNone(Catalog(folder).backup)
 
@@ -181,11 +181,33 @@ class CatalogTests(unittest.TestCase):
         db.execute('PRAGMA user_version=4');db.commit();db.close()
         self.cat=Catalog(self.temp.name)
         self.assertTrue(self.cat.migrated and self.cat.backup.name.startswith('catalog_v4_respaldo_'))
+        self.assertEqual(self.cat.migrated_from,4)
+        columns={r[1] for r in self.cat.db.execute('PRAGMA table_info(productos_escena)')}
+        self.assertIn('correccion',columns)
         self.assertEqual(self.cat.process(legacy)['legado'],1)
         self.assertEqual(self.cat.legacy_count(),1)
         self.assertEqual(self.cat.db.execute('SELECT estado FROM escenas').fetchone()[0],'NUEVA')
         self.assertEqual(self.cat.runs(),[])
         self.assertEqual([r['id'] for r in self.cat.legacy()],[legacy])
+
+    def test_v5_catalog_gains_correccion_column_and_keeps_products(self):
+        name=self.scene()
+        product=self.cat.record_product(name,'ponce_guayanilla','water2coast_v1',estado='OK',sensor='S2',fecha='2026-01-21')
+        db=self.cat.db
+        for (view,) in db.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall():
+            db.execute(f'DROP VIEW {view}')
+        db.execute('ALTER TABLE productos_escena DROP COLUMN correccion')
+        db.execute('PRAGMA user_version=5');db.commit();db.close()
+        self.cat=Catalog(self.temp.name)
+        self.assertTrue(self.cat.migrated and self.cat.migrated_from==5)
+        self.assertTrue(self.cat.backup.name.startswith('catalog_v5_respaldo_') and self.cat.backup.exists())
+        row=self.cat.db.execute('SELECT id,estado,correccion FROM productos_escena').fetchone()
+        self.assertEqual((row['id'],row['estado'],row['correccion']),(product,'OK',None))
+        self.assertEqual(self.cat.db.execute('PRAGMA user_version').fetchone()[0],VERSION)
+        self.assertEqual(self.cat.db.execute("SELECT count(*) FROM eventos WHERE tipo='MIGRACION'").fetchone()[0],1)
+        self.cat.db.close()
+        self.cat=Catalog(self.temp.name)
+        self.assertFalse(self.cat.migrated)
 
 
 class AdapterTests(unittest.TestCase):
@@ -217,7 +239,8 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(native['region_name'],'fajardo_culebra')
         self.assertEqual((native['output_projection_epsg'],native['reproject_before_ac'],native['output_projection_resampling_method']),
                          ('32620','True','nearest'))
-        self.assertEqual((native['dsf_residual_glint_correction'],native['glint_write_rhog_ref']),('True','True'))
+        self.assertEqual((native['dsf_residual_glint_correction'],native['glint_write_rhog_ref'],native['dsf_write_aot_550']),
+                         ('True','True','True'))
         self.assertEqual(fajardo['places'],['20QKF'])
         landsat=profile(PROFILE,'landsat',start='2026-08-01',end='2026-08-15')
         self.assertEqual(landsat['zones']['fajardo_culebra']['grid']['resolution_m'],30)

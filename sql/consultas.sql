@@ -1,4 +1,4 @@
--- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v5).
+-- Consultas de solo lectura sobre storage/catalog/catalog.sqlite (esquema v6).
 -- Abrir con:  python -m sqlite3 storage/catalog/catalog.sqlite   (o DB Browser for SQLite)
 -- Tablas: escenas (catálogo + cola), procesos (descarga y procesamiento, legado=1 es lapargera_v1),
 --         busquedas, eventos, productos_escena (superimagen por escena y zona, con linaje),
@@ -59,8 +59,9 @@ SELECT fecha, zona, sensor, satelite, estado, round(nubes_pct, 1) AS nubes, roun
        round(angulo_glint_deg, 1) AS glint_deg, round(bytes / 1e6, 1) AS mb, via_descarga, carpeta
 FROM productos_escena ORDER BY fecha, zona;
 
--- 15. Linaje de un producto: fuente, checksums, ACOLITE, auxiliares y máscara.
-SELECT escena, zona, proveedor_id, sha256, checksum_proveedor, baseline, via_descarga, acolite, auxiliares, mascara, fecha_proceso
+-- 15. Linaje de un producto: fuente, checksums, ACOLITE, auxiliares, corrección atmosférica y máscara.
+SELECT escena, zona, proveedor_id, sha256, checksum_proveedor, baseline, via_descarga, acolite, auxiliares, correccion,
+       mascara, fecha_proceso
 FROM productos_escena WHERE estado = 'OK' ORDER BY fecha DESC LIMIT 10;
 
 -- 16. Tamaño medio por producto de zona y por mes, frente al presupuesto de 100 GB.
