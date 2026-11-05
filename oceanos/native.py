@@ -664,10 +664,12 @@ def usgs_download(ac, source, raw):
     Vía principal: M2M (`download-request`), la API oficial de USGS. Si M2M no entrega una URL
     (sin permiso, sin bundle, pedido que no se prepara), se usa la página de EarthExplorer como
     respaldo. En ambas el archivo se escribe en streaming y un `.part` cortado se reanuda (`fetch`).
+    Si se usa el respaldo tras un fallo de M2M, la vía queda como `EARTHEXPLORER:<motivo M2M>`.
     """
     import requests
     target = Path(raw)/(source['product']+'.tar')
     url = None
+    route = 'EARTHEXPLORER'
     token = ac.api.earthexplorer.auth(netrc_machine='earthexplorer_token')
     if token:
         with requests.Session() as session:
@@ -677,13 +679,14 @@ def usgs_download(ac, source, raw):
             except DownloadError as error:
                 if error.reason in M2M_FINAL:
                     raise
+                route = 'EARTHEXPLORER:'+error.reason
             finally:
                 with contextlib.suppress(Exception):
                     session.post(ac.config['EARTHEXPLORER_api']+'/logout', timeout=30)
     if url:
         with requests.Session() as session:
             return target, fetch(session, url, target, USGS_DOMAIN), 'M2M'
-    return target, earthexplorer_download(ac, source, target), 'EARTHEXPLORER'
+    return target, earthexplorer_download(ac, source, target), route
 
 
 def earthexplorer_download(ac, source, target):

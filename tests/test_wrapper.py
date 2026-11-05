@@ -1251,7 +1251,8 @@ class NoRepeatTests(unittest.TestCase):
                 self.rfile.read(int(self.headers.get('Content-Length') or 0));hits.append(self.path)
                 if not self.path.startswith('/api/') or not m2m:
                     return self.reply(b'ok')
-                data={'download-options':options,'download-request':{'availableDownloads':[{'url':base+'/bundle'}]}}
+                request={'availableDownloads':[{'url':base+'/bundle'}]} if m2m!='sin_url' else {}
+                data={'download-options':options,'download-request':request}
                 self.reply(json.dumps({'data':data.get(self.path.rsplit('/',1)[1])}).encode(),'application/json')
             def do_GET(self):
                 hits.append(self.path)
@@ -1281,6 +1282,19 @@ class NoRepeatTests(unittest.TestCase):
                          ['/api/download-options','/api/download-request','/api/download-order-remove','/api/logout'])
         self.assertNotIn('/ers/login',hits)
 
+    def test_usgs_fallback_records_the_m2m_reason(self):
+        from oceanos.native import usgs_download
+        ac,hits,body,close=self.usgs_server(m2m='sin_url')
+        data={'provider':'USGS','id':'LC90050482026217LGN00','dataset':'landsat_ot_c2_l1','product':'LC09_L1TP_005048_20260805_20260806_02_T1'}
+        try:
+            with patch('oceanos.native.USGS_DOMAIN','127.0.0.1'):
+                path,digests,route=usgs_download(ac,data,self.raw)
+        finally:
+            close()
+        # M2M no entregó URL: se usa EarthExplorer y el motivo queda en la vía de descarga (linaje).
+        self.assertEqual((route,path.read_bytes()),('EARTHEXPLORER:M2M_SIN_URL',body))
+        self.assertIn('/api/download-order-remove',hits)
+
     def test_usgs_download_falls_back_to_earthexplorer(self):
         import hashlib
         from oceanos.native import usgs_download, bundle_ids
@@ -1291,7 +1305,7 @@ class NoRepeatTests(unittest.TestCase):
                 path,digests,route=usgs_download(ac,data,self.raw)
         finally:
             close()
-        self.assertEqual((route,path.name,path.read_bytes()),('EARTHEXPLORER',data['product']+'.tar',body))
+        self.assertEqual((route,path.name,path.read_bytes()),('EARTHEXPLORER:M2M_RESPUESTA_INVALIDA',data['product']+'.tar',body))
         self.assertEqual(digests['sha256'],hashlib.sha256(body).hexdigest())
         # Una sola transferencia del bundle (la nativa pide dos) y cierre de sesión EROS.
         self.assertEqual(hits.count('/bundle'),1)
@@ -1319,7 +1333,7 @@ class NoRepeatTests(unittest.TestCase):
             cli.show_report(self.cat,csv_path=path)
         text=out.getvalue()
         self.assertIn('cuota del proveedor superada (429)',text);self.assertIn('OK: 1 · FALLIDA: 1',text)
-        rows=list(csv.DictReader(path.open(encoding='utf-8')))
+        with path.open(encoding='utf-8') as stream: rows=list(csv.DictReader(stream))
         self.assertEqual([(r['RESULTADO'],r['INTENTOS']) for r in rows],[('OK',''),('FALLIDA','3')])
         self.assertEqual(sorted(rows[0]['ZONAS'].split()),['la_parguera_guanica:NUBOSA','ponce_guayanilla:OK'])
         with contextlib.redirect_stdout(io.StringIO()) as only:

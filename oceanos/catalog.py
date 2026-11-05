@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS productos_escena (
  sha256 TEXT,                      -- SHA-256 de la descarga
  checksum_proveedor TEXT,          -- JSON: checksums publicados por el proveedor
  baseline TEXT,                    -- baseline (S2 N05xx), colección (Landsat 02:T1) o versión (OLCI)
- via_descarga TEXT,                -- CDSE, M2M o EARTHEXPLORER
+ via_descarga TEXT,                -- CDSE, M2M o EARTHEXPLORER (EARTHEXPLORER:<motivo> si M2M falló)
  acolite TEXT,                     -- JSON: revisión y parche de ACOLITE
  settings TEXT,                    -- JSON: settings nativos usados
  auxiliares TEXT,                  -- JSON: ozono, vapor, presión y viento usados por ACOLITE
