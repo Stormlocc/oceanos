@@ -454,6 +454,11 @@ class Pipeline:
         result = self.call('process', day=info['date'][:8], input=str(input_path), settings=str(settings),
                            output=str(work/'acolite'))
         files = result['files']
+        if files.get('empty'):
+            # La huella toca la zona pero la franja real del sensor no la cubre: sin datos, no es un fallo.
+            lineage.update(cobertura_pct=0.0)
+            shutil.rmtree(work)
+            return self.close_zone(scene, name, 'SIN_DATOS', lineage)
         validate(files, zone['grid'], self.config['products'])
         auxiliary = self.check_ancillary(result)
         self.check_superimagen_budget([name])

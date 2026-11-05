@@ -320,6 +320,9 @@ class ZoneFlowTests(StorageCase):
             return {'cobertura_pct': 100.0, 'nubes_pct': self.clouds[zone], 'origen': 'MSK_CLASSI_B00'}
         if operation == 'process':
             output = Path(args['output']); output.mkdir(parents=True)
+            if getattr(self, 'empty', None) and self.empty in args['settings']:
+                (output/'l1r.nc').write_bytes(b'nc')
+                return {'files': {'l1r': str(output/'l1r.nc'), 'empty': True}, 'science_metadata': {}}
             files = {level: str(output/f'{level}.nc') for level in ('l1r', 'l2r', 'l2w')}
             for path in files.values(): Path(path).write_bytes(b'nc')
             values = {'uoz': 0.3, 'uwv': 1.5, 'pressure': 1013.25} if self.defaults else {'uoz': 0.27, 'uwv': 3.1, 'pressure': 1012.0}
@@ -366,6 +369,32 @@ class ZoneFlowTests(StorageCase):
         self.assertNotIn('acquire', self.calls)
         self.assertEqual(self.cat.process(failed['id'])['limpieza'], 'HECHA')
         self.assertEqual(self.cat.db.execute("SELECT count(*) FROM productos_escena WHERE estado='OK'").fetchone()[0], 2)
+
+    def test_zone_outside_the_real_swath_is_sin_datos_not_a_failure(self):
+        # La huella toca la zona pero ACOLITE no tiene datos en ella (L1R vacío, sin L2R ni L2W).
+        self.clouds['la_parguera_guanica'] = 10.0
+        self.empty = 'la_parguera_guanica'
+        process = self.run_scene(self.runner())
+        rows = {r['zona']: r['estado'] for r in self.cat.db.execute('SELECT * FROM productos_escena')}
+        self.assertEqual(rows, {'la_parguera_guanica': 'SIN_DATOS', 'ponce_guayanilla': 'OK'})
+        self.assertEqual((self.cat.process(process)['estado'], self.cat.process(process)['limpieza']), ('OK', 'HECHA'))
+
+    def test_native_process_reports_an_empty_zone(self):
+        import netCDF4, numpy as np
+        from unittest.mock import Mock
+        from oceanos.native import process
+        output = self.storage/'acolite'; output.mkdir()
+        l1r = output/'X_L1R_projected.nc'
+        with netCDF4.Dataset(l1r, 'w') as ds:
+            ds.createDimension('y', 2); ds.createDimension('x', 3)
+            ds.createVariable('rhot_510', 'f4', ('y', 'x'))[:] = np.full((2, 3), np.nan)
+        ac = Mock(); ac.acolite.acolite_run.return_value = {'X': {'l1r': [str(l1r)], 'l2r': [], 'l2w': []}}
+        self.assertEqual(process(ac, 'in', 'settings.txt', output), {'l1r': str(l1r), 'empty': True})
+        # Con datos en el L1R, la falta de L2R sí es un error.
+        with netCDF4.Dataset(l1r, 'a') as ds:
+            ds['rhot_510'][0, 0] = 0.1
+        with self.assertRaises(ValueError):
+            process(ac, 'in', 'settings.txt', output)
 
     def test_missing_land_mask_stops_before_acolite(self):
         from oceanos.mascara import path_for

@@ -781,8 +781,25 @@ def extract(ac, archive, raw, available):
     return {'input':str(bundle)}
 
 
+def without_data(l1r):
+    """Verdadero si el L1R (ya en la grilla de la zona) no tiene ningún píxel TOA válido.
+
+    Pasa cuando la huella aproximada de la escena toca la zona pero la franja real del sensor no la
+    cubre (en el ensayo de enero 2026, pasadas OLCI de ~14:00 UTC sobre el borde este): ACOLITE
+    escribe el L1R vacío y no produce L2R ni L2W.
+    """
+    import netCDF4
+    import numpy as np
+    with netCDF4.Dataset(l1r) as dataset:
+        bands = [name for name in dataset.variables if name.startswith('rhot_')]
+        return bool(bands) and not any(np.isfinite(np.ma.filled(dataset[name][:], np.nan)).any() for name in bands)
+
+
 def process(ac, input_path, settings, output):
-    """Ejecuta ACOLITE con los settings de una zona y devuelve las rutas de L1R, L2R y L2W."""
+    """Ejecuta ACOLITE con los settings de una zona y devuelve las rutas de L1R, L2R y L2W.
+
+    Si la escena no tiene datos sobre la zona, devuelve {'l1r': ruta, 'empty': True}.
+    """
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     result = ac.acolite.acolite_run(str(settings), inputfile=str(input_path), output=str(output))
@@ -793,10 +810,12 @@ def process(ac, input_path, settings, output):
     for key in ['l1r','l2r','l2w']:
         value = record.get(key)
         if isinstance(value, list):
-            if len(value) != 1:
+            if len(value) > 1:
                 raise ValueError('Cantidad de salidas inesperada')
-            value = value[0]
+            value = value[0] if value else None
         if not value or not Path(value).is_file():
+            if key != 'l1r' and without_data(normalized['l1r']):
+                return {'l1r': normalized['l1r'], 'empty': True}
             raise ValueError('Falta salida '+key)
         normalized[key] = value
     return normalized
