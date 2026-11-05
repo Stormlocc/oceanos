@@ -1,6 +1,6 @@
 # Documentación OCEANOS
 
-Actualizado: 4 de noviembre de 2026 (versión 0.4.0). AOI vigente: `water2coast_v1` (4 zonas). Legado: `lapargera_v1`.
+Actualizado: 5 de noviembre de 2026 (versión 0.4.0). AOI vigente: `water2coast_v1` (4 zonas). Legado: `lapargera_v1`.
 
 | Documento | Para qué sirve |
 |---|---|
@@ -15,7 +15,7 @@ Actualizado: 4 de noviembre de 2026 (versión 0.4.0). AOI vigente: `water2coast_
 ## Estado
 
 - **Superimagen Water2Coast implementada.** Comprende:
-  - escenas COG por zona con `calidad.tif` y linaje;
+  - escenas COG por zona con `calidad.tif` (13 bandas: flags, glint, AOT y geometría) y linaje, incluida la corrección atmosférica;
   - máscara WorldCover;
   - sargazo diario;
   - compuestos (a) mejor píxel y (b) media ponderada, mensuales, estacionales y anuales;

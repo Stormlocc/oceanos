@@ -72,7 +72,7 @@ Nombres verificados en `acolite/acolite/acolite_l2w.py` de la revisión `80da0c0
 
 Verificado en la revisión fijada:
 
-- **MERRA-2 meteorológico** (ozono, vapor, presión, viento): siempre, con `ancillary_data=True` (default).
+- **MERRA-2 meteorológico** (ozono, vapor, presión, viento): siempre, con `ancillary_data=True` (default). ACOLITE lo baja de OB.DAAC (`oceandata_url`, `oceandata.sci.gsfc.nasa.gov/getfile`) con la cuenta `earthdata` de `~/.netrc`.
 - **Aerosol MERRA-2:** solo si `dsf_aot_estimate` empieza con `ancillary`. No es el caso: el default es DSF.
 - **DEM:** solo con `dem_pressure` o `dem_shadow_mask`. **TACT:** solo con `tact_run`. Ninguno está activo.
 - **LUT:** se descargan la primera vez por sensor (`acolite/data/LUT`), incluidas `S3A_OLCI`/`S3B_OLCI` para OLCI.
@@ -94,11 +94,6 @@ Después de cada ACOLITE, por zona (`escenas.export`):
   - `vza` y `raa`: ángulo cenital de vista y azimut relativo (grados) del L2R. Con geometría resuelta varían por píxel; si ACOLITE solo deja el valor de la escena, se repite.
   - Lo que ACOLITE no escribió queda NaN.
   - **Compatibilidad:** los productos de enero de 2026 tienen el `calidad.tif` anterior de 10 bandas, sin las tres últimas. Las bandas nuevas van siempre al final y se leen por nombre, así que compuestos y sargazo siguen leyendo los dos formatos. Pedir `aot_550`, `vza` o `raa` a un archivo antiguo falla: esas bandas no existen ahí.
-
-**Por qué AOT y geometría (04-11-2026).** El ensayo de investigación `~/projects/oceanos-incertidumbre` (incertidumbre aprendida entre sensores) mostró que la calidad del píxel predice el desacuerdo entre sensores, pero le faltaban el aerosol y la geometría. ACOLITE los calcula y OCEANOS los perdía al borrar el L2R.
-- **Aerosol:** con `dsf_aot_estimate=tiled`, el default de S2, Landsat y OLCI en la revisión fijada, ACOLITE estima el AOT en teselas de 600×600 píxeles y lo interpola. Por defecto solo guarda el modelo (`ac_model`) y la media (`ac_aot_550_mean`) como atributos. Con `dsf_write_aot_550=True` (perfil, `acolite`) escribe además `aot_550` en el L2R (`acolite_l2r.py`, «write aot to outputfile»).
-- **No cambia la Rrs ni los productos:** es una salida más. El SHA de los settings sí cambia y queda en el linaje.
-- **No se guarda el L2R:** sigue borrándose tras exportar; solo se copian `aot_550`, `vza` y `raa`, como ya se hacía con `rhog_ref`.
 - **Escritura atómica:** se escribe en `<carpeta>.parcial` y se renombra al terminar. Luego se verifica que cada COG existe, tiene su tamaño y GDAL lo abre.
 - **Borrado:** solo después de exportar, verificar y registrar el linaje se borran L1R, L2R y L2W de la zona. Al cerrar la escena se borran también el crudo y la extracción. Si algo falla no se borra nada: el proceso queda `FALLIDO` con su temporal (`limpieza APLAZADA`), y el siguiente intento reutiliza el crudo si su SHA-256 coincide.
 - **Linaje** (`productos_escena`, una fila por escena, zona y AOI):
@@ -113,6 +108,11 @@ Después de cada ACOLITE, por zona (`escenas.export`):
     - `zona`: medias de `aot_550`, `vza` y `raa` sobre el agua de la zona.
     - Los productos exportados antes de la migración la tienen vacía.
 - Los COG llevan además su metadata mínima, legible desde `gdalinfo` o ArcGIS: escena, proveedor, zona, sensor, revisión de ACOLITE, máscara y SHA-256 de los settings.
+
+**Por qué AOT y geometría (04-11-2026).** El ensayo de investigación `~/projects/oceanos-incertidumbre` (incertidumbre aprendida entre sensores) mostró que la calidad del píxel predice el desacuerdo entre sensores, pero le faltaban el aerosol y la geometría. ACOLITE los calcula y OCEANOS los perdía al borrar el L2R.
+- **Aerosol:** con `dsf_aot_estimate=tiled`, el default de S2, Landsat y OLCI en la revisión fijada, ACOLITE estima el AOT por teselas y lo interpola: 600×600 píxeles en S2, 200×200 en Landsat y 120×120 en OLCI (≈6 km en S2 y Landsat, ≈36 km en OLCI; [ACOLITE](02_acolite.md#corrección-atmosférica-dsf)). Por defecto solo guarda el modelo (`ac_model`) y la media (`ac_aot_550_mean`) como atributos. Con `dsf_write_aot_550=True` (perfil, `acolite`) escribe además `aot_550` en el L2R (`acolite_l2r.py`, «write aot to outputfile»).
+- **No cambia la Rrs ni los productos:** es una salida más. El SHA de los settings sí cambia y queda en el linaje.
+- **No se guarda el L2R:** sigue borrándose tras exportar; solo se copian `aot_550`, `vza` y `raa`, como ya se hacía con `rhog_ref`.
 
 ## Nubes: máximo 50 % por zona
 

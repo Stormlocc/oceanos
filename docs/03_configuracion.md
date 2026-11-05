@@ -6,7 +6,7 @@ Los perfiles de `config/aoi/water2coast_v1/` son configuración de OCEANOS: **AC
 
 | Archivo | Contenido |
 |---|---|
-| `project.yaml` | Perfil común: AOI (archivo, SHA-256, campo `Name`), zonas con su EPSG, orden de los sensores, settings ACOLITE comunes (glint), nubes ≤ 50 % por zona, reintentos (3 intentos, esperas de 10/30 s), presupuestos (50 GB temporales, 120 GB superimagen), máscara WorldCover, umbrales de glint y bits de flags de sargazo y compuestos |
+| `project.yaml` | Perfil común: AOI (archivo, SHA-256, campo `Name`), zonas con su EPSG, orden de los sensores, settings ACOLITE comunes (glint y AOT por píxel), nubes ≤ 50 % por zona, reintentos (3 intentos, esperas de 10/30 s), presupuestos (50 GB temporales, 120 GB superimagen), máscara WorldCover, umbrales de glint y bits de flags de sargazo y compuestos |
 | `sentinel2.yaml` | S2A/S2B/S2C L1C desde CDSE, 10 m, tiles por zona y productos |
 | `landsat.yaml` | L8/L9 L1TP C2 T1 desde USGS (`landsat_ot_c2_l1`), 30 m, path/row por zona y productos |
 | `olci.yaml` | S3A/S3B `OL_1_EFR___` desde CDSE, 300 m y productos (sin FAI: OLCI no tiene ~1610 nm) |
@@ -32,6 +32,7 @@ El perfil `config/aoi/lapargera_v1/` queda solo como registro del legado: `run` 
 | `output_projection_resolution_align` | False | Los rangos ya están alineados; con True ACOLITE cambia la forma en un píxel |
 | `output_projection_resampling_method` | nearest | Sin mezclar píxeles |
 | `dsf_residual_glint_correction`, `glint_write_rhog_ref` | True | Corrección de glint y `rhog_ref` por píxel |
+| `dsf_write_aot_550` | True | AOT a 550 nm por píxel en el L2R, que OCEANOS copia a `calidad.tif`; no cambia Rrs ni productos |
 | `rgb_rhot`, `rgb_rhos` | False | Evitar PNG no solicitados |
 | `l1r/l2r/l2w_delete_netcdf`, `delete_extracted_input` | False | La limpieza la decide OCEANOS después de exportar y verificar |
 | `delete_acolite_run_text_files` | True | No conservar logs de éxito |

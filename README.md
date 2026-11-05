@@ -15,8 +15,8 @@ OCEANOS y ACOLITE corren en Linux: en Windows se usan dentro de **WSL2 con Ubunt
 | Recurso | Mínimo | Recomendado | Por qué |
 |---|---|---|---|
 | Windows | 10 22H2 u 11, 64 bits, virtualización activada en la BIOS | Windows 11 | WSL2 |
-| RAM | 8 GB | 16 GB o más | ACOLITE usa 4,8 GB (S2) a 6,6 GB (Landsat, OLCI) por escena |
-| Disco libre | 200 GB | 250 GB | 120 GB de superimagen, 50 GB de temporales, ~10 GB de entornos y ~2 GB de LUT y auxiliares |
+| RAM | 8 GB | 16 GB o más | Pico de ACOLITE medido en enero de 2026: hasta 7,9 GB (S2), 1,1 GB (Landsat) y 2,6 GB (OLCI) por escena |
+| Disco libre | 200 GB | 250 GB | 120 GB de superimagen, 50 GB de temporales, ~10 GB de entornos y ~4 GB de LUT y auxiliares |
 | Cuentas | CDSE, USGS ERS con acceso M2M, NASA Earthdata | — | Descargas de S2/OLCI, Landsat y MERRA-2 |
 
 ### 1. Instalar WSL2 con Ubuntu (PowerShell de Windows como administrador)
@@ -27,7 +27,7 @@ wsl --install -d Ubuntu-24.04
 
 Reinicia cuando lo pida. Al abrir **Ubuntu** desde el menú Inicio, crea tu usuario y contraseña de Linux.
 
-**Opcional: más RAM para WSL.** Por defecto WSL usa la mitad de la RAM de Windows. Para cambiarlo:
+**Opcional: más RAM para WSL.** Por defecto WSL usa la mitad de la RAM de Windows (un equipo de 32 GB queda con ~16 GB en Linux), y OCEANOS reparte las escenas según la RAM que ve WSL. Para cambiarlo:
 1. Crea `C:\Users\<tu_usuario>\.wslconfig` con este contenido (ajusta los valores a tu equipo):
 
    ```ini
@@ -36,7 +36,7 @@ Reinicia cuando lo pida. Al abrir **Ubuntu** desde el menú Inicio, crea tu usua
    processors=8
    ```
 
-2. Aplica el cambio en PowerShell con `wsl --shutdown`.
+2. Aplica el cambio en PowerShell con `wsl --shutdown`. Esto apaga WSL entero: no lo hagas con un `run` en curso.
 
 ### 2. Paquetes, micromamba y repositorios (terminal de Ubuntu)
 
@@ -75,7 +75,7 @@ machine earthdata            login TU_USUARIO_NASA    password TU_CLAVE_NASA
 | `cdse` | [Copernicus Data Space](https://dataspace.copernicus.eu) | Sentinel-2 y Sentinel-3 OLCI |
 | `earthexplorer_token` | [USGS ERS](https://ers.cr.usgs.gov) | Landsat por M2M. El token de 64 caracteres se genera en el perfil ERS; la cuenta necesita el acceso de descarga M2M (*Access Request*) |
 | `earthexplorer` | USGS ERS (usuario y contraseña) | Respaldo de descarga Landsat por EarthExplorer |
-| `earthdata` | [NASA Earthdata](https://urs.earthdata.nasa.gov) | Auxiliares MERRA-2 que pide ACOLITE. Autoriza la aplicación *NASA GESDISC DATA ARCHIVE* en tu perfil |
+| `earthdata` | [NASA Earthdata](https://urs.earthdata.nasa.gov) | Auxiliares MERRA-2 que pide ACOLITE a OB.DAAC (`oceandata.sci.gsfc.nasa.gov`). Usuario y contraseña de la cuenta Earthdata, no un token. Si son incorrectos, NASA responde 401 y la escena falla con `AUXILIAR_POR_DEFECTO` |
 
 Las credenciales nunca van al repositorio ni al catálogo.
 
@@ -103,7 +103,7 @@ oceanos run --start 2026-01-01 --end 2026-02-01          # descarga y procesa to
 ```
 
 La primera ejecución descarga además:
-- las LUT de ACOLITE (~1–2 GB en `~/acolite/data`);
+- las LUT de ACOLITE, desde el repositorio `acolite/acolite_luts` de GitHub: ~0,5 GB por satélite y ~3,6 GB con los siete (S2A/B/C, L8/9, S3A/B), en `~/acolite/data/LUT`. El primer ACOLITE de cada equipo corre solo mientras las baja;
 - los tiles de ESA WorldCover para las máscaras de tierra.
 
 Un `run` se puede cortar con Ctrl+C y repetir: continúa donde quedó.

@@ -188,3 +188,17 @@ Al reintentar, las escenas fallidas reutilizaron su descarga por SHA-256: 17 en 
 
 - **Disco:** la superimagen de enero ocupa ~20 GB de los 120 GB. Los temporales quedaron limpios (152 KB).
 - **Descarga:** 62,5 GB de L1 en total, entre S2 19,6, Landsat 12,9 y OLCI ~30, con reintentos y reutilización.
+
+### Primera escena con AOT y geometría (05-11-2026)
+
+Enero se repite con el commit `dc0ab56` (catálogo v6) en otra máquina con el wrapper instalado (WSL con 24 núcleos y 15,5 GB de RAM, la mitad de los 32 GB de Windows por el default de WSL). Primer producto exportado: `S2B_MSIL1C_20260103T145729_N0511_R039_T20QKF`, Fajardo–Culebra.
+
+- **`calidad.tif`:** 13 bandas, 65 MB, 5481 × 2693.
+  - `aot_550` tiene valores en el 87 % de la grilla (todo lo que la escena cubre), entre 0,063 y 0,184, con media 0,119.
+  - `vza` (8,8–11,8°) y `raa` (41,8–57,7°) tienen valores en el 63 %, la misma cobertura que `angulo_glint`.
+- **Linaje `correccion`:** `{"modelo": "ACOLITE-LUT-202110-MOD1", "dsf_aot_estimate": "tiled", "aot_550_escena": 0.1237, "sza": 46.53, "vza": 9.05, "raa": 46.94, "zona": {"aot_550": 0.1043, "vza": 10.44, "raa": 46.86}}`.
+- **Migración:** el catálogo v5 de esa máquina pasó a v6 con respaldo, sin perder productos.
+
+**Lecciones de la puesta en marcha:**
+- **Credenciales Earthdata:** con una contraseña incorrecta en la máquina `earthdata` de `~/.netrc`, OB.DAAC responde 401 («Credentials (username, password) are invalid»). ACOLITE sigue entonces con los valores por defecto y la escena falla con `AUXILIAR_POR_DEFECTO`. El log no muestra el 401: se diagnosticó pidiendo el mismo archivo MERRA-2 con `requests`.
+- **LUT en una máquina nueva:** solo estaban las de S2A. El primer ACOLITE de S2B corrió solo mientras bajaba sus LUT; eso dejó el lote ~20 min con la CPU casi parada.

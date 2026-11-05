@@ -63,4 +63,6 @@ La Parguera, 19QGV, EPSG:32619, una grilla de 2440 × 7335 píxeles de 10 m (geo
 | 3–10. Catálogo, perfil y ensayos `lapargera_v1` | 25/30-09-2026 | Productos acuáticos enmascarados por el umbral SWIR sin glint residual ([resultados](05_resultados.md)) |
 | 11. Wrapper, cola, catálogo legible y paralelo | 30-09/03-11-2026 | CLI `oceanos`, SQLite, reintentos, descargas propias en streaming, reparto dinámico del hardware |
 | 12. Superimagen Water2Coast | 04-11-2026 | 4 zonas, resolución nativa, glint, COG con calidad y linaje, WorldCover, sargazo, compuestos, `run` único, M2M, OLCI, catálogo v5 ([superimagen](07_superimagen.md)) |
-| Siguiente | — | Ensayo dic-2025/ene-2026, calibración de glint y luego 12 meses (nov-2025 a oct-2026). Docker/Airflow sin iniciar ([pendientes](06_pendientes.md)) |
+| 13. Ensayo de enero de 2026 | 04/05-11-2026 | S2, Landsat y OLCI en las 4 zonas: 148 zonas OK, ~20 GB; umbrales de glint calibrados para enero ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)) |
+| 14. AOT y geometría | 05-11-2026 | `aot_550`, `vza` y `raa` en `calidad.tif` (13 bandas) y linaje `correccion`; catálogo v6 ([superimagen](07_superimagen.md#etapa-escenas)) |
+| Siguiente | — | Reprocesar enero con `calidad.tif` de 13 bandas, revisar glint con un mes de verano y luego más meses. Docker/Airflow sin iniciar ([pendientes](06_pendientes.md)) |

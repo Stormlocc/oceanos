@@ -1,6 +1,6 @@
 # Pendientes, riesgos y trabajo futuro
 
-Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borrado de datos del usuario y los cambios de alcance se consultan antes.
+Estado al 05-11-2026. Las descargas no cubiertas por las autorizaciones, el borrado de datos del usuario y los cambios de alcance se consultan antes.
 
 ## Superimagen: lo que falta
 
@@ -10,6 +10,7 @@ Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 | Calibración de glint | Con enero se mantienen 0,005 / 0,02 (S2 y Landsat) y 20° (OLCI, que en enero no descarta nada). Revisar con un mes de verano antes de procesar más meses |
 | Respaldo EarthExplorer | 3 de 12 escenas Landsat lo usaron en enero sin motivo registrado; ahora queda en `via_descarga`. Revisar el motivo en el próximo lote |
 | Más meses | Por decisión del usuario se trabaja solo enero de 2026, con cuota de 120 GB: un mes ocupa ~20 GB |
+| Enero con `calidad.tif` de 13 bandas | Los productos de enero tienen el `calidad.tif` de 10 bandas, sin AOT ni geometría. Reprocesarlo (en curso el 05-11-2026 en otra máquina) y anotar aquí el resultado |
 | Costos en la nube | Siguiente paso: estimar cómputo y almacenamiento con las cifras medidas en enero |
 
 ## Pendientes científicos
@@ -17,7 +18,7 @@ Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 | Tema | Estado y siguiente paso |
 |---|---|
 | Datos in situ | Necesarios para aceptar cualquier producto: clorofila, turbidez y Kd coincidentes, con ubicación, hora, profundidad y control de calidad |
-| Máscara L2W de ACOLITE | Con glint residual activo los productos acuáticos ya no deberían quedar enmascarados como en `lapargera_v1` ([resultados](05_resultados.md)); confirmarlo en el ensayo |
+| Máscara L2W de ACOLITE | Confirmado en enero de 2026: con glint residual activo los productos acuáticos ya no quedan enmascarados como en `lapargera_v1` ([resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026)). Revisar con un mes de verano |
 | Agua muy somera y arrecifes | El fondo puede contaminar Rrs y FAI en La Parguera; evaluar con datos in situ |
 | Media ponderada y variables parciales | En (b) estacional/anual, ponderar por `peso_total` es exacto salvo donde una variable faltaba en parte de las observaciones del mes ([07](07_superimagen.md#compuestos-de-calidad-de-agua)) |
 
@@ -38,9 +39,11 @@ Estado al 04-11-2026. Las descargas no cubiertas por las autorizaciones, el borr
 
 Resuelto: conexión SQLite (WAL) por hilo, reservas de RAM por etapa con la RAM libre del equipo, prioridad a lo más avanzado, máximo 4 descargas CDSE, un ACOLITE por día, LUT preparadas por el primer ACOLITE ([operación](04_operacion.md#paralelo)).
 
+Comprobado en enero de 2026: CDSE acepta 4 descargas a la vez (S2 corrió con 5–7 escenas en curso) y un corte de descarga S2 se reanudó con `Range`. En USGS no se midió cuántas descargas M2M coincidieron.
+
 Pendiente:
-- **Sin ensayo real con descargas.** Falta medir la ganancia y confirmar que CDSE y USGS aceptan descargas simultáneas y responden 206 a `Range`.
-- **Picos de RAM de OLCI y exportación.** Valores iniciales (6,6 y 1,5 GB) sin medición; se reemplazan solos por la mediana de los procesos `OK`.
+- **Ganancia del paralelo.** No se midió contra una corrida de a una escena.
+- **Pico de ACOLITE S2 sin historial.** El valor inicial (4,8 GB) queda corto: en enero se midieron hasta 7,85 GB. Con historial se usa el mayor pico de los últimos 20 procesos `OK` más un 10 %, así que solo afecta a un catálogo nuevo. Subir el valor inicial si un equipo nuevo se queda sin RAM.
 
 ## Trabajo futuro (no iniciado)
 

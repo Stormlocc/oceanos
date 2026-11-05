@@ -43,24 +43,27 @@ Entradas que reconoce `acolite_run`: SAFE L1C (rechaza otro nivel), ZIP/TAR comp
 
 - **Sentinel-2:** CRS y grillas 10/20/60 m desde la metadata del gránulo; `s2_target_res=10`; GDAL Warp con `average` lleva las bandas a 10 m; aplica `RADIO_ADD_OFFSET` y cuantificación. Geometría por defecto en grilla de 60 m.
 - **Landsat:** lee Collection 2 por MTL (exige L1) y usa `nearest`. Tier 1 es un criterio de selección del catálogo, no del lector. NDCI no existe para OLI (no hay banda red-edge).
-- L1R contiene `rhot_*`, lon/lat, geometría y la proyección NetCDF; es el intermedio que OCEANOS conserva.
+- L1R contiene `rhot_*`, lon/lat, geometría y la proyección NetCDF. En la superimagen es temporal: se borra tras exportar (solo el legado `lapargera_v1` conserva L1R).
 
 ## Corrección atmosférica (DSF)
 
 Defaults de la revisión fijada, conservados sin cambios:
 
-| Grupo | Sentinel-2 (S2A/B/C) | Landsat 8/9 |
-|---|---|---|
-| Método | `dark_spectrum`, AOT `tiled`, `intercept`, 2 bandas | igual |
-| Rango espectral de ajuste | 400–900 nm | 400–2500 nm |
-| Píxeles de intercepto | 200 | 200 |
-| Tiles DSF | 600×600 (≈6 km a 10 m) | 200×200 a 30 m; el perfil usa 600×600 a 10 m (≈6 km) |
+| Grupo | Sentinel-2 (S2A/B/C) | Landsat 8/9 | Sentinel-3 OLCI |
+|---|---|---|---|
+| Método | `dark_spectrum`, AOT `tiled`, `intercept`, 2 bandas | igual | AOT `tiled`, `percentile` (p5), 2 bandas, sin Oa01–Oa02 |
+| Rango espectral de ajuste | 400–900 nm | 400–2500 nm | 400–2500 nm |
+| Píxeles de intercepto | 200 | 200 | 200 |
+| Tiles DSF | 600×600 (≈6 km a 10 m) | 200×200 (≈6 km a 30 m) | 120×120 (≈36 km a 300 m), AOT suavizado en 10×10 |
+| Reflectancia de interfaz en el DSF | No | No | Sí (`dsf_interface_reflectance`) |
 
-Gases y auxiliares activos (`gas_transmittance=True`, `ancillary_data=True`, GMAO MERRA-2): `ancillary.get` **descarga** auxiliares y, si falla, sigue en silencio con los defaults (`uoz_default`, `uwv_default`, `pressure_default`); OCEANOS lo detecta ([superimagen](07_superimagen.md#datos-externos-que-pide-acolite)). **Glint residual activo** desde Water2Coast (`dsf_residual_glint_correction=True`, `glint_write_rhog_ref=True`): ACOLITE la corrige donde rhos(1600 nm) ≤ `glint_mask_rhos_threshold` (0,05) y escribe `rhog_ref`. **AOT por píxel** desde noviembre de 2026 (`dsf_write_aot_550=True`): ACOLITE escribe `aot_550` en el L2R, y OCEANOS lo copia a `calidad.tif` junto con `vza` y `raa` ([superimagen](07_superimagen.md#etapa-escenas)). Adyacencia (GLAD/RAdCor), interfaz y DEM siguen desactivados. La primera ejecución prepara LUT en `acolite/data` (≈0,6 GB en el ensayo; hoy `data` ocupa ≈1,8 GB) y cuenta en el presupuesto de disco.
+Valores de `config/defaults.txt` y `config/defaults/<sensor>.txt`; el perfil no cambia ninguno.
+
+Gases y auxiliares activos (`gas_transmittance=True`, `ancillary_data=True`, GMAO MERRA-2): `ancillary.get` **descarga** auxiliares y, si falla, sigue en silencio con los defaults (`uoz_default`, `uwv_default`, `pressure_default`); OCEANOS lo detecta ([superimagen](07_superimagen.md#datos-externos-que-pide-acolite)). **Glint residual activo** desde Water2Coast (`dsf_residual_glint_correction=True`, `glint_write_rhog_ref=True`): ACOLITE la corrige donde rhos(1600 nm) ≤ `glint_mask_rhos_threshold` (0,05) y escribe `rhog_ref`. **AOT por píxel** desde noviembre de 2026 (`dsf_write_aot_550=True`): ACOLITE escribe `aot_550` en el L2R, y OCEANOS lo copia a `calidad.tif` junto con `vza` y `raa` ([superimagen](07_superimagen.md#etapa-escenas)). Adyacencia (GLAD/RAdCor) y DEM siguen desactivados; la reflectancia de interfaz solo la activa el default de OLCI (tabla de arriba). La primera ejecución de cada satélite **descarga** sus LUT de `acolite/acolite_luts` en GitHub (`lut_url` de `config/config.txt`): ~0,5 GB por satélite. Con los siete satélites `data/LUT` ocupa ≈3,6 GB y `data` ≈4 GB, que cuentan en el presupuesto de disco.
 
 ## L2R
 
-`acolite_run` reconoce un L1R ACOLITE y ejecuta **L1R → AC → L2R → L2W**. En la superimagen L1R, L2R y L2W son temporales: de L2R se leen `rhog_ref`, la geometría y los auxiliares usados, y se borra tras exportar. No se regenera desde L1R (el comando `derive` del legado se retiró); reprocesar significa volver a descargar, porque un L1R recortado a una zona no sirve para otra.
+`acolite_run` reconoce un L1R ACOLITE y ejecuta **L1R → AC → L2R → L2W**. En la superimagen L1R, L2R y L2W son temporales: de L2R se leen `rhog_ref`, `aot_550`, la geometría y los auxiliares usados, y se borra tras exportar. No se regenera desde L1R (el comando `derive` del legado se retiró); reprocesar significa volver a descargar, porque un L1R recortado a una zona no sirve para otra.
 
 ## L2W, productos y flags
 

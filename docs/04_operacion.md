@@ -101,7 +101,7 @@ oceanos run --start 2026-01-01 --end 2026-02-01
      - Landsat: `native.usgs_download`, por M2M con `download-options` → `download-request` → URL, y EarthExplorer como respaldo.
    - **Redirecciones.** Solo se siguen hacia `dataspace.copernicus.eu` o `usgs.gov`.
    - **Reanudación.** Un intento cortado se reanuda con `Range` + `If-Range`.
-   - **Reintentos.** Hasta 3 intentos, con esperas de 10 y 30 s. Si la cuota se supera (429), se espera según `Retry-After` si no pasa de 60 s.
+   - **Reintentos.** Hasta 3 intentos, con esperas de 10 y 30 s. Si la cuota se supera (429), se espera al menos 30 s, o lo que pida `Retry-After` si no pasa de 60 s; si pide más, se deja de intentar.
    - **Verificación.** Se comprueban el tamaño y los checksums del proveedor, y se guarda el SHA-256 propio.
 5. **Extracción** en el temporal, rechazando rutas fuera de la carpeta y enlaces.
 6. **Por cada zona pendiente:**
@@ -144,13 +144,16 @@ Paralelo: 8 escena(s) a la vez · equipo 20 CPU, 29.4 GB RAM (28.0 GB libre) · 
 
   | Etapa | RAM |
   |---|---|
+  | Búsqueda | 1,0 GB |
   | Descarga | 0,4 GB |
   | Extracción | 1,2 GB |
+  | Nubes | 0,8 GB |
   | ACOLITE, Sentinel-2 | 4,8 GB |
   | ACOLITE, Landsat | 6,6 GB |
   | ACOLITE, OLCI | 6,6 GB |
   | Exportación | 1,5 GB |
 
+- **Medido en enero de 2026** (catálogo de la laptop): ACOLITE S2 hasta 7,85 GB, Landsat 1,1 GB y OLCI 2,6 GB; exportación S2 hasta 3,1 GB. Un catálogo nuevo arranca con los valores sin historial, que en S2 se quedan cortos hasta que haya procesos `OK`.
 - **Espera.** Si no cabe, espera y la barra dice el motivo.
 - **Etapa sola.** Una etapa sola siempre arranca, para no bloquear equipos pequeños.
 
@@ -175,7 +178,7 @@ Paralelo: 8 escena(s) a la vez · equipo 20 CPU, 29.4 GB RAM (28.0 GB libre) · 
 ### Recursos compartidos de ACOLITE
 
 - **Auxiliares.** Dos ACOLITE del mismo día no corren a la vez, porque pedirían el mismo auxiliar.
-- **LUT.** Si faltan las LUT de una plataforma, el primer ACOLITE corre solo mientras las prepara.
+- **LUT.** Si faltan las LUT de alguna plataforma del lote, el primer ACOLITE corre solo: espera a que terminen las etapas en curso (también las descargas) y nada más arranca hasta que acabe. ACOLITE baja entonces las LUT de ese satélite (~0,5 GB). En un equipo nuevo esto puede tardar decenas de minutos con poca CPU en uso; después el lote sigue en paralelo.
 - **`scratch`.** Cada etapa usa su propio `scratch`.
 
 ### Interrupción
