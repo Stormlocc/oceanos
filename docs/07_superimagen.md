@@ -163,7 +163,7 @@ Un mes sin escenas válidas no tiene compuesto, pero cuenta como completo para s
 | `rhos_mask_threshold` | 0,05 | `glint_mask_rhos_threshold` de ACOLITE (`config/defaults.txt`) |
 | `minimum_glint_angle_deg` (OLCI) | 20° | Punto de partida de Digital Earth Australia, según el requisito |
 
-Los cortes se calibran con los histogramas de `rhog_ref` por zona y sensor de diciembre de 2025 y enero de 2026; el resultado del ensayo queda en [resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026). A 18° N, en diciembre y enero el sol está bajo a la hora de paso (~10:30 local) y el glint es menor que en verano: el valor elegido deberá revisarse con datos de verano.
+**Calibración con enero de 2026 (S2 y Landsat, 4 zonas):** se mantienen 0,005 y 0,02, con el bit 0 descartado. La mediana de `rhog_ref` en el agua limpia va de 0,0010 a 0,0054 y el p99 no pasa de 0,018. Con 0,005, entre el 46 % y el 99 % del agua tiene peso 1. El corte de 0,02 casi nunca actúa (≤ 0,3 %), porque el bit 0 ya quitó el glint fuerte. Histogramas y justificación: [resultados](05_resultados.md#superimagen-ensayo-dic-2025--ene-2026). A 18° N el sol está bajo en enero a la hora de paso (~10:30 local) y el glint es menor que en verano: hay que revisar los cortes con un mes de verano antes de procesar los 12 meses.
 
 ## Disco
 

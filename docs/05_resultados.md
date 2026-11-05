@@ -91,11 +91,63 @@ Con 12 bits, 12 meses de S2 quedarían en ~160 GB: sigue por encima del presupue
 
 **Decisión del usuario (04-11-2026):** trabajar solo con **enero de 2026** y subir el presupuesto de la superimagen a **120 GB**. Se mantiene Float32 completo.
 
-Plan (requisitos de los investigadores):
+### Ensayo de enero de 2026: Sentinel-2 y Landsat (04-11-2026)
 
-1. `oceanos run --plan --start 2025-12-01 --end 2026-02-01` para S2 y Landsat: lista de escenas, tamaño de descarga y disco estimado, antes de bajar.
-2. Procesar primero un subconjunto pequeño y verificar las conexiones de MERRA-2, LUT y WorldCover; después dic–ene en las 4 zonas.
-3. Medir el tamaño real por escena y por mes frente a los 120 GB.
-4. Histograma de `rhog_ref` por zona y sensor: calibrar `full_weight_max` (0,005) y `discard_above` (0,02) y registrar aquí el valor final y su justificación ([umbrales](07_superimagen.md#umbrales-de-glint-origen-y-calibración)).
-5. Compuestos mensuales de diciembre de 2025 y enero de 2026 con los dos métodos lado a lado.
-6. Después, OLCI en el mismo periodo.
+Se corrió con `oceanos run --start 2026-01-01 --end 2026-02-01 --sensor sentinel2`, luego `--sensor landsat`, sobre `storage/` (catálogo migrado a v5). El ensayo se interrumpió una vez y se retomó con el mismo comando: las adquisiciones ya terminadas no se volvieron a descargar.
+
+| Sensor | Escenas | Fallidas | Zonas OK | NUBOSA | Descarga | Tiempo |
+|---|---|---|---|---|---|---|
+| Sentinel-2 | 35 | 0 | 42 | 7 | 19,6 GB | ~22 min + 50 min (en dos tandas, 5–7 escenas a la vez) |
+| Landsat 8/9 | 12 | 0 | 17 | 3 | 12,9 GB | 24,5 min |
+
+**Verificación de la implementación**
+- **Auxiliares:** los 59 productos tienen auxiliares MERRA-2 reales (ozono 0,244–0,269, vapor 2,49–4,50); ninguno con los valores por defecto.
+- **Linaje y archivos:** linaje completo en todos los productos (SHA-256, ID del proveedor, ACOLITE, settings y máscara). Ningún COG falta y GDAL abre todos.
+- **Vías de descarga:** CDSE en 42 productos, M2M en 9 escenas Landsat y EarthExplorer en 3. Las 3 por EarthExplorer fueron las primeras del lote. El motivo no quedó registrado, porque el respaldo no lo guardaba; desde el commit 1170de9 queda como `EARTHEXPLORER:<motivo>`. Se descartó que el `logout` de un token M2M invalide los de descargas paralelas: se probó contra M2M y el otro token sigue válido.
+- **Reanudación:** un corte de descarga de S2 se reanudó en el segundo intento.
+- **Sargazo diario:** 44 mapas (zona × día), 1,5 GB.
+- **Compuestos mensuales:** los 8 pares zona × sensor de enero tienen los dos métodos lado a lado, 16 compuestos en total.
+  - Cubren el 64–87 % de la zona con al menos una observación.
+  - Las medianas de `chl_oc3` difieren entre métodos en menos de 0,03 mg/m³ (p. ej. Fajardo S2: 0,355 mejor píxel y 0,364 media ponderada).
+  - `n_observaciones` máximo: 12 en Fajardo S2 y 6 donde dos tiles cubren la zona el mismo día, porque cada día cuenta una vez.
+- **Estacionales y anuales:** no hay. Es lo esperado: DEF necesita diciembre y febrero completos, y el año está incompleto.
+
+**Disco real del mes (S2 + Landsat):**
+
+| Carpeta | Tamaño | Detalle |
+|---|---|---|
+| `escenas/` | 14 GB | S2 de 188 MB (La Parguera) a 542 MB (Fajardo) por producto; Landsat de 27–70 MB |
+| `calidad_agua/` | 4,2 GB | |
+| `sargazo/` | 1,5 GB | |
+| Total | ~19,7 GB | El plan estimó ~15,7 GB solo para S2 con 11 productos medidos |
+
+**Calibración del glint (`rhog_ref`, agua dentro de la zona y sin bits 0–4):**
+
+| Zona | Sensor | p50 | p95 | p99 | ≤ 0,005 | ≤ 0,02 |
+|---|---|---|---|---|---|---|
+| Fajardo–Culebra | S2 | 0,0043 | 0,0152 | 0,0177 | 55,6 % | 99,8 % |
+| Fajardo–Culebra | Landsat | 0,0033 | 0,0083 | 0,0139 | 73,8 % | 99,7 % |
+| La Parguera–Guánica | S2 | 0,0038 | 0,0077 | 0,0108 | 69,1 % | 100 % |
+| La Parguera–Guánica | Landsat | 0,0026 | 0,0060 | 0,0119 | 91,3 % | 99,8 % |
+| Mayagüez–Cabo Rojo | S2 | 0,0025 | 0,0081 | 0,0110 | 80,3 % | 100 % |
+| Mayagüez–Cabo Rojo | Landsat | 0,0010 | 0,0036 | 0,0053 | 98,6 % | 100 % |
+| Ponce–Guayanilla | S2 | 0,0054 | 0,0105 | 0,0135 | 46,0 % | 100 % |
+| Ponce–Guayanilla | Landsat | 0,0030 | 0,0079 | 0,0094 | 68,4 % | 99,9 % |
+
+Píxeles de agua descartados por flags: 14–44 % según zona y sensor.
+
+| Flag | Descarta | Causa |
+|---|---|---|
+| Bit 0 (SWIR alto en TOA) | 5–34 % | Causa principal |
+| Bit 1 (cirros) | 0–39 % | Landsat en Ponce, una escena con cirros |
+| Bit 2 (TOA alto) | 0–12 % | |
+
+De los píxeles marcados solo por el bit 0, el 51–94 % tampoco tiene `rhog_ref` ≤ 0,02: ACOLITE no corrigió su glint (rhos 1600 > 0,05), o son bordes de nube o de costa.
+
+**Decisión de calibración (enero de 2026):** se mantienen `full_weight_max` = 0,005 y `discard_above` = 0,02, y se mantiene el descarte del bit 0.
+
+- **0,005:** queda cerca de la mediana–p75 de los datos. Con él la media ponderada sí distingue: entre el 46 % (Ponce S2) y el 99 % (Mayagüez Landsat) del agua limpia tiene peso 1, y el resto baja de forma gradual.
+- **0,02:** casi nunca descarta (≤ 0,3 % del agua limpia), porque el bit 0 ya quitó el glint fuerte. Funciona como tope de seguridad.
+- **Revisión pendiente:** enero es temporada de glint bajo a 18° N. Los cortes deben revisarse con un mes de verano antes de procesar los 12 meses. Sentinel-2 tiene más glint que Landsat en las cuatro zonas: p50 0,0025–0,0054 frente a 0,0010–0,0033.
+
+Pendiente: OLCI en enero de 2026, con el histograma del ángulo de glint para revisar el corte de 20°.
