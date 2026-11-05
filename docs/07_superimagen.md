@@ -61,7 +61,7 @@ Nombres verificados en `acolite/acolite/acolite_l2w.py` de la revisión `80da0c0
 | CI | `chl_ci` | `chl_ci` | `chl_ci` | |
 | NDCI | `ndci` | — | `ndci` | Necesita 705–709 nm |
 | Turbidez / SPM (Nechad) | `tur_nechad2009`, `spm_nechad2010` | igual | igual | |
-| QAA y Kd490 | `qaa_v6_Kd_490` | igual | igual | Kd490 sale del QAA; se pide la clave exacta para no escribir todas las salidas QAA |
+| QAA y Kd490 | `qaa_v6_Kd_490` | igual | — | Kd490 sale del QAA; se pide la clave exacta para no escribir todas las salidas QAA. En OLCI no existe: ACOLITE solo configura el QAA para OLI y MSI, y el P3QAA tampoco tiene coeficientes OLCI (`acolite_l2w.py` y `data/Shared/algorithms/P3QAA/center_wl.csv` de la revisión fijada). Se detectó en el ensayo de enero de 2026: las 20 primeras escenas OLCI fallaron la validación por «Producto requerido ausente» |
 | FAI / FAIT / NDVI | `fai`, `fait`, `ndvi` | igual | — | FAI necesita ~1610 nm: OLCI no lo tiene. FAIT existe (`fait`, Dogliotti) |
 
 `--products` solo puede pedir un subconjunto del perfil. La validación técnica exige cada producto pedido en el L2W y todas las `Rrs_*` del L2R (`validation.product_variables`). `fai` no se satisface con `fait`.

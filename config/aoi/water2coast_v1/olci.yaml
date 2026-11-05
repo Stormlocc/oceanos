@@ -10,4 +10,6 @@ interval_end_exclusive_utc: "2026-11-01T00:00:00Z"
 # Sin tiles: una escena entra en las zonas que su huella cubre.
 # OLCI tiene 510 nm: OC4 solo aquí. La revisión fijada no configura chl_oc2/chl_oc3 para OLCI, ni
 # FAI/FAIT (sin SWIR); NDCI sí (665/709 nm).
-products: ["Rrs_*", chl_oc4, chl_ci, ndci, tur_nechad2009, spm_nechad2010, qaa_v6_Kd_490]
+# Sin Kd490: en la revisión fijada de ACOLITE el QAA (y el P3QAA) no está configurado para OLCI
+# ("QAA not configured for S3B_OLCI", acolite_l2w.py). Kd490 sale de Sentinel-2 y Landsat.
+products: ["Rrs_*", chl_oc4, chl_ci, ndci, tur_nechad2009, spm_nechad2010]

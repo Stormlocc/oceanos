@@ -71,7 +71,8 @@ Gases y auxiliares activos (`gas_transmittance=True`, `ancillary_data=True`, GMA
 | `chl_oc2`, `chl_oc3` | Coeficientes por sensor; OLI usa `chl_oc2f` | Sí |
 | `chl_oc4` | Solo OLCI en el perfil; no configurado para S2A/B/C | Sí |
 | `chl_re_gons`, `ndci` | Borde rojo: MSI (y OLCI para NDCI) | Sí |
-| `chl_ci`, `qaa_v6_Kd_490` | Todos los sensores | Sí |
+| `chl_ci` | Todos los sensores | Sí |
+| `qaa_v6_Kd_490` | Solo OLI y MSI: ACOLITE imprime «QAA not configured» para OLCI y no lo escribe | Sí |
 | `fai`, `fait`, `ndvi` | MSI y OLI (FAI necesita ~1610 nm; OLCI no la tiene) | **No** (`mask=False`) |
 
 Detalle por sensor: [superimagen](07_superimagen.md#productos-de-acolite).
